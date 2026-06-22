@@ -229,22 +229,6 @@ The six metrics for `lens="all"`, with the underlying funnel counts
 A value renders as `—` (not `0`) when its guard trips — e.g. for the `comparative` lens in this run
 the domain never reached sources, so the three source/citation metrics are all `—`.
 
-## Caveats (honest)
-
-- **Capture is visible and effectively manual per session** — it runs through a **logged-in**
-  Chrome (Claude-in-Chrome), not a headless scraper. The session is left untouched (no
-  incognito/logout/account switch), since the AI answer depends on the account and locale.
-- **The answer surface is non-deterministic** — the same query can return a different answer or
-  none at all. open-geo captures what rendered *right now* and does not retry hoping for a "better"
-  answer. Absence is **valid data** (`overview_present=false`) that feeds coverage — not a failure.
-- **`--n-worker` workers run in parallel.** The queries are split into N chunks and the N capture
-  sub-agents run concurrently, each in its own browser tab/context; `--n-worker` is the run's
-  concurrency.
-- **reCAPTCHA / "unusual traffic" risk** under load: on a challenge, capture **stops** and asks the
-  human to solve it in the open Chrome window rather than hammering the engine.
-- **ToS gray area** — automating a search/answer engine sits in a gray area of its terms of service.
-  Use a **dedicated account**, keep volume low, and treat this as a measurement tool, not a scraper.
-
 ## FAQ
 
 ### What input do I need?

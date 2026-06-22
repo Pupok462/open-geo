@@ -1,9 +1,22 @@
 # ---------------------------------------------------------------------------
 # open-geo .gitignore
-# Everything generated, local, or machine-specific. Source + the committed
-# skill (.claude/skills/), i18n/, examples/, requirements.txt, and
-# .claude-plugin/ are intentionally NOT ignored.
+# Everything generated, local, machine-specific, or maintainer-only. The
+# product skill (.claude/skills/open-geo/), the capture-worker agent, i18n/,
+# examples/, requirements.txt, and .claude-plugin/ stay committed; the
+# maintainer-only docs and dev skills below are excluded (kept locally).
 # ---------------------------------------------------------------------------
+
+# --- Maintainer-only — kept locally, excluded from the public repo ---
+# AI/agent working notes + internal planning (for the maintainer, not users).
+/CLAUDE.md
+/RECENT_CHANGES.md
+/ROADMAP.md
+# Dev/maintenance skills (not part of the product; the open-geo skill stays).
+.claude/skills/doc-sync/
+.claude/skills/bug-hunt/
+# Launch notes + personal smoke-test inputs.
+/LAUNCH.md
+/askona_smoke.csv
 
 # --- Python ---
 .venv/
