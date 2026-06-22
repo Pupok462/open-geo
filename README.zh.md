@@ -84,6 +84,10 @@ shell 命令。整个上手流程是：克隆、让 Claude 安装它，然后把
    /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
    ```
 
+> **`examples/questions.csv` 只是占位样例**——一个虚构品牌的问题集，让首次运行开箱即用。正式判读前，请换成
+> **你自己的**查询：问题集是核心输入，它决定*测量什么*，报告的质量取决于你所提问题的质量。格式与如何挑选见
+> FAQ「我需要什么输入？」。
+
 **按计划追踪。** 用 Claude Code 的 **`/loop`** 把命令包起来，以一定间隔重新捕获并
 观察漂移——例如做一次每周的判读：
 
@@ -235,9 +239,12 @@ Run for brand "Example" (engine google), queries: 24.
 ## FAQ
 
 ### 我需要什么输入？
-一份**含两列 `query,lens` 的 CSV**，其中 `lens ∈ general | branded | comparative`（`general`
-= 不点名品牌的中性查询；`branded` = 显式点名品牌；`comparative` = 品牌对比
-其他选项）。现成样例随附于 [`examples/questions.csv`](examples/questions.csv)。
+**你自己的一份问题清单**——一份**含两列 `query,lens` 的 CSV**，其中 `lens ∈ general | branded |
+comparative`（`general` = 不点名品牌的中性查询；`branded` = 显式点名品牌；`comparative` = 品牌对比
+其他选项）。这份文件由你撰写，而且**它是最重要的输入**：GEO 可见度是*相对于你所提的问题*来衡量的，
+因此整份报告的质量取决于问题集的质量。写下你真实客户会输入的查询，并在三种 lens 间保持均衡（每种几条
+即可起步）。随附的 [`examples/questions.csv`](examples/questions.csv) 只是某个虚构品牌的**占位样例**——
+用它了解格式，然后替换成你自己的。
 
 ### 我需要任何付费 API 密钥吗？
 不需要外部数据 API，也不需要付费密钥。你需要 **Claude Code**、已连接的 **Claude-in-Chrome**

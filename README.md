@@ -86,6 +86,11 @@ shell commands. The whole setup is: clone, ask Claude to install it, then use it
    /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
    ```
 
+> **`examples/questions.csv` is a placeholder** — a fictional brand's question set, there so the
+> first run works out of the box. For a real read, swap in **your own** queries: the question set is
+> the core input — it decides *what* gets measured, and the report is only as good as the questions
+> you ask. Format and how to choose them: [What input do I need?](#what-input-do-i-need).
+
 **Track it on a schedule.** Wrap the command in Claude Code's **`/loop`** to re-capture on an
 interval and watch the drift — e.g. a weekly read:
 
@@ -242,9 +247,14 @@ the domain never reached sources, so the three source/citation metrics are all `
 ## FAQ
 
 ### What input do I need?
-A **CSV with two columns, `query,lens`**, where `lens ∈ general | branded | comparative` (`general`
-= neutral query with no brand named; `branded` = brand explicitly named; `comparative` = brand vs
-alternatives). A ready sample ships at [`examples/questions.csv`](examples/questions.csv).
+**Your own list of questions** — a **CSV with two columns, `query,lens`**, where `lens ∈ general |
+branded | comparative` (`general` = neutral query with no brand named; `branded` = brand explicitly
+named; `comparative` = brand vs alternatives). You author this file, and **it is the single most
+important input**: GEO visibility is measured *relative to the questions you ask*, so the whole
+report is only as good as the question set. Write the queries your real customers would type,
+balanced across the three lenses (a handful of each is enough to start). The bundled
+[`examples/questions.csv`](examples/questions.csv) is a **placeholder** for a fictional brand — use
+it to see the format, then replace it with yours.
 
 ### Do I need any paid API keys?
 No external data API and no paid keys. You need **Claude Code**, the **Claude-in-Chrome** extension
