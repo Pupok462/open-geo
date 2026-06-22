@@ -22,8 +22,8 @@
 - `query` — the exact string to type into Google. Send it verbatim.
 - `lens` — one of `general` | `branded` | `comparative` (already decided
   upstream; copy it through, do not re-classify).
-- **target brand `name`** — e.g. `Acme` (for `brand_in_answer_text`).
-- **target `domain`** — e.g. `acme.com` or `https://www.acme.com` (you will
+- **target brand `name`** — e.g. `Example` (for `brand_in_answer_text`).
+- **target `domain`** — e.g. `example.com` or `https://www.example.com` (you will
   normalize it; see step 5).
 
 `engine` — the engine id the orchestrator passes you, **copied through verbatim**. For
@@ -79,8 +79,8 @@ Do **not** substitute `google_ai_overview` or any other string.
 >   from it.
 > - **Collect sources/citations → `read_page(filter="interactive")`** (plus `find`). It
 >   reliably returns the overview's source/citation elements as links with real `href`s —
->   e.g. an inline chip link `"Acme (+1), see related links"` (RU example:
->   `"Орма Мебель (+1), посмотреть ссылки по теме"`) href=`https://acme.com/…`, and
+>   e.g. an inline chip link `"Example (+1), see related links"` (RU example:
+>   `"Орма Мебель (+1), посмотреть ссылки по теме"`) href=`https://example.com/…`, and
 >   sources-panel cards href=`https://example.com/…`, href=`https://review-site.com/…`.
 >   A `"(+N)"` on a chip means **N more sources hide behind it.**
 >   **Every URL you need is already on the Google page — just READ its `href` from the
@@ -97,7 +97,7 @@ Do **not** substitute `google_ai_overview` or any other string.
 > - **Click only the `button` form, never the `link` form.** In the interactive tree each
 >   item exposes **two** forms: a **`link`** that *navigates to the source site* and a
 >   **`button`** that *expands in place*. Click **only `button`s** — the **"N sites"** (RU:
->   "N сайтов") button and a chip's **`button`** form (e.g. ref for `"Acme (+3)…"`
+>   "N сайтов") button and a chip's **`button`** form (e.g. ref for `"Example (+3)…"`
 >   **button**, not its `link`). **NEVER click the source `link`/card** ("…opens in a new
 >   tab"; RU: "Страница откроется в новой вкладке") or a chip's `link` — those open the
 >   source site, trip its captcha, and lose your place. For source cards you only ever
@@ -114,7 +114,7 @@ Do **not** substitute `google_ai_overview` or any other string.
 >   collecting **all N** cards (the "N sites" label tells you how many to expect). **Do not
 >   stop at the first 3–4 visible cards** — that under-captures `sources` and makes real
 >   citations look like they aren't in the panel.
-> - **URLs are frequently DIRECT** (e.g. `acme.com`, `example.com`), not Google redirect
+> - **URLs are frequently DIRECT** (e.g. `example.com`, `example.com`), not Google redirect
 >   wrappers — so unwrapping is often unnecessary, but still unwrap when a link *is*
 >   wrapped (see steps 3–4).
 
@@ -215,7 +215,7 @@ Three distinct states:
   array position exactly.
 - Prefer the **real destination URL**. The `href`s from
   `read_page(filter="interactive")` are **frequently DIRECT** (e.g.
-  `acme.com`, `example.com`) — when so, no unwrapping is needed. But Google
+  `example.com`, `example.com`) — when so, no unwrapping is needed. But Google
   sometimes wraps links in redirect trackers (`/url?q=…`, `google.com/url…`,
   grounding redirectors); when a link **is** wrapped, unwrap to the underlying
   target (the displayed publisher/host or the decoded `q=` param). If you
@@ -224,11 +224,11 @@ Three distinct states:
 ### 4. Extract `citations` — the inline attached link chips
 - These are the **inline badges/chips** sitting next to individual statements in
   the answer prose — the little source pills, e.g. **"Wikipedia"**, a favicon
-  with a **"(+N)"** counter, or **`"Acme (+1), see related links"`** (RU example:
+  with a **"(+N)"** counter, or **`"Example (+1), see related links"`** (RU example:
   `"Орма Мебель (+1), посмотреть ссылки по теме"`). Spot them in the
   **screenshot**; pull their link `href`s from **`read_page(filter="interactive")`**.
 - **A chip hides multiple sources.** A pill carrying **"(+N)"** (e.g.
-  `"Acme (+1)…"`) stands for **N+1** underlying links (the named one **plus N
+  `"Example (+1)…"`) stands for **N+1** underlying links (the named one **plus N
   more**). **Click the chip's `button` form via `computer` `left_click` on its
   `ref`** (from `read_page`/`find`), **then re-run
   `read_page(filter="interactive")`** and record **each** revealed link as its
@@ -266,7 +266,7 @@ Three distinct states:
 - Compute every `Link.domain` with **`normalize_domain`** semantics
   (`pipeline/schema.py`): strip scheme / userinfo / path / query / fragment /
   port and a leading `www.`, **lowercase**, keep the **registrable domain**
-  (last two labels, e.g. `blog.acme.com → acme.com`; multi-part suffixes like
+  (last two labels, e.g. `blog.example.com → example.com`; multi-part suffixes like
   `co.uk` preserved → three labels). Apply the **same** function to the given
   target `domain` so matching is consistent.
 - A link **matches the target** iff its normalized `domain` **equals** the
@@ -354,38 +354,38 @@ Three distinct states:
 
 ## Worked example
 
-**Inputs:** `query = "best mattress for back sleepers"`, `lens = "general"`,
-brand `name = "Acme"`, target `domain = "https://www.acme.com"` (→ normalizes to
-`acme.com`). Market: `hl=en&gl=us` (English/US — set `hl`/`gl` to whichever market you
+**Inputs:** `query = "best project management software for small teams"`, `lens = "general"`,
+brand `name = "Example"`, target `domain = "https://www.example.com"` (→ normalizes to
+`example.com`). Market: `hl=en&gl=us` (English/US — set `hl`/`gl` to whichever market you
 track).
 
 An AI Overview rendered. After expanding the sources panel ("Show all") and the
-inline "Acme" citation chip, the target domain appeared at **source positions 2
-and 4** and **citation position 1**, and the brand name "Acme" was in the prose.
+inline "Example" citation chip, the target domain appeared at **source positions 2
+and 4** and **citation position 1**, and the brand name "Example" was in the prose.
 Resulting single object:
 
 ```json
 {
-  "query": "best mattress for back sleepers",
+  "query": "best project management software for small teams",
   "lens": "general",
   "engine": "google",
   "captured_at": "2026-06-19T20:15:30Z",
-  "answer_text_md": "For back sleepers, experts often recommend a medium-firm mattress with good lumbar support. **Acme** offers several models suited to this...",
+  "answer_text_md": "For small teams, experts often recommend a tool with a clean task board and simple workflows. **Example** offers several plans suited to this...",
   "screenshot_path": null,
   "overview_present": true,
   "sources": [
-    { "rank": 1, "url": "https://www.sleepfoundation.org/best-mattress", "domain": "sleepfoundation.org" },
-    { "rank": 2, "url": "https://acme.com/mattresses/medium-firm", "domain": "acme.com" },
-    { "rank": 3, "url": "https://www.healthline.com/back-sleeping", "domain": "healthline.com" },
-    { "rank": 4, "url": "https://acme.com/blog/how-to-choose", "domain": "acme.com" }
+    { "rank": 1, "url": "https://www.g2.com/categories/project-management", "domain": "g2.com" },
+    { "rank": 2, "url": "https://example.com/product/team-plan", "domain": "example.com" },
+    { "rank": 3, "url": "https://www.techradar.com/project-management-tips", "domain": "techradar.com" },
+    { "rank": 4, "url": "https://example.com/blog/how-to-choose", "domain": "example.com" }
   ],
   "citations": [
-    { "rank": 1, "url": "https://acme.com/mattresses/medium-firm", "domain": "acme.com" }
+    { "rank": 1, "url": "https://example.com/product/team-plan", "domain": "example.com" }
   ],
   "target_source_ranks": [2, 4],
   "target_citation_ranks": [1],
   "brand_in_answer_text": true,
-  "sentiment": "recommended among suitable options, named with a direct link to the catalog"
+  "sentiment": "recommended among suitable options, named with a direct link to the product"
 }
 ```
 

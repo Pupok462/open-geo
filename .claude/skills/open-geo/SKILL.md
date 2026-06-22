@@ -45,7 +45,7 @@ ambiguous — the shapes there win over this prose.
 |---|---|
 | `<questions.csv>` | Path to the input CSV. Columns: **`query,lens`** where `lens ∈ general \| branded \| comparative`. See `examples/questions.csv` for a ready sample. `general` = neutral query, no brand named; `branded` = brand explicitly named; `comparative` = brand vs alternatives. |
 | `<engine>` | Engine id, **snake_case**, e.g. `google`. This value is (a) the `engine` field written into every `QueryCapture` and the run, and (b) the basename of the capture playbook the workers load: `engines/<engine>.md` (so `google` ↔ `engines/google.md`). **This is the multi-engine extension point** — `google` (Google AI Overview) is the only playbook shipping today; the others (ChatGPT, Perplexity, Gemini, Claude, Yandex, DeepSeek, …) are on the roadmap (ROADMAP Feature 3), and adding one is mainly authoring `engines/<engine>.md` (see `engines/README.md`). |
-| `<domain>` | The **target** domain to score. Accept any spelling (`https://www.acme.com`, `acme.com`); the pipeline normalizes it via `pipeline.schema.normalize_domain`. Workers match the target with this same normalizer so matching is consistent. |
+| `<domain>` | The **target** domain to score. Accept any spelling (`https://www.example.com`, `example.com`); the pipeline normalizes it via `pipeline.schema.normalize_domain`. Workers match the target with this same normalizer so matching is consistent. |
 
 ### Flags
 
@@ -72,7 +72,7 @@ Run this **first**, before STEP 0. Goal: end up with every required parameter re
 **Optional (defaults):** `--output` (`dashboard`), `--period` (`all`), `--lang` (`en`).
 
 1. **Parse the invocation** — gather values from positional args, flags, AND anything the user
-   expressed in free text (e.g. "measure acme.com on google, 5 workers, pdf").
+   expressed in free text (e.g. "measure example.com on google, 5 workers, pdf").
 2. **FAST PATH — all required resolved:** do **not** print the intro or ask anything. Echo one
    confirmation line — `Running: csv=… engine=… domain=… brand=… n-worker=… output=… period=… lang=…` —
    then proceed to STEP 0/1. (This is the path loops/headless use: pass full args, skip the wizard.)
@@ -273,6 +273,12 @@ chunk** — incrementally, so a crash mid-run never loses already-captured work 
 - Computes metrics **per lens** plus one `lens="all"` aggregate row, writes them to the
   `metrics` table, and prints a JSON summary on stdout (INTERFACES §3.3). **Capture this
   stdout** — step 7's summary reads its `metrics` (`lens="all"` row) directly.
+- In the **same pass** it also builds the **top-domains leaderboard** into `domain_stats`
+  (INTERFACES §2/§4.2): for every domain in `sources`/`citations` (not just the target) —
+  appearances + average source/citation position, per lens + `all`. This is deterministic
+  math (no extra step for you); the summary's `top_domains` echoes the `all`-scope top 10. It
+  powers the dashboard's "Top domains in answer space" panel and the report's top-domains
+  section, and recomputes idempotently on re-aggregate.
 
 ---
 
@@ -431,14 +437,14 @@ If `--period all` and a previous completed run exists, you may mention the direc
 Example shape (English; fill with real numbers; one `lens="all"` row drives it):
 
 ```
-Run for brand "Acme" (engine google), queries: 30.
+Run for brand "Example" (engine google), queries: 30.
 • AI Overview coverage: 73% (22 of 30 queries).
 • Visibility in sources: 41% of overview queries.
 • Visibility in citations: 32% of overview queries.
 • Average source position: 2.4 (lower is better).
 • Average citation position: 1.7 (lower is better).
 • Source→citation conversion (relative citation): 78% (higher is better).
-Report: reports/acme_2026-06-19.pdf · Dashboard: http://localhost:5173/?lang=en
+Report: reports/example_2026-06-19.pdf · Dashboard: http://localhost:5173/?lang=en
 ```
 
 ---

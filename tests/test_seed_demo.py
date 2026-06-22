@@ -16,8 +16,8 @@ TARGET = sd.TARGET
 
 
 def test_link_target_domain_uses_catalog_path():
-    link = sd._link(3, TARGET, "matras-3")
-    assert link.url == f"https://{TARGET}/catalog/matras-3"
+    link = sd._link(3, TARGET, "feature-3")
+    assert link.url == f"https://{TARGET}/catalog/feature-3"
     assert link.rank == 3
     assert link.domain == TARGET
     assert "www." not in link.url
@@ -62,7 +62,7 @@ def test_build_sources_empty_positions_means_no_target():
 def test_build_sources_target_url_is_catalog_form():
     links = sd._build_sources(Random(0), 3, target_positions=[2])
     target = next(ln for ln in links if ln.domain == TARGET)
-    assert target.url == f"https://{TARGET}/catalog/matras-2"
+    assert target.url == f"https://{TARGET}/catalog/feature-2"
 
 
 def test_build_sources_n_exceeding_pool_recycles_other_domains():
@@ -466,19 +466,19 @@ def test_seed_empty_loop_monkeypatch_is_local(tmp_path):
 
 
 def test_link_slug_is_inserted_verbatim_target_branch():
-    link = sd._link(2, TARGET, "матрас-ürün/路")
-    assert link.url == f"https://{TARGET}/catalog/матрас-ürün/路"
+    link = sd._link(2, TARGET, "проект-ürün/路")
+    assert link.url == f"https://{TARGET}/catalog/проект-ürün/路"
     assert link.rank == 2 and link.domain == TARGET
 
 
 def test_link_slug_is_inserted_verbatim_other_branch():
-    link = sd._link(9, "reddit.com", "r/Mattress")
-    assert link.url == "https://www.reddit.com/r/Mattress"
+    link = sd._link(9, "reddit.com", "r/ProjectManagement")
+    assert link.url == "https://www.reddit.com/r/ProjectManagement"
     assert link.rank == 9 and link.domain == "reddit.com"
 
 
 def test_link_target_match_is_exact_not_substring():
-    other = "notacme.com"
+    other = "notexample.com"
     assert other != TARGET
     link = sd._link(1, other, "s")
     assert link.url == f"https://www.{other}/s"
@@ -514,7 +514,7 @@ def test_build_sources_all_ranks_are_target_when_every_position_listed():
     links = sd._build_sources(Random(0), n, target_positions=[1, 2, 3, 4])
     assert all(ln.domain == TARGET for ln in links)
     assert [ln.rank for ln in links] == [1, 2, 3, 4]
-    assert links[2].url == f"https://{TARGET}/catalog/matras-3"
+    assert links[2].url == f"https://{TARGET}/catalog/feature-3"
 
 
 def test_build_sources_other_domains_drawn_from_pool():
@@ -525,8 +525,8 @@ def test_build_sources_other_domains_drawn_from_pool():
 
 
 def test_make_capture_preserves_unicode_query_and_engine():
-    cap = _mk(0, query="матрас 床 🛏 best?", overview_present=False)
-    assert cap.query == "матрас 床 🛏 best?"
+    cap = _mk(0, query="проект 项目 🚀 best?", overview_present=False)
+    assert cap.query == "проект 项目 🚀 best?"
     assert cap.engine == sd.ENGINE == "google"
 
 
@@ -567,7 +567,7 @@ def test_make_capture_in_sources_answer_text_mentions_brand():
     cap = _mk(1, lens="branded", in_sources=True, cited=True)
     assert cap.brand_in_answer_text is True
     assert cap.answer_text_md is not None
-    assert "Acme" in cap.answer_text_md
+    assert "Example" in cap.answer_text_md
 
 
 def test_make_capture_in_sources_ranks_within_bounds_many_seeds():

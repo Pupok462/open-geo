@@ -272,7 +272,7 @@ describe("Segmented", () => {
 
 describe("FieldSelect", () => {
   const OPTIONS = [
-    { value: 1, label: "Acme" },
+    { value: 1, label: "Example" },
     { value: 2, label: "Globex" },
   ];
 
@@ -289,7 +289,7 @@ describe("FieldSelect", () => {
     const select = screen.getByRole("combobox") as HTMLSelectElement;
     expect(select.value).toBe("2");
     expect(
-      screen.getByRole("option", { name: "Acme" }),
+      screen.getByRole("option", { name: "Example" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: "Globex" }),

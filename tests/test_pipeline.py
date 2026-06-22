@@ -21,13 +21,13 @@ _CAP_SEQ = itertools.count()
 
 def _valid_capture_dict() -> dict:
     return {
-        "query": "best orthopedic mattresses",
+        "query": "best task tracking tools",
         "lens": "general",
         "engine": "google",
         "captured_at": "2026-06-18T20:15:30Z",
         "overview_present": True,
         "sources": [
-            {"rank": 1, "url": "https://acme.com/catalog/x", "domain": "acme.com"},
+            {"rank": 1, "url": "https://example.com/catalog/x", "domain": "example.com"},
         ],
         "citations": [],
         "target_source_ranks": [1],
@@ -42,7 +42,7 @@ def test_schema_valid_parses():
     assert cap.lens == "general"
     assert cap.overview_present is True
     assert cap.target_source_ranks == [1]
-    assert cap.sources[0].domain == "acme.com"
+    assert cap.sources[0].domain == "example.com"
 
 
 def test_schema_bad_lens_raises():
@@ -66,7 +66,7 @@ def test_schema_missing_required_field_raises():
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("https://www.Acme.COM/catalog/running?utm=1", "acme.com"),
+        ("https://www.Example.COM/catalog/running?utm=1", "example.com"),
         ("http://shop.example.co.uk/path", "example.co.uk"),
     ],
 )
@@ -79,7 +79,7 @@ def _new_run(db_path: Path) -> int:
         [
             str(PYTHON), "-m", "pipeline.ingest",
             "--db", str(db_path),
-            "--brand", "Acme", "--domain", "acme.com",
+            "--brand", "Example", "--domain", "example.com",
             "--engine", "google", "--new-run",
         ],
         cwd=str(REPO_ROOT),
@@ -111,7 +111,7 @@ def test_ingest_happy_path(tmp_path):
 
     batch = [_valid_capture_dict(), _valid_capture_dict()]
     batch[1]["lens"] = "branded"
-    batch[1]["query"] = "Acme mattress price"
+    batch[1]["query"] = "Example pricing"
 
     result = _ingest(db_path, run_id, batch)
 
@@ -181,11 +181,11 @@ def _cap(
     citation_ranks: list[int],
 ) -> QueryCapture:
     sources = [
-        {"rank": r, "url": f"https://acme.com/{r}", "domain": "acme.com"}
+        {"rank": r, "url": f"https://example.com/{r}", "domain": "example.com"}
         for r in source_ranks
     ]
     citations = [
-        {"rank": r, "url": f"https://acme.com/c{r}", "domain": "acme.com"}
+        {"rank": r, "url": f"https://example.com/c{r}", "domain": "example.com"}
         for r in citation_ranks
     ]
     return QueryCapture.model_validate(
@@ -210,7 +210,7 @@ def test_aggregate_math(tmp_path):
     conn = get_conn(str(db_path))
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
 
         caps = [
@@ -274,7 +274,7 @@ def test_funnel_relative_citation(tmp_path):
     conn = get_conn(str(db_path))
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
 
         caps = [
@@ -330,14 +330,14 @@ def test_schema_citation_not_in_sources_raises():
 def test_schema_citation_subset_of_sources_ok():
     ok = _valid_capture_dict()
     ok["sources"] = [
-        {"rank": 1, "url": "https://acme.com/catalog/x", "domain": "acme.com"},
+        {"rank": 1, "url": "https://example.com/catalog/x", "domain": "example.com"},
         {"rank": 2, "url": "https://wirecutter.com/g", "domain": "wirecutter.com"},
     ]
     ok["citations"] = [
-        {"rank": 1, "url": "https://acme.com/blog/y", "domain": "acme.com"},
+        {"rank": 1, "url": "https://example.com/blog/y", "domain": "example.com"},
     ]
     cap = QueryCapture.model_validate(ok)
-    assert [c.domain for c in cap.citations] == ["acme.com"]
+    assert [c.domain for c in cap.citations] == ["example.com"]
 
 
 def test_aggregate_run_persists_and_is_idempotent(tmp_path):
@@ -345,7 +345,7 @@ def test_aggregate_run_persists_and_is_idempotent(tmp_path):
     conn = get_conn(str(db_path))
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
 
         caps = [
@@ -394,7 +394,7 @@ def test_aggregate_empty_scope_overview_coverage_null(tmp_path):
     conn = get_conn(str(db_path))
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
 
         rows = compute_run_metrics(conn, run_id)

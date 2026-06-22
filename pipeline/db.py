@@ -122,10 +122,29 @@ def init_db(conn: sqlite3.Connection) -> None:
             UNIQUE(run_id, lens)
         );
 
+        CREATE TABLE IF NOT EXISTS domain_stats (
+            id                    INTEGER PRIMARY KEY,
+            run_id                INTEGER NOT NULL REFERENCES runs(id),
+            brand_id              INTEGER,
+            engine                TEXT,
+            lens                  TEXT,
+            domain                TEXT,
+            is_brand              INTEGER,
+            appearances_sources   INTEGER,
+            appearances_citations INTEGER,
+            sum_min_source_rank   REAL,
+            sum_min_citation_rank REAL,
+            avg_source_position   REAL,
+            avg_citation_position REAL,
+            computed_at           TEXT,
+            UNIQUE(run_id, lens, domain)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_runs_brand_engine ON runs(brand_id, engine);
         CREATE INDEX IF NOT EXISTS idx_results_run        ON results(run_id);
         CREATE INDEX IF NOT EXISTS idx_metrics_run        ON metrics(run_id);
         CREATE INDEX IF NOT EXISTS idx_lens_sentiment_run ON lens_sentiment(run_id);
+        CREATE INDEX IF NOT EXISTS idx_domain_stats_run   ON domain_stats(run_id);
         """
     )
     _ensure_columns(conn, "metrics", _METRICS_MIGRATION_COLUMNS)
@@ -243,6 +262,27 @@ def get_lens_sentiments(conn: sqlite3.Connection, run_id: int) -> dict[str, str]
     return {row["lens"]: row["summary"] for row in rows if row["summary"] is not None}
 
 
+def get_domain_stats(
+    conn: sqlite3.Connection, run_id: int, lens: str = "all"
+) -> list[dict]:
+    try:
+        rows = conn.execute(
+            """
+            SELECT domain, is_brand,
+                   appearances_sources, appearances_citations,
+                   sum_min_source_rank, sum_min_citation_rank,
+                   avg_source_position, avg_citation_position
+            FROM domain_stats
+            WHERE run_id = ? AND lens = ?
+            ORDER BY appearances_sources DESC, appearances_citations DESC, domain ASC
+            """,
+            (run_id, lens),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(row) for row in rows]
+
+
 __all__ = [
     "get_conn",
     "init_db",
@@ -253,4 +293,5 @@ __all__ = [
     "find_unfinished_run",
     "upsert_lens_sentiment",
     "get_lens_sentiments",
+    "get_domain_stats",
 ]

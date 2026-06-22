@@ -21,7 +21,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-from pipeline.db import get_conn, get_lens_sentiments, init_db
+from pipeline.db import get_conn, get_domain_stats, get_lens_sentiments, init_db
 from pipeline.schema import normalize_domain
 from report.i18n import DEFAULT_LANG, Translator, available_codes
 from report.textshape import is_rtl, shape
@@ -160,6 +160,7 @@ class ReportData:
     sentiments: dict[str, list[tuple[str, str]]]
     history: list[tuple[str, dict[str, LensMetrics]]] = field(default_factory=list)
     sentiment_summaries: dict[str, str] = field(default_factory=dict)
+    competitors: list[dict] = field(default_factory=list)
 
 
 def _row_get(row: sqlite3.Row, key: str) -> Any:
@@ -287,6 +288,7 @@ def load_report_data(
     prev_metrics = _load_metrics_for_run(conn, prev_id) if prev_id is not None else {}
     sentiments = _load_sentiments(conn, focus_id)
     sentiment_summaries = get_lens_sentiments(conn, focus_id)
+    competitors = get_domain_stats(conn, focus_id, "all")[:15]
 
     brow = conn.execute(
         "SELECT name, domain FROM brands WHERE id = ?", (brand_id,)
@@ -312,6 +314,7 @@ def load_report_data(
         sentiments=sentiments,
         history=history,
         sentiment_summaries=sentiment_summaries,
+        competitors=competitors,
     )
 
 
@@ -1069,7 +1072,7 @@ def _wrap_text(c: canvas.Canvas, text: str, font: str, size: float, max_w: float
 
 
 def render_sentiment(doc: Doc, t: Translator, data: ReportData) -> None:
-    _section_header(doc, "04", t.t("report.section_sentiment"))
+    _section_header(doc, "05", t.t("report.section_sentiment"))
 
     doc.text(
         t.t("report.sentiment_intro"),
@@ -1152,6 +1155,90 @@ def render_sentiment(doc: Doc, t: Translator, data: ReportData) -> None:
         doc.move(4)
 
 
+def render_competitors(doc: Doc, t: Translator, data: ReportData) -> None:
+    _section_header(doc, "04", t.t("report.section_competitors"))
+
+    doc.text(t.t("report.competitors_intro"), 9, INK_DIM, FONT)
+    doc.move(12)
+
+    comps = data.competitors
+    if not comps:
+        doc.text(t.t("report.competitors_empty"), 10, INK_DIM, FONT)
+        doc.move(12)
+        return
+
+    lang = t.lang
+    all_m = data.metrics.get("all")
+    n_overviews = all_m.n_overviews if all_m is not None else 0
+
+    avail = PAGE_W - 2 * MARGIN
+    col_domain_w = 78 * mm
+    metric_cols = [
+        t.t("report.competitors_col_share_sources"),
+        t.t("report.lenses_table_col_position_sources"),
+        t.t("report.lenses_table_col_position_citations"),
+    ]
+    n_metric = len(metric_cols)
+    metric_w = (avail - col_domain_w) / n_metric
+
+    row_h = 8 * mm
+    header_h = 8 * mm
+    table_h = header_h + row_h * len(comps)
+    doc.ensure(table_h + 6)
+
+    top = doc.y
+    doc.rounded_panel(MARGIN, top, avail, header_h, fill=PANEL_ALT, stroke=None, radius=4)
+    doc.c.setFillColor(INK_DIM)
+    doc.c.setFont(FONT_BOLD, 9)
+    doc.c.drawString(MARGIN + 6, top - header_h + 3 * mm, t.t("report.competitors_col_domain"))
+    for i, mc in enumerate(metric_cols):
+        cx_right = MARGIN + col_domain_w + metric_w * (i + 1) - 6
+        doc.c.drawRightString(cx_right, top - header_h + 3 * mm, mc)
+
+    you = t.t("report.competitors_you")
+    row_top = top - header_h
+    for idx, d in enumerate(comps):
+        is_brand = bool(d["is_brand"])
+        bg = PANEL if idx % 2 == 0 else BG
+        if is_brand:
+            bg = PANEL_ALT
+        doc.c.setFillColor(bg)
+        doc.c.rect(MARGIN, row_top - row_h, avail, row_h, stroke=0, fill=1)
+
+        if is_brand:
+            doc.c.setFillColor(ACCENT)
+            doc.c.circle(MARGIN + 9, row_top - row_h / 2, 2.0, stroke=0, fill=1)
+        label = d["domain"]
+        if is_brand:
+            label = f"{label}  ({you})"
+        doc.c.setFillColor(INK)
+        doc.c.setFont(FONT_BOLD if is_brand else FONT, 9.5)
+        doc.c.drawString(MARGIN + (15 if is_brand else 6), row_top - row_h / 2 - 3, label)
+
+        share = (d["appearances_sources"] / n_overviews) if n_overviews else None
+        values = [
+            _pct(share, lang),
+            _num(d["avg_source_position"], 1, lang),
+            _num(d["avg_citation_position"], 1, lang),
+        ]
+        doc.c.setFont(FONT_BOLD if is_brand else FONT, 9.5)
+        for i, val in enumerate(values):
+            cx_right = MARGIN + col_domain_w + metric_w * (i + 1) - 6
+            doc.c.setFillColor(INK)
+            doc.c.drawRightString(cx_right, row_top - row_h / 2 - 3, val)
+
+        row_top -= row_h
+
+    doc.c.setStrokeColor(STROKE)
+    doc.c.setLineWidth(0.8)
+    doc.c.roundRect(MARGIN, top - table_h, avail, table_h, 4, stroke=1, fill=0)
+
+    doc.y = top - table_h
+    doc.move(6)
+    doc.text(t.t("report.competitors_caption"), 8, INK_FAINT, FONT_OBLIQUE)
+    doc.move(10)
+
+
 def render_footer(doc: Doc, t: Translator, data: ReportData, page_label_only: bool = False) -> None:
     c = doc.c
     c.setStrokeColor(STROKE)
@@ -1230,6 +1317,7 @@ def build_pdf(
     render_funnel(doc, t, data)
     if data.period == "all":
         render_history(doc, t, data)
+    render_competitors(doc, t, data)
     render_sentiment(doc, t, data)
 
     render_footer(doc, t, data)

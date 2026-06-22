@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pipeline.db import get_conn, init_db
+from pipeline.schema import normalize_domain
 
 _LENS_ORDER = ["general", "branded", "comparative"]
 
@@ -81,6 +82,116 @@ def _compute_scope(results: list[sqlite3.Row]) -> dict[str, Any]:
         "avg_citation_position": avg_citation_position,
         "relative_citation": relative_citation,
     }
+
+
+def _row_links(result: sqlite3.Row, col: str) -> list[tuple[int, str]]:
+    raw = result[col]
+    if not raw:
+        return []
+    try:
+        items = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(items, list):
+        return []
+    out: list[tuple[int, str]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        domain = normalize_domain(str(item.get("domain") or item.get("url") or ""))
+        if not domain:
+            continue
+        try:
+            rank = int(item["rank"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        out.append((rank, domain))
+    return out
+
+
+def _domain_best_ranks(links: list[tuple[int, str]]) -> dict[str, int]:
+    best: dict[str, int] = {}
+    for rank, domain in links:
+        if domain not in best or rank < best[domain]:
+            best[domain] = rank
+    return best
+
+
+def _compute_domain_scope(
+    results: list[sqlite3.Row], brand_domain: str
+) -> list[dict[str, Any]]:
+    overview_rows = [r for r in results if int(r["overview_present"] or 0) == 1]
+    acc: dict[str, dict[str, float]] = {}
+
+    def bucket(domain: str) -> dict[str, float]:
+        return acc.setdefault(
+            domain, {"app_s": 0.0, "app_c": 0.0, "sum_s": 0.0, "sum_c": 0.0}
+        )
+
+    for r in overview_rows:
+        for domain, rank in _domain_best_ranks(_row_links(r, "sources_json")).items():
+            b = bucket(domain)
+            b["app_s"] += 1
+            b["sum_s"] += rank
+        for domain, rank in _domain_best_ranks(_row_links(r, "citations_json")).items():
+            b = bucket(domain)
+            b["app_c"] += 1
+            b["sum_c"] += rank
+
+    rows: list[dict[str, Any]] = []
+    for domain, b in acc.items():
+        app_s = int(b["app_s"])
+        app_c = int(b["app_c"])
+        rows.append(
+            {
+                "domain": domain,
+                "is_brand": 1 if domain == brand_domain else 0,
+                "appearances_sources": app_s,
+                "appearances_citations": app_c,
+                "sum_min_source_rank": b["sum_s"],
+                "sum_min_citation_rank": b["sum_c"],
+                "avg_source_position": (b["sum_s"] / app_s) if app_s else None,
+                "avg_citation_position": (b["sum_c"] / app_c) if app_c else None,
+            }
+        )
+    rows.sort(
+        key=lambda d: (
+            -d["appearances_sources"],
+            -d["appearances_citations"],
+            d["domain"],
+        )
+    )
+    return rows
+
+
+def compute_run_domain_stats(
+    conn: sqlite3.Connection, run_id: int
+) -> tuple[dict[str, list[dict[str, Any]]], str]:
+    run = conn.execute(
+        "SELECT id, brand_id FROM runs WHERE id = ?", (run_id,)
+    ).fetchone()
+    if run is None:
+        raise ValueError(f"run {run_id} not found")
+
+    brow = conn.execute(
+        "SELECT domain FROM brands WHERE id = ?", (run["brand_id"],)
+    ).fetchone()
+    brand_domain = normalize_domain(brow["domain"]) if brow is not None else ""
+
+    results = conn.execute(
+        "SELECT * FROM results WHERE run_id = ?", (run_id,)
+    ).fetchall()
+
+    by_lens: dict[str, list[sqlite3.Row]] = {}
+    for r in results:
+        by_lens.setdefault(r["lens"], []).append(r)
+
+    out: dict[str, list[dict[str, Any]]] = {
+        "all": _compute_domain_scope(results, brand_domain)
+    }
+    for lens in by_lens:
+        out[lens] = _compute_domain_scope(by_lens[lens], brand_domain)
+    return out, brand_domain
 
 
 def compute_run_metrics(conn: sqlite3.Connection, run_id: int) -> list[dict[str, Any]]:
@@ -160,6 +271,37 @@ def aggregate_run(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
                 computed_at,
             ),
         )
+
+    domain_stats, _brand_domain = compute_run_domain_stats(conn, run_id)
+    conn.execute("DELETE FROM domain_stats WHERE run_id = ?", (run_id,))
+    for lens, domain_rows in domain_stats.items():
+        for d in domain_rows:
+            conn.execute(
+                """
+                INSERT INTO domain_stats (
+                    run_id, brand_id, engine, lens, domain, is_brand,
+                    appearances_sources, appearances_citations,
+                    sum_min_source_rank, sum_min_citation_rank,
+                    avg_source_position, avg_citation_position,
+                    computed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    brand_id,
+                    engine,
+                    lens,
+                    d["domain"],
+                    d["is_brand"],
+                    d["appearances_sources"],
+                    d["appearances_citations"],
+                    d["sum_min_source_rank"],
+                    d["sum_min_citation_rank"],
+                    d["avg_source_position"],
+                    d["avg_citation_position"],
+                    computed_at,
+                ),
+            )
     conn.commit()
 
     return {
@@ -167,6 +309,7 @@ def aggregate_run(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
         "brand_id": brand_id,
         "engine": engine,
         "metrics": metric_rows,
+        "top_domains": domain_stats["all"][:10],
     }
 
 

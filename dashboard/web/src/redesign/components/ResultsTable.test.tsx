@@ -10,7 +10,7 @@ import { ResultsTable } from "./ResultsTable";
 const D = enDict.dashboard;
 const DASH = enDict.common.dash;
 
-const link = (rank: number, domain = "acme.com"): LinkRef => ({
+const link = (rank: number, domain = "example.com"): LinkRef => ({
   rank,
   url: `https://${domain}/page-${rank}`,
   domain,
@@ -265,7 +265,7 @@ describe("ResultsTable — combined realistic rows", () => {
   it("renders a fully-populated row (overview, sources, citations, sentiment, brand in text)", () => {
     const row = makeRow({
       id: 42,
-      query: "compare acme vs rival",
+      query: "compare example vs rival",
       lens: "comparative",
       overview_present: true,
       sources: [link(1), link(2)],
@@ -277,11 +277,11 @@ describe("ResultsTable — combined realistic rows", () => {
     });
     renderWithProviders(<ResultsTable rows={[row]} />);
 
-    expect(screen.getByRole("rowheader", { name: "compare acme vs rival" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "compare example vs rival" })).toBeInTheDocument();
     expect(screen.getByText(enDict.lens.comparative)).toBeInTheDocument();
     expect(screen.getByLabelText(D.results_overview_shown)).toBeInTheDocument();
 
-    const dataRow = screen.getByRole("row", { name: /compare acme vs rival/i });
+    const dataRow = screen.getByRole("row", { name: /compare example vs rival/i });
     const cells = within(dataRow).getAllByRole("cell");
     expect(cells[2]).toHaveTextContent("1, 2");
     expect(cells[3]).toHaveTextContent("2");

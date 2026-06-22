@@ -20,72 +20,72 @@ from pipeline.ingest import insert_capture
 from pipeline.schema import Link, QueryCapture, normalize_domain
 
 DB_PATH = "data/aeo.db"
-BRAND_NAME = "Acme"
-BRAND_DOMAIN = "acme.com"
+BRAND_NAME = "Example"
+BRAND_DOMAIN = "example.com"
 ENGINE = "google"
 TARGET = normalize_domain(BRAND_DOMAIN)
 
 _OTHER_DOMAINS = [
-    "restwell.com",
-    "nordsleep.com",
-    "dreamforge.com",
-    "ikea.com",
-    "wirecutter.com",
-    "sleepfoundation.org",
-    "consumerreports.org",
+    "globex.com",
+    "initech.com",
+    "hooli.com",
+    "g2.com",
+    "capterra.com",
+    "trustpilot.com",
     "reddit.com",
-    "tomsguide.com",
-    "goodhousekeeping.com",
+    "techradar.com",
+    "pcmag.com",
+    "producthunt.com",
 ]
 
 _QUERIES = {
     "general": [
-        "how to choose an orthopedic mattress",
-        "best mattresses for sleep 2026",
-        "which mattress to buy for back pain",
-        "pocket spring mattress reviews",
-        "foam mattress vs spring which is better",
-        "top mattresses for a queen bed",
-        "which mattress filling lasts the longest",
-        "how to choose a mattress for a teenager",
+        "how to choose project management software",
+        "best task tracking tools 2026",
+        "which project management app for small teams",
+        "kanban board software reviews",
+        "cloud task manager vs spreadsheet which is better",
+        "top project management apps for remote work",
+        "which project tool scales best for growing teams",
+        "how to choose a task tracker for a startup",
     ],
     "branded": [
-        "Acme mattress reviews",
-        "Acme orthopedic mattress price",
-        "Acme store near me",
-        "Acme mattress warranty and returns",
-        "Acme pillow for side sleepers",
-        "Acme mattress sale",
-        "Acme adjustable bed frame",
-        "compare Acme mattress models",
+        "Example app reviews",
+        "Example pricing and plans",
+        "Example help center and support",
+        "Example free trial and onboarding",
+        "Example integrations and API",
+        "Example mobile app",
+        "Example security and SSO",
+        "compare Example plans",
     ],
     "comparative": [
-        "Acme vs Restwell which is better",
-        "Acme vs IKEA mattresses",
-        "should I pick Acme or NordSleep",
-        "Acme vs DreamForge mattress comparison",
-        "Acme or Restwell for back pain",
-        "Acme vs NordSleep customer reviews",
-        "Acme and DreamForge which to choose",
-        "Acme vs a no-name marketplace mattress",
+        "Example vs Globex which is better",
+        "Example vs Initech pricing",
+        "should I pick Example or Hooli",
+        "Example vs Globex feature comparison",
+        "Example or Initech for remote teams",
+        "Example vs Hooli customer reviews",
+        "Example and Globex which to choose",
+        "Example vs a free open-source tracker",
     ],
 }
 
 _SENTIMENTS_POS = [
-    "recommended as a leading brand, mentioned with a direct catalog link",
-    "named a reliable choice for orthopedic mattresses",
+    "recommended as a leading tool, mentioned with a direct link to the site",
+    "named a reliable choice for project management",
     "listed first among the suitable options",
-    "mentioned positively, noted for a wide store network",
+    "mentioned positively, noted for strong integrations",
 ]
 _SENTIMENTS_NEUTRAL = [
     "mentioned neutrally among several alternatives",
-    "listed alongside other popular manufacturers",
+    "listed alongside other popular tools",
     "named without a clear judgement, next to competitors",
 ]
 
 _LENS_SUMMARIES = {
     "general": "Mostly mentioned neutrally among alternatives, occasionally recommended.",
-    "branded": "Consistently surfaced as the authority on its own brand queries, often with a direct catalog link.",
+    "branded": "Consistently surfaced as the authority on its own brand queries, often with a direct link to the site.",
     "comparative": "Named alongside competitors without a clear edge.",
     "all": "Visible across lenses: confident on branded queries, neutral elsewhere, and present but undifferentiated in comparisons.",
 }
@@ -107,7 +107,7 @@ def _build_sources(
     other_i = 0
     for rank in range(1, n_sources + 1):
         if rank in target_positions:
-            links.append(_link(rank, TARGET, f"matras-{rank}"))
+            links.append(_link(rank, TARGET, f"feature-{rank}"))
         else:
             dom = pool[other_i % len(pool)]
             other_i += 1
@@ -157,7 +157,7 @@ def _make_capture(
             lens=lens,  # type: ignore[arg-type]
             engine=ENGINE,
             captured_at=captured_at,
-            answer_text_md="Several mattress options from different manufacturers are compared.",
+            answer_text_md="Several project management tools from different vendors are compared.",
             screenshot_path=screenshot,
             overview_present=True,
             sources=sources,
@@ -199,8 +199,8 @@ def _make_capture(
         engine=ENGINE,
         captured_at=captured_at,
         answer_text_md=(
-            "Among the suitable options, **Acme** is frequently mentioned — "
-            "a well-known maker of orthopedic mattresses."
+            "Among the suitable options, **Example** is frequently mentioned — "
+            "a well-known project management tool."
         ),
         screenshot_path=screenshot,
         overview_present=True,
@@ -350,7 +350,7 @@ def seed(db_path: str = DB_PATH, *, reset: bool = False, seed_value: int = 20260
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="pipeline.seed_demo",
-        description="Seed data/aeo.db with a realistic multi-run demo dataset for Acme.",
+        description="Seed data/aeo.db with a realistic multi-run demo dataset for Example.",
     )
     parser.add_argument(
         "--reset",

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   api,
   type Brand,
+  type CompetitorsResponse,
   type MetricRow,
   type MetricsResponse,
   type ResultsResponse,
@@ -22,6 +23,7 @@ import {
 import { MetricsChart } from "./components/MetricsChart";
 import { LensBreakdown } from "./components/LensBreakdown";
 import { LensSentiment } from "./components/LensSentiment";
+import { CompetitorsPanel } from "./components/CompetitorsPanel";
 import { ResultsTable } from "./components/ResultsTable";
 import { ChevronDownIcon, DownloadIcon } from "./components/icons";
 
@@ -39,6 +41,7 @@ function Dashboard() {
 
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesResponse | null>(null);
+  const [competitors, setCompetitors] = useState<CompetitorsResponse | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -73,13 +76,15 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [r, m, ts] = await Promise.all([
+      const [r, m, ts, comp] = await Promise.all([
         api.runs(brandId, engine),
         api.metrics(brandId, engine, period),
         api.timeseries(brandId, engine, lens),
+        api.competitors(brandId, engine, period, lens),
       ]);
       setMetrics(m);
       setTimeseries(ts);
+      setCompetitors(comp);
 
       const runId =
         m.run?.run_id ?? r.find((x) => x.status === "done")?.run_id ?? r[0]?.run_id;
@@ -261,6 +266,24 @@ function Dashboard() {
         className="mb-6"
       >
         <LensBreakdown rows={metrics?.metrics ?? []} />
+      </Panel>
+
+      <Panel
+        title={t("dashboard.competitors_panel_title")}
+        info={t("dashboard.competitors_panel_info")}
+        className="mb-6"
+        right={
+          competitors && competitors.n_overviews > 0 ? (
+            <span className="text-xs text-[var(--muted)]">
+              {t("dashboard.competitors_meta", {
+                n: competitors.domains.length,
+                nov: competitors.n_overviews,
+              })}
+            </span>
+          ) : undefined
+        }
+      >
+        <CompetitorsPanel rows={competitors?.domains ?? []} />
       </Panel>
 
       <Panel

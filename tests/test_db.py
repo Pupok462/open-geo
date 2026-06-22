@@ -171,60 +171,60 @@ def test_metrics_table_full_column_set(empty_conn):
 
 
 def test_get_or_create_brand_new_returns_int_id(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     assert isinstance(bid, int)
     row = empty_conn.execute(
         "SELECT name, domain, created_at FROM brands WHERE id = ?", (bid,)
     ).fetchone()
-    assert row["name"] == "Acme"
-    assert row["domain"] == "acme.com"
+    assert row["name"] == "Example"
+    assert row["domain"] == "example.com"
     assert row["created_at"]
     datetime.fromisoformat(row["created_at"])
 
 
 def test_get_or_create_brand_idempotent_same_id(empty_conn):
-    first = get_or_create_brand(empty_conn, "Acme", "acme.com")
-    second = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    first = get_or_create_brand(empty_conn, "Example", "example.com")
+    second = get_or_create_brand(empty_conn, "Example", "example.com")
     assert first == second
     count = empty_conn.execute(
         "SELECT COUNT(*) FROM brands WHERE name = ? AND domain = ?",
-        ("Acme", "acme.com"),
+        ("Example", "example.com"),
     ).fetchone()[0]
     assert count == 1
 
 
 def test_get_or_create_brand_normalizes_domain(empty_conn):
-    bid_url = get_or_create_brand(empty_conn, "Acme", "https://www.Acme.com/x?utm=1")
-    bid_bare = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid_url = get_or_create_brand(empty_conn, "Example", "https://www.Example.com/x?utm=1")
+    bid_bare = get_or_create_brand(empty_conn, "Example", "example.com")
     assert bid_url == bid_bare
     rows = empty_conn.execute(
-        "SELECT domain FROM brands WHERE name = ?", ("Acme",)
+        "SELECT domain FROM brands WHERE name = ?", ("Example",)
     ).fetchall()
-    assert [r["domain"] for r in rows] == ["acme.com"]
+    assert [r["domain"] for r in rows] == ["example.com"]
 
 
 def test_get_or_create_brand_different_name_same_domain_is_distinct(empty_conn):
-    a = get_or_create_brand(empty_conn, "Acme", "acme.com")
-    b = get_or_create_brand(empty_conn, "Acme Rebrand", "acme.com")
+    a = get_or_create_brand(empty_conn, "Example", "example.com")
+    b = get_or_create_brand(empty_conn, "Example Rebrand", "example.com")
     assert a != b
     total = empty_conn.execute(
-        "SELECT COUNT(*) FROM brands WHERE domain = ?", ("acme.com",)
+        "SELECT COUNT(*) FROM brands WHERE domain = ?", ("example.com",)
     ).fetchone()[0]
     assert total == 2
 
 
 def test_get_or_create_brand_same_name_different_domain_is_distinct(empty_conn):
-    a = get_or_create_brand(empty_conn, "Acme", "acme.com")
-    b = get_or_create_brand(empty_conn, "Acme", "acme.io")
+    a = get_or_create_brand(empty_conn, "Example", "example.com")
+    b = get_or_create_brand(empty_conn, "Example", "example.io")
     assert a != b
     total = empty_conn.execute(
-        "SELECT COUNT(*) FROM brands WHERE name = ?", ("Acme",)
+        "SELECT COUNT(*) FROM brands WHERE name = ?", ("Example",)
     ).fetchone()[0]
     assert total == 2
 
 
 def test_create_run_inserts_running_with_defaults(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     run_id = create_run(empty_conn, bid, "google")
     assert isinstance(run_id, int)
 
@@ -242,14 +242,14 @@ def test_create_run_inserts_running_with_defaults(empty_conn):
 
 
 def test_create_run_multiple_runs_get_distinct_ids(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     r1 = create_run(empty_conn, bid, "google")
     r2 = create_run(empty_conn, bid, "google")
     assert r1 != r2
 
 
 def _fresh_run(conn: sqlite3.Connection) -> int:
-    bid = get_or_create_brand(conn, "Acme", "acme.com")
+    bid = get_or_create_brand(conn, "Example", "example.com")
     return create_run(conn, bid, "google")
 
 
@@ -415,21 +415,21 @@ def test_get_conn_foreign_keys_enforced_not_just_reported(empty_conn):
 
 
 def test_init_db_second_call_preserves_existing_rows(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     init_db(empty_conn)
     assert empty_conn.execute("SELECT COUNT(*) FROM brands").fetchone()[0] == 1
     assert empty_conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0] == 1
     assert empty_conn.execute(
         "SELECT name FROM brands WHERE id = ?", (bid,)
-    ).fetchone()["name"] == "Acme"
+    ).fetchone()["name"] == "Example"
     assert empty_conn.execute(
         "SELECT status FROM runs WHERE id = ?", (rid,)
     ).fetchone()["status"] == "running"
 
 
 def test_init_db_runs_table_sql_defaults_match_contract(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     cur = empty_conn.execute(
         "INSERT INTO runs (brand_id, engine, run_at) VALUES (?, ?, ?)",
         (bid, "google", _utcnow_iso()),
@@ -444,11 +444,11 @@ def test_init_db_runs_table_sql_defaults_match_contract(empty_conn):
 
 
 def test_init_db_brands_unique_constraint_is_enforced(empty_conn):
-    get_or_create_brand(empty_conn, "Acme", "acme.com")
+    get_or_create_brand(empty_conn, "Example", "example.com")
     with pytest.raises(sqlite3.IntegrityError):
         empty_conn.execute(
             "INSERT INTO brands (name, domain, created_at) VALUES (?, ?, ?)",
-            ("Acme", "acme.com", _utcnow_iso()),
+            ("Example", "example.com", _utcnow_iso()),
         )
         empty_conn.commit()
 
@@ -486,15 +486,15 @@ def test_get_or_create_brand_empty_strings_insert_and_are_idempotent(empty_conn)
 
 
 def test_get_or_create_brand_returns_int_for_existing_row_branch(empty_conn):
-    first = get_or_create_brand(empty_conn, "Acme", "acme.com")
-    second = get_or_create_brand(empty_conn, "Acme", "https://WWW.Acme.com/path?x=1")
+    first = get_or_create_brand(empty_conn, "Example", "example.com")
+    second = get_or_create_brand(empty_conn, "Example", "https://WWW.Example.com/path?x=1")
     assert second == first
     assert isinstance(second, int)
     assert type(second) is int
 
 
 def test_get_or_create_brand_id_is_valid_runs_fk_target(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     linked = empty_conn.execute(
         "SELECT brand_id FROM runs WHERE id = ?", (rid,)
@@ -503,7 +503,7 @@ def test_get_or_create_brand_id_is_valid_runs_fk_target(empty_conn):
 
 
 def test_get_or_create_brand_created_at_is_utc_aware(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     ts = empty_conn.execute(
         "SELECT created_at FROM brands WHERE id = ?", (bid,)
     ).fetchone()["created_at"]
@@ -518,7 +518,7 @@ def test_create_run_bogus_brand_id_raises_foreign_key(empty_conn):
 
 
 def test_create_run_run_at_is_utc_aware(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     ts = empty_conn.execute(
         "SELECT run_at FROM runs WHERE id = ?", (rid,)
@@ -528,7 +528,7 @@ def test_create_run_run_at_is_utc_aware(empty_conn):
 
 
 def test_create_run_preserves_arbitrary_engine_string(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "some_future_engine_v2")
     eng = empty_conn.execute(
         "SELECT engine FROM runs WHERE id = ?", (rid,)
@@ -711,7 +711,7 @@ def test_init_db_creates_lens_sentiment_index(empty_conn):
 
 
 def _seeded_run(conn: sqlite3.Connection) -> int:
-    bid = get_or_create_brand(conn, "Acme", "acme.com")
+    bid = get_or_create_brand(conn, "Example", "example.com")
     return create_run(conn, bid, "google")
 
 
@@ -832,7 +832,7 @@ def test_init_db_creates_results_unique_index(empty_conn):
 
 
 def test_results_unique_index_blocks_duplicate_query_lens(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     empty_conn.execute(
         "INSERT INTO results (run_id, query, lens, overview_present) VALUES (?, ?, ?, 1)",
@@ -848,7 +848,7 @@ def test_results_unique_index_blocks_duplicate_query_lens(empty_conn):
 
 
 def test_results_unique_index_allows_same_query_across_runs(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     r1 = create_run(empty_conn, bid, "google")
     r2 = create_run(empty_conn, bid, "google")
     for rid in (r1, r2):
@@ -861,7 +861,7 @@ def test_results_unique_index_allows_same_query_across_runs(empty_conn):
 
 
 def test_get_captured_keys_returns_query_lens_pairs(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     for q, lens in [("q1", "general"), ("q2", "branded"), ("q3", "general")]:
         empty_conn.execute(
@@ -881,7 +881,7 @@ def test_get_captured_keys_empty_for_unknown_run(empty_conn):
 
 
 def test_get_captured_keys_scoped_to_run(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     r1 = create_run(empty_conn, bid, "google")
     r2 = create_run(empty_conn, bid, "google")
     empty_conn.execute(
@@ -894,27 +894,27 @@ def test_get_captured_keys_scoped_to_run(empty_conn):
 
 
 def test_find_unfinished_run_returns_running_run(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     assert find_unfinished_run(empty_conn, bid, "google") == rid
 
 
 def test_find_unfinished_run_none_when_done(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     rid = create_run(empty_conn, bid, "google")
     update_run_counts(empty_conn, rid, status="done")
     assert find_unfinished_run(empty_conn, bid, "google") is None
 
 
 def test_find_unfinished_run_picks_latest_running(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     create_run(empty_conn, bid, "google")
     r2 = create_run(empty_conn, bid, "google")
     assert find_unfinished_run(empty_conn, bid, "google") == r2
 
 
 def test_find_unfinished_run_scoped_by_brand_and_engine(empty_conn):
-    bid = get_or_create_brand(empty_conn, "Acme", "acme.com")
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
     create_run(empty_conn, bid, "google")
     assert find_unfinished_run(empty_conn, bid, "perplexity") is None
     other = get_or_create_brand(empty_conn, "Other", "other.com")
@@ -926,7 +926,7 @@ def test_init_db_migrates_legacy_results_dedups_and_adds_unique_index(tmp_path):
     try:
         init_db(conn)
         conn.execute("DROP INDEX idx_results_run_query_lens")
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, "google")
         for _ in range(2):
             conn.execute(

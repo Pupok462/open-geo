@@ -55,9 +55,9 @@ def test_dash_iso_roundtrips_datetime():
 
 
 def test_dash_link_shape():
-    link = dsf._link(3, "https://acme.com/x", "acme.com")
-    assert link == Link(rank=3, url="https://acme.com/x", domain="acme.com")
-    assert link.model_dump() == {"rank": 3, "url": "https://acme.com/x", "domain": "acme.com"}
+    link = dsf._link(3, "https://example.com/x", "example.com")
+    assert link == Link(rank=3, url="https://example.com/x", domain="example.com")
+    assert link.model_dump() == {"rank": 3, "url": "https://example.com/x", "domain": "example.com"}
 
 
 @pytest.fixture
@@ -77,8 +77,8 @@ def test_dash_seed_summary_shape(dash_db):
 
     brands = summary["brands"]
     assert len(brands) == 2
-    assert [b["name"] for b in brands] == ["Acme", "Restwell"]
-    assert [b["domain"] for b in brands] == ["acme.com", "restwell.com"]
+    assert [b["name"] for b in brands] == ["Example", "Globex"]
+    assert [b["domain"] for b in brands] == ["example.com", "globex.com"]
 
     for b in brands:
         assert set(b) == {"id", "name", "domain", "runs"}
@@ -97,7 +97,7 @@ def test_dash_seed_two_brands_persisted(dash_db):
             r["name"]
             for r in conn.execute("SELECT name FROM brands ORDER BY id").fetchall()
         ]
-        assert names == ["Acme", "Restwell"]
+        assert names == ["Example", "Globex"]
         assert _count(conn, "brands") == 2
         assert _count(conn, "runs") == 8
     finally:
@@ -276,7 +276,7 @@ def test_dash_reseed_same_path_is_idempotent(tmp_path):
             r["name"]
             for r in conn.execute("SELECT name FROM brands ORDER BY name").fetchall()
         ]
-        assert names == ["Acme", "Restwell"]
+        assert names == ["Example", "Globex"]
     finally:
         conn.close()
 
@@ -298,13 +298,13 @@ def test_dash_seed_cli_main_writes_to_given_path(tmp_path):
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
     assert out["db"] == str(target)
-    assert [b["name"] for b in out["brands"]] == ["Acme", "Restwell"]
+    assert [b["name"] for b in out["brands"]] == ["Example", "Globex"]
     assert target.exists()
 
 
 def test_report_link_builds_url_from_rank_and_domain():
-    link = rsf._link(2, "acme.com")
-    assert link == {"rank": 2, "url": "https://acme.com/page2", "domain": "acme.com"}
+    link = rsf._link(2, "example.com")
+    assert link == {"rank": 2, "url": "https://example.com/page2", "domain": "example.com"}
 
 
 def test_report_insert_result_derives_target_ranks(empty_conn):
@@ -444,8 +444,8 @@ def test_report_main_returns_zero_and_seeds_two_runs(tmp_path, monkeypatch, caps
     try:
         brands = conn.execute("SELECT id, name, domain FROM brands").fetchall()
         assert len(brands) == 1
-        assert brands[0]["name"] == "Acme"
-        assert brands[0]["domain"] == "acme.com"
+        assert brands[0]["name"] == "Example"
+        assert brands[0]["domain"] == "example.com"
         brand_id = brands[0]["id"]
 
         runs = conn.execute(
@@ -501,7 +501,7 @@ def _dash_brand_conn(tmp_path, name="hard.db"):
     p = tmp_path / name
     conn = get_conn(str(p))
     init_db(conn)
-    brand_id = get_or_create_brand(conn, "Acme", "https://www.acme.com")
+    brand_id = get_or_create_brand(conn, "Example", "https://www.example.com")
     domain = conn.execute(
         "SELECT domain FROM brands WHERE id = ?", (brand_id,)
     ).fetchone()["domain"]
@@ -649,7 +649,7 @@ def test_dash_seed_sentiment_null_iff_overview_absent(dash_db):
             ).fetchall()
         ]
         boost0, boost1 = done_sorted[0], done_sorted[1]
-        q = "how to choose an orthopedic mattress for beginners"
+        q = "how to choose a task tracker for beginners"
 
         r0 = conn.execute(
             "SELECT overview_present, sentiment FROM results "
@@ -741,7 +741,7 @@ def test_dash_seed_two_brands_produce_identical_metrics(dash_db):
     summary = dsf.seed(dash_db)
     conn = _open(dash_db)
     try:
-        acme, rest = summary["brands"][0], summary["brands"][1]
+        example, rest = summary["brands"][0], summary["brands"][1]
 
         def all_metrics_by_boost(b):
             done_sorted = [
@@ -764,16 +764,16 @@ def test_dash_seed_two_brands_produce_identical_metrics(dash_db):
                 out.append(tuple(row))
             return out
 
-        assert all_metrics_by_boost(acme) == all_metrics_by_boost(rest)
+        assert all_metrics_by_boost(example) == all_metrics_by_boost(rest)
     finally:
         conn.close()
 
 
 def test_report_link_url_uses_page_rank_suffix():
-    assert rsf._link(1, "acme.com")["url"] == "https://acme.com/page1"
+    assert rsf._link(1, "example.com")["url"] == "https://example.com/page1"
     assert rsf._link(10, "x.io")["url"] == "https://x.io/page10"
-    lk = rsf._link(4, "restwell.com")
-    assert lk == {"rank": 4, "url": "https://restwell.com/page4", "domain": "restwell.com"}
+    lk = rsf._link(4, "globex.com")
+    assert lk == {"rank": 4, "url": "https://globex.com/page4", "domain": "globex.com"}
 
 
 def test_report_insert_result_duplicate_target_domains(empty_conn):

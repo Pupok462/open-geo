@@ -35,11 +35,11 @@ def _cap(
     source_ranks = source_ranks or []
     citation_ranks = citation_ranks or []
     sources = [
-        {"rank": r, "url": f"https://acme.com/{r}", "domain": "acme.com"}
+        {"rank": r, "url": f"https://example.com/{r}", "domain": "example.com"}
         for r in source_ranks
     ]
     citations = [
-        {"rank": r, "url": f"https://acme.com/c{r}", "domain": "acme.com"}
+        {"rank": r, "url": f"https://example.com/c{r}", "domain": "example.com"}
         for r in citation_ranks
     ]
     return QueryCapture.model_validate(
@@ -63,7 +63,7 @@ def _fresh_run(db_path: str, caps: list[QueryCapture]) -> tuple[int, int]:
     conn = get_conn(db_path)
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
         for c in caps:
             insert_capture(conn, run_id, c)
@@ -238,7 +238,7 @@ def test_compute_run_metrics_missing_run_raises(empty_db_path):
 def test_compute_run_metrics_zero_results_only_all_row(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
         rows = compute_run_metrics(conn, run_id)
     finally:
@@ -287,7 +287,7 @@ def test_compute_run_metrics_documented_lens_order(empty_db_path):
 def test_compute_run_metrics_unexpected_lens_sorted_after_known(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
         insert_capture(conn, run_id, _cap(lens="general"))
         for odd in ("zzz", "aaa"):
@@ -625,7 +625,7 @@ def test_compute_run_metrics_is_pure_does_not_persist(empty_db_path):
 def test_compute_run_metrics_only_unexpected_lenses_sorted(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
         for odd in ("mmm", "aaa", "zzz"):
             conn.execute(
@@ -649,7 +649,7 @@ def test_compute_run_metrics_only_unexpected_lenses_sorted(empty_db_path):
 def test_compute_run_metrics_empty_string_lens_sorts_first_among_unexpected(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
         insert_capture(conn, run_id, _cap(lens="general"))
         for odd in ("bbb", ""):
@@ -707,8 +707,8 @@ def test_aggregate_run_writes_valid_iso_computed_at(empty_db_path):
 def test_aggregate_run_identity_taken_from_run_row_not_results(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        b1 = get_or_create_brand(conn, "Acme", "acme.com")
-        b2 = get_or_create_brand(conn, "Restwell", "restwell.com")
+        b1 = get_or_create_brand(conn, "Example", "example.com")
+        b2 = get_or_create_brand(conn, "Globex", "globex.com")
         assert b1 != b2
         run_id = create_run(conn, b2, "perplexity")
         insert_capture(conn, run_id, _cap(lens="general"))
@@ -789,7 +789,7 @@ def test_main_run_id_zero_is_present_not_missing(empty_db_path, capsys):
 def test_main_unicode_round_trips_via_ensure_ascii_false(empty_db_path, capsys):
     conn = get_conn(empty_db_path)
     try:
-        brand_id = get_or_create_brand(conn, "Акме", "acme.com")
+        brand_id = get_or_create_brand(conn, "Экзампл", "example.com")
         run_id = create_run(conn, brand_id, "движок_ИИ")
         insert_capture(conn, run_id, _cap(lens="general"))
         conn.commit()

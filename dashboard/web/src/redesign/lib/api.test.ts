@@ -61,7 +61,7 @@ afterEach(() => {
 
 describe("getJSON success branch", () => {
   it("returns the parsed JSON body when res.ok is true", async () => {
-    const payload = [{ id: 1, name: "Acme", domain: "acme.com" }];
+    const payload = [{ id: 1, name: "Example", domain: "example.com" }];
     stubFetch(okResponse(payload));
 
     const out = await api.brands();

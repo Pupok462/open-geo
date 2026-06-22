@@ -79,26 +79,26 @@ validates every object against it.
 
 ```json
 {
-  "query": "best mattress for back sleepers",
+  "query": "best project management software for small teams",
   "lens": "general",
   "engine": "google",
   "captured_at": "2026-06-18T20:15:30Z",
-  "answer_text_md": "For back sleepers, models with firm support are often recommended in this range. **Acme** offers several suitable options...",
+  "answer_text_md": "For small teams, tools with a simple task board are often recommended in this range. **Example** offers several suitable plans...",
   "screenshot_path": null,
   "overview_present": true,
   "sources": [
-    { "rank": 1, "url": "https://www.sleepfoundation.org/best-mattress", "domain": "sleepfoundation.org" },
-    { "rank": 2, "url": "https://acme.com/catalog/back-support", "domain": "acme.com" },
-    { "rank": 3, "url": "https://www.wirecutter.com/mattress/guide", "domain": "wirecutter.com" },
-    { "rank": 4, "url": "https://acme.com/blog/how-to-choose", "domain": "acme.com" }
+    { "rank": 1, "url": "https://www.g2.com/categories/project-management", "domain": "g2.com" },
+    { "rank": 2, "url": "https://example.com/product/team-plan", "domain": "example.com" },
+    { "rank": 3, "url": "https://www.techradar.com/best/project-management-software", "domain": "techradar.com" },
+    { "rank": 4, "url": "https://example.com/blog/how-to-choose", "domain": "example.com" }
   ],
   "citations": [
-    { "rank": 1, "url": "https://acme.com/catalog/back-support", "domain": "acme.com" }
+    { "rank": 1, "url": "https://example.com/product/team-plan", "domain": "example.com" }
   ],
   "target_source_ranks": [2, 4],
   "target_citation_ranks": [1],
   "brand_in_answer_text": true,
-  "sentiment": "recommended among suitable options, mentioned by name with a direct catalog link"
+  "sentiment": "recommended among suitable options, mentioned by name with a direct link to the product"
 }
 ```
 
@@ -228,6 +228,37 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 > dashboard API does **not** call `init_db`, so against a DB created before this change it MUST
 > treat a missing `lens_sentiment` as "no summaries" (catch `no such table`), never error.
 
+**`domain_stats`** (one row per `domain` × lens — incl. `lens="all"` — per run; the **competitor / top-domain leaderboard**, deterministic math written by `aggregate`)
+
+| column | type | notes |
+|---|---|---|
+| `id` | INTEGER PK | |
+| `run_id` | INTEGER | FK → `runs(id)` |
+| `brand_id` | INTEGER | denormalized (parity with `metrics`) |
+| `engine` | TEXT | denormalized |
+| `lens` | TEXT | a specific lens, or `"all"` for the cross-lens scope |
+| `domain` | TEXT | normalized registrable domain (`normalize_domain`); **every** domain seen in `sources`/`citations`, not just the brand |
+| `is_brand` | INTEGER | 0/1 — `1` for the run's own brand domain (so the UI can highlight the brand's row in the leaderboard) |
+| `appearances_sources` | INTEGER | # of overview-present queries in scope where the domain appears in `sources` (presence, counted once per query) |
+| `appearances_citations` | INTEGER | same, for `citations` |
+| `sum_min_source_rank` | REAL | Σ over those queries of `min(rank of domain in sources)` — kept so `period=all` rolls up `avg_source_position` by weighted sum |
+| `sum_min_citation_rank` | REAL | same, for `citations` |
+| `avg_source_position` | REAL \| NULL | `sum_min_source_rank / appearances_sources` (NULL if 0); lower = better |
+| `avg_citation_position` | REAL \| NULL | `sum_min_citation_rank / appearances_citations` (NULL if 0); lower = better |
+| `computed_at` | TEXT | ISO-8601 |
+| — | | `UNIQUE(run_id, lens, domain)` |
+
+> **Who writes it:** `pipeline.aggregate` (§3.3) — this is **deterministic math** over the same
+> `results` rows it already reads (just generalized from the brand to **every** domain in
+> `sources`/`citations`), so it correctly lives in `aggregate` and is `DELETE`+rebuilt per run
+> alongside `metrics`. (Contrast `lens_sentiment`, which is LLM prose and is therefore kept *out*
+> of the aggregate path.)
+>
+> **New table / migration:** `init_db` creates it (`CREATE TABLE IF NOT EXISTS`) — no `ALTER`
+> needed. The read-only dashboard API does **not** call `init_db`, so against a DB created before
+> this change it MUST treat a missing `domain_stats` as "no leaderboard" (catch `no such table` →
+> empty list), never error. Rows populate on the next `aggregate` of each run.
+
 ### DB helpers provided by `pipeline/db.py`
 
 - `get_conn(db_path="data/aeo.db") -> sqlite3.Connection`
@@ -237,6 +268,7 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - `update_run_counts(conn, run_id, n_queries=?, n_ok=?, n_failed=?, status=?) -> None`
 - `upsert_lens_sentiment(conn, run_id, lens, summary) -> None` (replaces the row for that `run_id`+`lens`; `summary=None` clears it)
 - `get_lens_sentiments(conn, run_id) -> dict[str, str]` (lens → summary; returns `{}` if the `lens_sentiment` table is absent)
+- `get_domain_stats(conn, run_id, lens="all") -> list[dict]` (the leaderboard rows for one run+lens, ordered by `appearances_sources` desc; returns `[]` if the `domain_stats` table is absent)
 - `get_captured_keys(conn, run_id) -> set[tuple[str, str]]` (the `(query, lens)` pairs already in `results` for the run — the resume diff source)
 - `find_unfinished_run(conn, brand_id, engine) -> int | None` (most recent `status='running'` run for that brand+engine — the crashed run to resume, or `None`)
 
@@ -331,6 +363,10 @@ mid-run never loses already-captured work:
   ```
 - A lens row is emitted only for lenses present in the run's results; the `all`
   row is always emitted.
+- **Also writes `domain_stats` (§2/§4.2).** In the same pass `aggregate` `DELETE`s + rebuilds the
+  run's `domain_stats` rows — the per-domain frequency + average-position leaderboard over **every**
+  domain in `sources`/`citations`, per lens + `all`. This is deterministic and idempotent on
+  re-aggregation, exactly like `metrics`.
 
 ### 3.4 `python -m pipeline.lens_sentiment --run-id <N>`  (JSON object `{lens: summary}` on STDIN)
 
@@ -413,7 +449,9 @@ Notes:
   well-defined.)
 - **`sentiment` is QUALITATIVE** (free text, per query in `results.sentiment`).
   It is **NOT** aggregated into any *numeric* metric — there is intentionally **no
-  composite index, no share-of-voice, and no competitor modeling** in v1.
+  composite index and no share-of-voice index**, and sentiment itself stays non-numeric.
+  (**Competitor / top-domain modeling, previously excluded, is now provided** — but as plain
+  deterministic frequency + average-position stats, **not** a composite "voice" index; see §4.2.)
   **However**, the **orchestrator** additionally writes a per-lens **qualitative
   synthesis**: one short sentence per lens (and `all`) summarizing that lens's
   per-query `sentiment`s, stored in the `lens_sentiment` table (§2) at finalize via
@@ -439,6 +477,36 @@ per `lens`). Deltas apply to `overview_coverage`, `visibility_in_sources`,
 better**, so a negative delta is an improvement). **Do not store deltas** in any
 table — derive them on read.
 
+### 4.2 Competitor / top-domain leaderboard (`domain_stats`)
+
+The brand's `avg_source_position` / `avg_citation_position` (§4) generalized from the one target
+domain to **every** domain that shows up in the answers. **No new capture** — it reads the
+`sources` / `citations` arrays already stored in `results` (each is a full ranked `Link` list, not
+just the brand), so it also applies **retroactively** to existing runs on the next `aggregate`.
+
+Scope = one lens, or `all` (across the run's lenses). Within a scope, over **overview-present
+queries only** (same gate as §4), for each domain `D`:
+
+| field | formula | meaning |
+|---|---|---|
+| `appearances_sources` | # queries where `D ∈ sources` (presence, once per query) | **popularity** — the default leaderboard sort key |
+| `appearances_citations` | # queries where `D ∈ citations` | |
+| `avg_source_position` | mean over those queries of `min(rank of D in sources)` | lower = better |
+| `avg_citation_position` | mean over those queries of `min(rank of D in citations)` | lower = better |
+| `share_sources` | `appearances_sources / n_overviews` | directly comparable to the brand's `visibility_in_sources` (same denominator) |
+| `share_citations` | `appearances_citations / n_overviews` | comparable to `visibility_in_citations` |
+
+`share_*` is **derived on read** (numerator from `domain_stats`, denominator `n_overviews` from
+`metrics` for the same scope) — it is **not** stored. The stored `sum_min_*_rank` columns exist so
+`period=all` rolls up `avg_*_position` as `Σ sum_min_rank / Σ appearances` across the period's
+done runs (the same weighted-mean trick as the brand's `avg_*_position`, §3 dashboard rollup).
+
+This is **honest "who shares the answer space with you"**, not a curated competitor set: every
+domain is listed (brand-competitors *and* publishers/aggregators alike), and the brand itself is
+one row (`is_brand=1`). Default leaderboard order: `appearances_sources` desc (tie-break
+`appearances_citations` desc, then `domain`); the dashboard additionally lets the user re-sort the
+columns. No domain is dropped silently other than the explicit top-N cap the caller asks for.
+
 ---
 
 ## 5. Quick usage sketch (foundation pieces only)
@@ -449,7 +517,7 @@ from pipeline.schema import QueryCapture, normalize_domain
 
 conn = get_conn("data/aeo.db")
 init_db(conn)
-brand_id = get_or_create_brand(conn, "Acme", "https://www.acme.com")  # -> stores "acme.com"
+brand_id = get_or_create_brand(conn, "Example", "https://www.example.com")  # -> stores "example.com"
 run_id = create_run(conn, brand_id, "google")
 
 cap = QueryCapture.model_validate_json(some_json_string)  # raises ValidationError on bad input

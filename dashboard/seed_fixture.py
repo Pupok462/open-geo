@@ -58,18 +58,18 @@ def _build_run_captures(
         )
 
     add(
-        "best mattress for back sleepers", "general", True,
-        [_link(1, "https://sleepfoundation.org/a", "sleepfoundation.org"),
-         _link(2, f"https://{domain}/catalog", domain),
-         _link(3, "https://mattressreview.com/g", "mattressreview.com")],
-        [_link(1, f"https://{domain}/catalog", domain)],
+        "best project management software for small teams", "general", True,
+        [_link(1, "https://g2.com/a", "g2.com"),
+         _link(2, f"https://{domain}/product", domain),
+         _link(3, "https://capterra.com/g", "capterra.com")],
+        [_link(1, f"https://{domain}/product", domain)],
         [2], [1], True,
-        "recommended among suitable options, named with a link to the catalog",
+        "recommended among suitable options, named with a link to the site",
     )
     add(
-        "how to choose an orthopedic mattress for beginners", "general",
+        "how to choose a task tracker for beginners", "general",
         coverage_boost >= 1,
-        ([_link(1, "https://sleepfoundation.org/x", "sleepfoundation.org"),
+        ([_link(1, "https://g2.com/x", "g2.com"),
           _link(2, f"https://{domain}/blog", domain)] if coverage_boost >= 1 else []),
         [],
         ([2] if coverage_boost >= 1 else []), [],
@@ -77,13 +77,13 @@ def _build_run_captures(
         "mentioned neutrally among others" if coverage_boost >= 1 else None,
     )
     add(
-        "memory foam mattress ratings", "general", True,
-        [_link(1, "https://mattressreview.com/r", "mattressreview.com"),
-         _link(2, "https://sleepfoundation.org/r", "sleepfoundation.org")],
+        "kanban board software ratings", "general", True,
+        [_link(1, "https://capterra.com/r", "capterra.com"),
+         _link(2, "https://g2.com/r", "g2.com")],
         [], [], [], False, None,
     )
     add(
-        "affordable mattress for a guest room", "general",
+        "affordable task manager for a small team", "general",
         coverage_boost >= 2,
         ([_link(1, f"https://{domain}/value", domain)] if coverage_boost >= 2 else []),
         ([_link(1, f"https://{domain}/value", domain)] if coverage_boost >= 2 else []),
@@ -94,7 +94,7 @@ def _build_run_captures(
     )
 
     add(
-        f"{domain} mattress reviews", "branded", True,
+        f"{domain} reviews", "branded", True,
         [_link(1, f"https://{domain}/reviews", domain),
          _link(2, "https://trustpilot.com/x", "trustpilot.com")],
         [_link(1, f"https://{domain}/reviews", domain)],
@@ -109,28 +109,28 @@ def _build_run_captures(
         "official site listed as the first source",
     )
     add(
-        f"{domain} mattress sizes and dimensions", "branded",
+        f"{domain} pricing and plans", "branded",
         coverage_boost >= 1,
-        ([_link(1, f"https://{domain}/sizes", domain)] if coverage_boost >= 1 else []),
+        ([_link(1, f"https://{domain}/pricing", domain)] if coverage_boost >= 1 else []),
         [],
         ([1] if coverage_boost >= 1 else []), [],
         coverage_boost >= 1,
-        "named as the source for the size guide" if coverage_boost >= 1 else None,
+        "named as the source for the pricing guide" if coverage_boost >= 1 else None,
     )
 
     add(
-        f"{domain} vs NordSleep which is better", "comparative", True,
-        [_link(1, "https://nordsleep.com/c", "nordsleep.com"),
+        f"{domain} vs Initech which is better", "comparative", True,
+        [_link(1, "https://initech.com/c", "initech.com"),
          _link(2, f"https://{domain}/compare", domain),
-         _link(3, "https://mattressreview.com/c", "mattressreview.com")],
-        [_link(1, "https://nordsleep.com/c", "nordsleep.com")],
+         _link(3, "https://capterra.com/c", "capterra.com")],
+        [_link(1, "https://initech.com/c", "initech.com")],
         [2], [], True,
-        "mentioned as a solid alternative, but NordSleep is described in more detail",
+        "mentioned as a solid alternative, but Initech is described in more detail",
     )
     add(
-        "best mattress brands compared", "comparative", True,
-        [_link(1, "https://nordsleep.com/b", "nordsleep.com"),
-         _link(2, "https://dreamforge.com/b", "dreamforge.com")],
+        "best project management tools compared", "comparative", True,
+        [_link(1, "https://initech.com/b", "initech.com"),
+         _link(2, "https://hooli.com/b", "hooli.com")],
         [], [], [], False, None,
     )
 
@@ -166,15 +166,15 @@ def seed(db_path: str = FIXTURE_DB) -> dict:
     conn = get_conn(db_path)
     try:
         init_db(conn)
-        for tbl in ("metrics", "results", "runs", "brands"):
+        for tbl in ("domain_stats", "lens_sentiment", "metrics", "results", "runs", "brands"):
             conn.execute(f"DELETE FROM {tbl}")
         conn.commit()
 
         now = datetime.now(timezone.utc).replace(microsecond=0)
 
         brands = [
-            ("Acme", "https://www.acme.com"),
-            ("Restwell", "https://www.restwell.com"),
+            ("Example", "https://www.example.com"),
+            ("Globex", "https://www.globex.com"),
         ]
         summary: dict = {"db": db_path, "brands": []}
 

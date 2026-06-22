@@ -25,9 +25,9 @@ _DELTA_METRICS = (
 )
 
 
-def _acme_id(client) -> int:
+def _example_id(client) -> int:
     brands = client.get("/api/brands").json()
-    return next(b["id"] for b in brands if b["name"] == "Acme")
+    return next(b["id"] for b in brands if b["name"] == "Example")
 
 
 def test_db_path_default_when_env_unset(monkeypatch):
@@ -108,12 +108,12 @@ def test_brands_listed_sorted(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
     rows = client.get("/api/brands").json()
     names = [r["name"] for r in rows]
-    assert "Acme" in names and "Restwell" in names
+    assert "Example" in names and "Globex" in names
     assert names == sorted(names, key=str.lower)
     for r in rows:
         assert set(r.keys()) == {"id", "name", "domain"}
-    acme = next(r for r in rows if r["name"] == "Acme")
-    assert acme["domain"] == "acme.com"
+    example = next(r for r in rows if r["name"] == "Example")
+    assert example["domain"] == "example.com"
 
 
 def test_brands_empty_db_returns_empty_list(make_client, empty_db_path):
@@ -123,8 +123,8 @@ def test_brands_empty_db_returns_empty_list(make_client, empty_db_path):
 
 def test_engines_distinct_for_brand(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    engines = client.get("/api/engines", params={"brand_id": acme}).json()
+    example = _example_id(client)
+    engines = client.get("/api/engines", params={"brand_id": example}).json()
     assert engines == [ENGINE]
 
 
@@ -140,8 +140,8 @@ def test_engines_requires_brand_id(make_client, dash_fixture_db_path):
 
 def test_runs_newest_first_includes_running(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    runs = client.get("/api/runs", params={"brand_id": acme}).json()
+    example = _example_id(client)
+    runs = client.get("/api/runs", params={"brand_id": example}).json()
     assert len(runs) == 4
     statuses = [r["status"] for r in runs]
     assert "running" in statuses
@@ -155,14 +155,14 @@ def test_runs_newest_first_includes_running(make_client, dash_fixture_db_path):
 
 def test_runs_engine_filter(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     matching = client.get(
-        "/api/runs", params={"brand_id": acme, "engine": ENGINE}
+        "/api/runs", params={"brand_id": example, "engine": ENGINE}
     ).json()
     assert len(matching) == 4
     assert all(r["engine"] == ENGINE for r in matching)
     none = client.get(
-        "/api/runs", params={"brand_id": acme, "engine": "bing_copilot"}
+        "/api/runs", params={"brand_id": example, "engine": "bing_copilot"}
     ).json()
     assert none == []
 
@@ -174,9 +174,9 @@ def test_runs_unknown_brand_empty(make_client, dash_fixture_db_path):
 
 def test_metrics_today_shape_and_deltas(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
 
     assert body["period"] == "today"
@@ -203,9 +203,9 @@ def test_metrics_today_shape_and_deltas(make_client, dash_fixture_db_path):
 
 def test_metrics_today_delta_none_when_metric_absent(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     comp = next(r for r in body["metrics"] if r["lens"] == "comparative")
     assert comp["avg_citation_position"] is None
@@ -215,10 +215,10 @@ def test_metrics_today_delta_none_when_metric_absent(make_client, dash_fixture_d
 
 def test_metrics_today_lens_filter(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
         "/api/metrics",
-        params={"brand_id": acme, "engine": ENGINE, "period": "today", "lens": "branded"},
+        params={"brand_id": example, "engine": ENGINE, "period": "today", "lens": "branded"},
     ).json()
     lenses = [r["lens"] for r in body["metrics"]]
     assert lenses == ["branded"]
@@ -227,20 +227,21 @@ def test_metrics_today_lens_filter(make_client, dash_fixture_db_path):
 def test_metrics_today_first_run_has_no_prev(make_client, dash_fixture_db_path):
     conn = get_conn(dash_fixture_db_path)
     try:
-        acme = conn.execute("SELECT id FROM brands WHERE name='Acme'").fetchone()["id"]
+        example = conn.execute("SELECT id FROM brands WHERE name='Example'").fetchone()["id"]
         oldest = conn.execute(
             "SELECT id FROM runs WHERE brand_id=? AND engine=? AND status='done' "
             "ORDER BY run_at ASC, id ASC LIMIT 1",
-            (acme, ENGINE),
+            (example, ENGINE),
         ).fetchone()["id"]
         others = [
             r["id"]
             for r in conn.execute(
                 "SELECT id FROM runs WHERE brand_id=? AND engine=? AND id != ?",
-                (acme, ENGINE, oldest),
+                (example, ENGINE, oldest),
             ).fetchall()
         ]
         for rid in others:
+            conn.execute("DELETE FROM domain_stats WHERE run_id=?", (rid,))
             conn.execute("DELETE FROM metrics WHERE run_id=?", (rid,))
             conn.execute("DELETE FROM results WHERE run_id=?", (rid,))
             conn.execute("DELETE FROM runs WHERE id=?", (rid,))
@@ -251,7 +252,7 @@ def test_metrics_today_first_run_has_no_prev(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
     body = client.get(
         "/api/metrics",
-        params={"brand_id": acme, "engine": ENGINE, "period": "today"},
+        params={"brand_id": example, "engine": ENGINE, "period": "today"},
     ).json()
     assert body["run"]["run_id"] == oldest
     assert body["prev_run"] is None
@@ -281,10 +282,10 @@ def test_metrics_today_no_done_runs_returns_empty(make_client, dash_fixture_db_p
 
 def test_metrics_invalid_period_400(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.get(
         "/api/metrics",
-        params={"brand_id": acme, "engine": ENGINE, "period": "yesterday"},
+        params={"brand_id": example, "engine": ENGINE, "period": "yesterday"},
     )
     assert resp.status_code == 400
     assert "today" in resp.json()["detail"]
@@ -292,9 +293,9 @@ def test_metrics_invalid_period_400(make_client, dash_fixture_db_path):
 
 def test_metrics_all_aggregated(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "all"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "all"}
     ).json()
 
     assert body["period"] == "all"
@@ -315,10 +316,10 @@ def test_metrics_all_aggregated(make_client, dash_fixture_db_path):
 
 def test_metrics_all_lens_filter(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
         "/api/metrics",
-        params={"brand_id": acme, "engine": ENGINE, "period": "all", "lens": "branded"},
+        params={"brand_id": example, "engine": ENGINE, "period": "all", "lens": "branded"},
     ).json()
     assert [r["lens"] for r in body["metrics"]] == ["branded"]
 
@@ -401,9 +402,9 @@ def test_aggregate_period_no_done_runs_empty(empty_conn):
 def test_latest_run_id_only_done_excludes_running(dash_fixture_db_path):
     conn = get_conn(dash_fixture_db_path)
     try:
-        acme = conn.execute("SELECT id FROM brands WHERE name='Acme'").fetchone()["id"]
-        any_latest = api._latest_run_id(conn, acme, ENGINE, only_done=False)
-        done_latest = api._latest_run_id(conn, acme, ENGINE, only_done=True)
+        example = conn.execute("SELECT id FROM brands WHERE name='Example'").fetchone()["id"]
+        any_latest = api._latest_run_id(conn, example, ENGINE, only_done=False)
+        done_latest = api._latest_run_id(conn, example, ENGINE, only_done=True)
         assert any_latest != done_latest
         assert conn.execute(
             "SELECT status FROM runs WHERE id=?", (any_latest,)
@@ -418,13 +419,13 @@ def test_latest_run_id_only_done_excludes_running(dash_fixture_db_path):
 def test_latest_run_id_before_picks_strictly_earlier(dash_fixture_db_path):
     conn = get_conn(dash_fixture_db_path)
     try:
-        acme = conn.execute("SELECT id FROM brands WHERE name='Acme'").fetchone()["id"]
-        latest = api._latest_run_id(conn, acme, ENGINE, only_done=True)
+        example = conn.execute("SELECT id FROM brands WHERE name='Example'").fetchone()["id"]
+        latest = api._latest_run_id(conn, example, ENGINE, only_done=True)
         run_at = conn.execute(
             "SELECT run_at FROM runs WHERE id=?", (latest,)
         ).fetchone()["run_at"]
         prev = api._latest_run_id(
-            conn, acme, ENGINE, only_done=True, before_run_at=run_at, before_id=latest
+            conn, example, ENGINE, only_done=True, before_run_at=run_at, before_id=latest
         )
         assert prev is not None
         assert prev != latest
@@ -460,9 +461,9 @@ def test_metrics_by_lens_empty_for_unknown_run(empty_conn):
 
 def test_timeseries_oldest_to_newest_done_only(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/timeseries", params={"brand_id": acme, "engine": ENGINE, "lens": "all"}
+        "/api/timeseries", params={"brand_id": example, "engine": ENGINE, "lens": "all"}
     ).json()
     assert body["lens"] == "all"
     points = body["points"]
@@ -505,8 +506,8 @@ def test_timeseries_unknown_lens_empty(make_client, seeded_db_path):
 
 def test_results_decoded_payload(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    runs = client.get("/api/runs", params={"brand_id": acme, "engine": ENGINE}).json()
+    example = _example_id(client)
+    runs = client.get("/api/runs", params={"brand_id": example, "engine": ENGINE}).json()
     done_run = next(r for r in runs if r["status"] == "done")["run_id"]
 
     body = client.get("/api/results", params={"run_id": done_run}).json()
@@ -531,8 +532,8 @@ def test_results_decoded_payload(make_client, dash_fixture_db_path):
 
 def test_results_lens_filter(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    runs = client.get("/api/runs", params={"brand_id": acme, "engine": ENGINE}).json()
+    example = _example_id(client)
+    runs = client.get("/api/runs", params={"brand_id": example, "engine": ENGINE}).json()
     done_run = next(r for r in runs if r["status"] == "done")["run_id"]
 
     body = client.get(
@@ -618,9 +619,9 @@ def test_i18n_locale_malformed_file_500(monkeypatch, tmp_path):
 
 def test_report_invalid_period_400(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.post(
-        "/api/report", params={"brand_id": acme, "engine": ENGINE, "period": "weekly"}
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "weekly"}
     )
     assert resp.status_code == 400
     assert "today" in resp.json()["detail"]
@@ -692,7 +693,7 @@ def test_report_generates_pdf(make_client, seeded_db_path):
     assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.content[:4] == b"%PDF"
-    assert "acme.com" in resp.headers.get("content-disposition", "")
+    assert "example.com" in resp.headers.get("content-disposition", "")
 
 
 def test_db_path_empty_env_is_not_the_default(monkeypatch):
@@ -734,8 +735,8 @@ def test_brands_includes_both_fixture_brands_with_domains(make_client, dash_fixt
     client = make_client(dash_fixture_db_path)
     rows = client.get("/api/brands").json()
     by_name = {r["name"]: r for r in rows}
-    assert by_name["Acme"]["domain"] == "acme.com"
-    assert by_name["Restwell"]["domain"] == "restwell.com"
+    assert by_name["Example"]["domain"] == "example.com"
+    assert by_name["Globex"]["domain"] == "globex.com"
     ids = [r["id"] for r in rows]
     assert all(isinstance(i, int) and i > 0 for i in ids)
     assert len(ids) == len(set(ids))
@@ -743,8 +744,8 @@ def test_brands_includes_both_fixture_brands_with_domains(make_client, dash_fixt
 
 def test_runs_counts_are_ints_and_running_has_no_metrics(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    runs = client.get("/api/runs", params={"brand_id": acme}).json()
+    example = _example_id(client)
+    runs = client.get("/api/runs", params={"brand_id": example}).json()
     for r in runs:
         assert isinstance(r["n_queries"], int)
         assert isinstance(r["n_ok"], int)
@@ -756,19 +757,19 @@ def test_runs_counts_are_ints_and_running_has_no_metrics(make_client, dash_fixtu
 def test_runs_do_not_bleed_across_brands(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
     rows = client.get("/api/brands").json()
-    acme = next(r["id"] for r in rows if r["name"] == "Acme")
-    rest = next(r["id"] for r in rows if r["name"] == "Restwell")
-    acme_runs = {r["run_id"] for r in client.get("/api/runs", params={"brand_id": acme}).json()}
+    example = next(r["id"] for r in rows if r["name"] == "Example")
+    rest = next(r["id"] for r in rows if r["name"] == "Globex")
+    example_runs = {r["run_id"] for r in client.get("/api/runs", params={"brand_id": example}).json()}
     rest_runs = {r["run_id"] for r in client.get("/api/runs", params={"brand_id": rest}).json()}
-    assert acme_runs and rest_runs
-    assert acme_runs.isdisjoint(rest_runs)
+    assert example_runs and rest_runs
+    assert example_runs.isdisjoint(rest_runs)
 
 
 def test_metrics_today_every_delta_equals_cur_minus_prev(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     prev_run = body["prev_run"]
     assert prev_run is not None
@@ -789,9 +790,9 @@ def test_metrics_today_every_delta_equals_cur_minus_prev(make_client, dash_fixtu
 
 def test_metrics_today_prev_value_matches_previous_run(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     prev_run_id = body["prev_run"]["run_id"]
 
@@ -818,11 +819,11 @@ def test_metrics_today_prev_value_matches_previous_run(make_client, dash_fixture
 def test_metrics_today_lens_filter_no_match_returns_empty_metrics(make_client, dash_fixture_db_path):
     conn = get_conn(dash_fixture_db_path)
     try:
-        acme = conn.execute("SELECT id FROM brands WHERE name='Acme'").fetchone()["id"]
+        example = conn.execute("SELECT id FROM brands WHERE name='Example'").fetchone()["id"]
         latest = conn.execute(
             "SELECT id FROM runs WHERE brand_id=? AND engine=? AND status='done' "
             "ORDER BY run_at DESC, id DESC LIMIT 1",
-            (acme, ENGINE),
+            (example, ENGINE),
         ).fetchone()["id"]
         conn.execute(
             "DELETE FROM metrics WHERE run_id=? AND lens != 'all'", (latest,)
@@ -834,7 +835,7 @@ def test_metrics_today_lens_filter_no_match_returns_empty_metrics(make_client, d
     client = make_client(dash_fixture_db_path)
     body = client.get(
         "/api/metrics",
-        params={"brand_id": acme, "engine": ENGINE, "period": "today", "lens": "branded"},
+        params={"brand_id": example, "engine": ENGINE, "period": "today", "lens": "branded"},
     ).json()
     assert body["run"] is not None
     assert body["run"]["run_id"] == latest
@@ -843,9 +844,9 @@ def test_metrics_today_lens_filter_no_match_returns_empty_metrics(make_client, d
 
 def test_metrics_today_run_payload_fields(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     run = body["run"]
     assert set(run) == {"run_id", "run_at", "status", "n_queries"}
@@ -855,15 +856,15 @@ def test_metrics_today_run_payload_fields(make_client, dash_fixture_db_path):
 
 def test_metrics_all_matches_direct_aggregate(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "all"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "all"}
     ).json()
     http_by_lens = {r["lens"]: r for r in body["metrics"]}
 
     conn = get_conn(dash_fixture_db_path)
     try:
-        direct = {r["lens"]: r for r in api._aggregate_period(conn, acme, ENGINE, None)}
+        direct = {r["lens"]: r for r in api._aggregate_period(conn, example, ENGINE, None)}
     finally:
         conn.close()
 
@@ -892,10 +893,10 @@ def test_metrics_all_n_runs_zero_for_unknown_brand(make_client, dash_fixture_db_
     assert body["run"] is None and body["prev_run"] is None
 
 
-def test_metrics_all_restwell_independent(make_client, dash_fixture_db_path):
+def test_metrics_all_globex_independent(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
     rows = client.get("/api/brands").json()
-    rest = next(r["id"] for r in rows if r["name"] == "Restwell")
+    rest = next(r["id"] for r in rows if r["name"] == "Globex")
     body = client.get(
         "/api/metrics", params={"brand_id": rest, "engine": ENGINE, "period": "all"}
     ).json()
@@ -1080,7 +1081,7 @@ def test_results_lens_filter_empty_for_absent_lens(make_client, seeded_db_path):
 def test_results_run_from_other_brand_is_readable(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
     rows = client.get("/api/brands").json()
-    rest = next(r["id"] for r in rows if r["name"] == "Restwell")
+    rest = next(r["id"] for r in rows if r["name"] == "Globex")
     rest_run = next(
         r["run_id"]
         for r in client.get("/api/runs", params={"brand_id": rest, "engine": ENGINE}).json()
@@ -1155,21 +1156,21 @@ def test_report_success_streams_pdf_with_argv_contract(make_client, dash_fixture
     monkeypatch.setattr(api.subprocess, "run", _fake_run)
 
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.post(
-        "/api/report", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     )
     assert resp.status_code == 200, resp.text
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.content[:4] == b"%PDF"
     disp = resp.headers.get("content-disposition", "")
-    assert "acme.com" in disp and ENGINE in disp and "today" in disp
+    assert "example.com" in disp and ENGINE in disp and "today" in disp
 
     argv = captured["argv"]
     assert argv[0] == api.sys.executable
     assert argv[1:3] == ["-m", "report.generate"]
-    assert argv[argv.index("--brand") + 1] == "Acme"
-    assert argv[argv.index("--domain") + 1] == "acme.com"
+    assert argv[argv.index("--brand") + 1] == "Example"
+    assert argv[argv.index("--domain") + 1] == "example.com"
     assert argv[argv.index("--engine") + 1] == ENGINE
     assert argv[argv.index("--period") + 1] == "today"
     assert argv[argv.index("--db") + 1] == str(Path(dash_fixture_db_path))
@@ -1187,9 +1188,9 @@ def test_report_returncode_zero_but_no_file_returns_500(make_client, dash_fixtur
 
     monkeypatch.setattr(api.subprocess, "run", lambda *a, **k: _Proc())
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.post(
-        "/api/report", params={"brand_id": acme, "engine": ENGINE, "period": "all"}
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "all"}
     )
     assert resp.status_code == 500
     payload = resp.json()
@@ -1213,8 +1214,8 @@ def test_report_default_period_is_all(make_client, dash_fixture_db_path, monkeyp
 
     monkeypatch.setattr(api.subprocess, "run", _fake_run)
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    resp = client.post("/api/report", params={"brand_id": acme, "engine": ENGINE})
+    example = _example_id(client)
+    resp = client.post("/api/report", params={"brand_id": example, "engine": ENGINE})
     assert resp.status_code == 200
     assert captured["argv"][captured["argv"].index("--period") + 1] == "all"
 
@@ -1241,9 +1242,9 @@ def _focus_done_run_id(db_path: str, brand_id: int) -> int:
 
 def test_metrics_today_rows_carry_sentiment_summary_key(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     assert body["metrics"]
     for row in body["metrics"]:
@@ -1252,8 +1253,8 @@ def test_metrics_today_rows_carry_sentiment_summary_key(make_client, dash_fixtur
 
 def test_metrics_today_sentiment_summary_value_attached(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    focus = _focus_done_run_id(dash_fixture_db_path, acme)
+    example = _example_id(client)
+    focus = _focus_done_run_id(dash_fixture_db_path, example)
 
     from pipeline.db import upsert_lens_sentiment
 
@@ -1265,7 +1266,7 @@ def test_metrics_today_sentiment_summary_value_attached(make_client, dash_fixtur
         conn.close()
 
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     rows = {r["lens"]: r for r in body["metrics"]}
     assert rows["all"]["sentiment_summary"] == "overall neutral readout"
@@ -1275,8 +1276,8 @@ def test_metrics_today_sentiment_summary_value_attached(make_client, dash_fixtur
 
 def test_metrics_all_rows_carry_sentiment_summary(make_client, dash_fixture_db_path):
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
-    focus = _focus_done_run_id(dash_fixture_db_path, acme)
+    example = _example_id(client)
+    focus = _focus_done_run_id(dash_fixture_db_path, example)
 
     from pipeline.db import upsert_lens_sentiment
 
@@ -1287,7 +1288,7 @@ def test_metrics_all_rows_carry_sentiment_summary(make_client, dash_fixture_db_p
         conn.close()
 
     body = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "all"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "all"}
     ).json()
     rows = {r["lens"]: r for r in body["metrics"]}
     for row in body["metrics"]:
@@ -1307,9 +1308,9 @@ def _drop_lens_sentiment(db_path: str) -> None:
 def test_metrics_today_no_500_when_lens_sentiment_table_absent(make_client, dash_fixture_db_path):
     _drop_lens_sentiment(dash_fixture_db_path)
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "today"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     )
     assert resp.status_code == 200
     body = resp.json()
@@ -1321,12 +1322,152 @@ def test_metrics_today_no_500_when_lens_sentiment_table_absent(make_client, dash
 def test_metrics_all_no_500_when_lens_sentiment_table_absent(make_client, dash_fixture_db_path):
     _drop_lens_sentiment(dash_fixture_db_path)
     client = make_client(dash_fixture_db_path)
-    acme = _acme_id(client)
+    example = _example_id(client)
     resp = client.get(
-        "/api/metrics", params={"brand_id": acme, "engine": ENGINE, "period": "all"}
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "all"}
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body["metrics"]
     for row in body["metrics"]:
         assert row["sentiment_summary"] is None
+
+
+_COMPETITOR_KEYS = {
+    "domain",
+    "is_brand",
+    "appearances_sources",
+    "appearances_citations",
+    "share_sources",
+    "share_citations",
+    "avg_source_position",
+    "avg_citation_position",
+}
+
+
+def test_competitors_today_shape(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "today"}
+    ).json()
+    assert body["period"] == "today"
+    assert body["run"] is not None
+    assert body["n_overviews"] > 0
+    assert body["domains"]
+    for d in body["domains"]:
+        assert _COMPETITOR_KEYS <= set(d)
+        assert isinstance(d["is_brand"], bool)
+    brand_rows = [d for d in body["domains"] if d["is_brand"]]
+    assert len(brand_rows) == 1
+    assert brand_rows[0]["domain"] == "example.com"
+
+
+def test_competitors_today_share_matches_appearances(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "today"}
+    ).json()
+    nov = body["n_overviews"]
+    for d in body["domains"]:
+        assert d["share_sources"] == pytest.approx(d["appearances_sources"] / nov)
+        assert d["share_citations"] == pytest.approx(d["appearances_citations"] / nov)
+
+
+def test_competitors_default_sort_is_sources_desc(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "today"}
+    ).json()
+    apps = [d["appearances_sources"] for d in body["domains"]]
+    assert apps == sorted(apps, reverse=True)
+
+
+def test_competitors_limit_applied(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors",
+        params={"brand_id": 1, "engine": ENGINE, "period": "today", "limit": 3},
+    ).json()
+    assert len(body["domains"]) <= 3
+
+
+def test_competitors_sort_citations(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors",
+        params={"brand_id": 1, "engine": ENGINE, "period": "today", "sort": "citations"},
+    ).json()
+    cits = [d["appearances_citations"] for d in body["domains"]]
+    assert cits == sorted(cits, reverse=True)
+
+
+def test_competitors_all_rollup(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "all"}
+    ).json()
+    assert body["period"] == "all"
+    assert body["run"] is None
+    assert body["n_overviews"] > 0
+    assert body["domains"]
+    for d in body["domains"]:
+        if d["share_sources"] is not None:
+            assert 0.0 <= d["share_sources"] <= 1.0
+
+
+def test_competitors_invalid_period_400(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    resp = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "weekly"}
+    )
+    assert resp.status_code == 400
+
+
+def test_competitors_invalid_sort_400(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    resp = client.get(
+        "/api/competitors",
+        params={"brand_id": 1, "engine": ENGINE, "sort": "rank"},
+    )
+    assert resp.status_code == 400
+
+
+def test_competitors_unknown_brand_empty(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/competitors",
+        params={"brand_id": 987_654, "engine": ENGINE, "period": "today"},
+    ).json()
+    assert body["domains"] == []
+    assert body["run"] is None
+
+
+def _drop_domain_stats(db_path: str) -> None:
+    conn = get_conn(db_path)
+    try:
+        conn.execute("DROP TABLE IF EXISTS domain_stats")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_competitors_no_500_when_table_absent_today(make_client, seeded_db_path):
+    _drop_domain_stats(seeded_db_path)
+    client = make_client(seeded_db_path)
+    resp = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "today"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["domains"] == []
+    assert body["n_overviews"] > 0
+
+
+def test_competitors_no_500_when_table_absent_all(make_client, seeded_db_path):
+    _drop_domain_stats(seeded_db_path)
+    client = make_client(seeded_db_path)
+    resp = client.get(
+        "/api/competitors", params={"brand_id": 1, "engine": ENGINE, "period": "all"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["domains"] == []

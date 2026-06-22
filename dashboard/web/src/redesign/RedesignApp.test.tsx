@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import RedesignApp from "./RedesignApp";
 import type {
   Brand,
+  CompetitorsResponse,
   MetricRow,
   MetricsResponse,
   ResultRow,
@@ -15,7 +16,7 @@ import type {
 
 
 const BRANDS: Brand[] = [
-  { id: 1, name: "Acme", domain: "acme.com" },
+  { id: 1, name: "Example", domain: "example.com" },
   { id: 2, name: "Globex", domain: "globex.com" },
 ];
 
@@ -116,7 +117,7 @@ function resultRow(over: Partial<ResultRow> = {}): ResultRow {
     overview_present: true,
     answer_text_md: "Some answer",
     screenshot_path: null,
-    sources: [{ rank: 1, url: "https://acme.com/x", domain: "acme.com" }],
+    sources: [{ rank: 1, url: "https://example.com/x", domain: "example.com" }],
     citations: [],
     target_source_ranks: [1],
     target_citation_ranks: [],
@@ -136,7 +137,7 @@ function makeResults(over: Partial<ResultsResponse> = {}): ResultsResponse {
       status: "done",
     },
     lens: null,
-    results: [resultRow(), resultRow({ id: 101, query: "acme vs globex", lens: "comparative" })],
+    results: [resultRow(), resultRow({ id: 101, query: "example vs globex", lens: "comparative" })],
     ...over,
   };
 }
@@ -148,10 +149,45 @@ type RouterOverrides = {
   runs?: () => Promise<Response> | Response;
   metrics?: (period: string, lens: string | null) => Promise<Response> | Response;
   timeseries?: (lens: string) => Promise<Response> | Response;
+  competitors?: (period: string, lens: string | null) => Promise<Response> | Response;
   results?: (runId: string | null, lens: string | null) => Promise<Response> | Response;
   report?: (init?: RequestInit) => Promise<Response> | Response;
   i18nRegistry?: () => Promise<Response> | Response;
 };
+
+function makeCompetitors(over: Partial<CompetitorsResponse> = {}): CompetitorsResponse {
+  return {
+    brand_id: 1,
+    engine: "google",
+    period: "today",
+    lens: "all",
+    n_overviews: 12,
+    run: { run_id: 42, run_at: "2026-06-09T00:00:00Z", status: "done" },
+    domains: [
+      {
+        domain: "example.com",
+        is_brand: true,
+        appearances_sources: 7,
+        appearances_citations: 3,
+        share_sources: 0.58,
+        share_citations: 0.25,
+        avg_source_position: 2.1,
+        avg_citation_position: 1.5,
+      },
+      {
+        domain: "reddit.com",
+        is_brand: false,
+        appearances_sources: 6,
+        appearances_citations: 0,
+        share_sources: 0.5,
+        share_citations: 0.0,
+        avg_source_position: 2.6,
+        avg_citation_position: null,
+      },
+    ],
+    ...over,
+  };
+}
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -219,6 +255,12 @@ function installFetch(overrides: RouterOverrides = {}) {
       const lens = params.get("lens") ?? "all";
       if (overrides.timeseries) return overrides.timeseries(lens);
       return jsonResponse(makeTimeseries([tsPoint(40), tsPoint(42)]));
+    }
+    if (path === "/api/competitors") {
+      const period = params.get("period") ?? "today";
+      const lens = params.get("lens");
+      if (overrides.competitors) return overrides.competitors(period, lens);
+      return jsonResponse(makeCompetitors({ period: period as "today" | "all" }));
     }
     if (path === "/api/results") {
       const runId = params.get("run_id");
@@ -313,7 +355,7 @@ describe("RedesignApp — initial load", () => {
     expect(screen.queryByText("best running shoes")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("best running shoes")).toBeInTheDocument();
-    expect(screen.getByText("acme vs globex")).toBeInTheDocument();
+    expect(screen.getByText("example vs globex")).toBeInTheDocument();
   });
 
   it("trend chart is hidden in latest-run and revealed when switching to whole-period", async () => {
@@ -759,7 +801,7 @@ describe("RedesignApp — PDF export", () => {
     await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /Download PDF/i }));
 
-    await waitFor(() => expect(downloadName).toBe("open-geo_acme.com_today.pdf"));
+    await waitFor(() => expect(downloadName).toBe("open-geo_example.com_today.pdf"));
     clickSpy.mockRestore();
   });
 

@@ -24,13 +24,13 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _valid_capture_dict(**overrides) -> dict:
     base = {
-        "query": "best orthopedic mattresses",
+        "query": "best task tracking tools",
         "lens": "general",
         "engine": "google",
         "captured_at": "2026-06-18T20:15:30Z",
         "overview_present": True,
         "sources": [
-            {"rank": 1, "url": "https://acme.com/catalog/x", "domain": "acme.com"},
+            {"rank": 1, "url": "https://example.com/catalog/x", "domain": "example.com"},
         ],
         "citations": [],
         "target_source_ranks": [1],
@@ -47,7 +47,7 @@ def _fresh_db_with_run(tmp_path, name="aeo.db") -> tuple[str, int]:
     conn = get_conn(db_path)
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
     finally:
         conn.close()
@@ -93,12 +93,12 @@ def test_links_to_jsonable_empty_list():
 
 def test_links_to_jsonable_serializes_links_to_plain_dicts():
     links = [
-        Link(rank=1, url="https://acme.com/a", domain="acme.com"),
+        Link(rank=1, url="https://example.com/a", domain="example.com"),
         Link(rank=2, url="https://other.org/b", domain="other.org"),
     ]
     out = _links_to_jsonable(links)
     assert out == [
-        {"rank": 1, "url": "https://acme.com/a", "domain": "acme.com"},
+        {"rank": 1, "url": "https://example.com/a", "domain": "example.com"},
         {"rank": 2, "url": "https://other.org/b", "domain": "other.org"},
     ]
     assert set(out[0].keys()) == {"rank", "url", "domain"}
@@ -117,20 +117,20 @@ def test_insert_capture_persists_full_row_and_returns_lastrowid(tmp_path):
     try:
         cap = QueryCapture.model_validate(
             {
-                "query": "best mattress for back sleepers",
+                "query": "best project management software",
                 "lens": "general",
                 "engine": "google",
                 "captured_at": "2026-06-18T20:15:30Z",
-                "answer_text_md": "Acme is solid.",
+                "answer_text_md": "Example is solid.",
                 "screenshot_path": "data/screenshots/1/0.png",
                 "overview_present": True,
                 "sources": [
                     {"rank": 1, "url": "https://sf.org/x", "domain": "sf.org"},
-                    {"rank": 2, "url": "https://acme.com/a", "domain": "acme.com"},
-                    {"rank": 4, "url": "https://acme.com/b", "domain": "acme.com"},
+                    {"rank": 2, "url": "https://example.com/a", "domain": "example.com"},
+                    {"rank": 4, "url": "https://example.com/b", "domain": "example.com"},
                 ],
                 "citations": [
-                    {"rank": 1, "url": "https://acme.com/a", "domain": "acme.com"},
+                    {"rank": 1, "url": "https://example.com/a", "domain": "example.com"},
                 ],
                 "target_source_ranks": [2, 4],
                 "target_citation_ranks": [1],
@@ -148,9 +148,9 @@ def test_insert_capture_persists_full_row_and_returns_lastrowid(tmp_path):
         ).fetchone()
 
         assert row["run_id"] == run_id
-        assert row["query"] == "best mattress for back sleepers"
+        assert row["query"] == "best project management software"
         assert row["lens"] == "general"
-        assert row["answer_text_md"] == "Acme is solid."
+        assert row["answer_text_md"] == "Example is solid."
         assert row["screenshot_path"] == "data/screenshots/1/0.png"
 
         assert row["overview_present"] == 1
@@ -169,11 +169,11 @@ def test_insert_capture_persists_full_row_and_returns_lastrowid(tmp_path):
 
         assert sources == [
             {"rank": 1, "url": "https://sf.org/x", "domain": "sf.org"},
-            {"rank": 2, "url": "https://acme.com/a", "domain": "acme.com"},
-            {"rank": 4, "url": "https://acme.com/b", "domain": "acme.com"},
+            {"rank": 2, "url": "https://example.com/a", "domain": "example.com"},
+            {"rank": 4, "url": "https://example.com/b", "domain": "example.com"},
         ]
         assert citations == [
-            {"rank": 1, "url": "https://acme.com/a", "domain": "acme.com"},
+            {"rank": 1, "url": "https://example.com/a", "domain": "example.com"},
         ]
         assert src_ranks == [2, 4]
         assert cit_ranks == [1]
@@ -214,13 +214,13 @@ def test_insert_capture_unicode_round_trips(tmp_path):
     try:
         cap = QueryCapture.model_validate(
             {
-                "query": "матрасы",
+                "query": "проекты",
                 "lens": "general",
                 "engine": "google",
                 "captured_at": "2026-06-18T00:00:00Z",
                 "overview_present": True,
                 "sources": [
-                    {"rank": 1, "url": "https://acme.com/матрас", "domain": "acme.com"},
+                    {"rank": 1, "url": "https://example.com/проект", "domain": "example.com"},
                 ],
                 "target_source_ranks": [1],
                 "brand_in_answer_text": False,
@@ -231,8 +231,8 @@ def test_insert_capture_unicode_round_trips(tmp_path):
         conn.commit()
         row = conn.execute("SELECT * FROM results WHERE id = ?", (rowid,)).fetchone()
         assert row["sentiment"] == "упомянут нейтрально"
-        assert "матрас" in row["sources_json"]
-        assert json.loads(row["sources_json"])[0]["url"] == "https://acme.com/матрас"
+        assert "проект" in row["sources_json"]
+        assert json.loads(row["sources_json"])[0]["url"] == "https://example.com/проект"
     finally:
         conn.close()
 
@@ -452,8 +452,8 @@ def test_main_neither_mode_returns_2(tmp_path, capsys):
 def test_main_new_run_missing_required_arg_returns_2(tmp_path, capsys, missing):
     db_path = str(tmp_path / "aeo.db")
     args = {
-        "brand": ["--brand", "Acme"],
-        "domain": ["--domain", "acme.com"],
+        "brand": ["--brand", "Example"],
+        "domain": ["--domain", "example.com"],
         "engine": ["--engine", "google"],
     }
     argv = ["--db", db_path, "--new-run"]
@@ -472,8 +472,8 @@ def test_main_new_run_creates_brand_and_run(tmp_path, capsys):
     rc = main(
         [
             "--db", db_path,
-            "--brand", "Acme",
-            "--domain", "https://www.acme.com",
+            "--brand", "Example",
+            "--domain", "https://www.example.com",
             "--engine", "google",
             "--new-run",
         ]
@@ -491,8 +491,8 @@ def test_main_new_run_creates_brand_and_run(tmp_path, capsys):
     conn = get_conn(db_path)
     try:
         brand = conn.execute("SELECT name, domain FROM brands").fetchone()
-        assert brand["name"] == "Acme"
-        assert brand["domain"] == "acme.com"
+        assert brand["name"] == "Example"
+        assert brand["domain"] == "example.com"
 
         run = conn.execute(
             "SELECT engine, status FROM runs WHERE id = ?", (run_id,)
@@ -631,13 +631,13 @@ def test_links_to_jsonable_single_link_exact_shape():
 
 def test_links_to_jsonable_preserves_input_order_and_duplicate_domains():
     links = [
-        Link(rank=1, url="https://acme.com/a", domain="acme.com"),
+        Link(rank=1, url="https://example.com/a", domain="example.com"),
         Link(rank=2, url="https://b.org/x", domain="b.org"),
-        Link(rank=3, url="https://acme.com/c", domain="acme.com"),
+        Link(rank=3, url="https://example.com/c", domain="example.com"),
     ]
     out = _links_to_jsonable(links)
     assert [d["rank"] for d in out] == [1, 2, 3]
-    assert [d["domain"] for d in out] == ["acme.com", "b.org", "acme.com"]
+    assert [d["domain"] for d in out] == ["example.com", "b.org", "example.com"]
 
 
 def test_insert_capture_duplicate_domain_sources_and_rank_arrays_preserved(tmp_path):
@@ -652,13 +652,13 @@ def test_insert_capture_duplicate_domain_sources_and_rank_arrays_preserved(tmp_p
                 "captured_at": "2026-06-18T20:15:30Z",
                 "overview_present": True,
                 "sources": [
-                    {"rank": 1, "url": "https://acme.com/a", "domain": "acme.com"},
-                    {"rank": 2, "url": "https://acme.com/b", "domain": "acme.com"},
+                    {"rank": 1, "url": "https://example.com/a", "domain": "example.com"},
+                    {"rank": 2, "url": "https://example.com/b", "domain": "example.com"},
                     {"rank": 3, "url": "https://other.org/c", "domain": "other.org"},
                 ],
                 "citations": [
-                    {"rank": 1, "url": "https://acme.com/a", "domain": "acme.com"},
-                    {"rank": 2, "url": "https://acme.com/b", "domain": "acme.com"},
+                    {"rank": 1, "url": "https://example.com/a", "domain": "example.com"},
+                    {"rank": 2, "url": "https://example.com/b", "domain": "example.com"},
                 ],
                 "target_source_ranks": [1, 2],
                 "target_citation_ranks": [1, 2],
@@ -670,7 +670,7 @@ def test_insert_capture_duplicate_domain_sources_and_rank_arrays_preserved(tmp_p
         conn.commit()
         row = conn.execute("SELECT * FROM results WHERE id = ?", (rowid,)).fetchone()
         assert [s["domain"] for s in json.loads(row["sources_json"])] == [
-            "acme.com", "acme.com", "other.org",
+            "example.com", "example.com", "other.org",
         ]
         assert json.loads(row["target_source_ranks_json"]) == [1, 2]
         assert json.loads(row["target_citation_ranks_json"]) == [1, 2]
@@ -886,7 +886,7 @@ def test_main_new_run_twice_reuses_brand_distinct_runs(tmp_path, capsys):
     db_path = str(tmp_path / "aeo.db")
     base = [
         "--db", db_path,
-        "--brand", "Acme", "--domain", "acme.com",
+        "--brand", "Example", "--domain", "example.com",
         "--engine", "google", "--new-run",
     ]
     assert main(base) == 0
@@ -915,7 +915,7 @@ def test_main_new_run_creates_missing_parent_directories(tmp_path, capsys):
     rc = main(
         [
             "--db", str(nested),
-            "--brand", "Acme", "--domain", "acme.com",
+            "--brand", "Example", "--domain", "example.com",
             "--engine", "google", "--new-run",
         ]
     )
@@ -927,7 +927,7 @@ def test_main_new_run_creates_missing_parent_directories(tmp_path, capsys):
 
 def test_main_new_run_only_brand_given_returns_2(tmp_path, capsys):
     db_path = str(tmp_path / "aeo.db")
-    rc = main(["--db", db_path, "--new-run", "--brand", "Acme"])
+    rc = main(["--db", db_path, "--new-run", "--brand", "Example"])
     assert rc == 2
     out = capsys.readouterr()
     assert out.out == ""
@@ -1003,7 +1003,7 @@ def test_main_subprocess_new_run_then_ingest_end_to_end(tmp_path):
         [
             sys.executable, "-m", "pipeline.ingest",
             "--db", str(db_path),
-            "--brand", "Acme", "--domain", "acme.com",
+            "--brand", "Example", "--domain", "example.com",
             "--engine", "google", "--new-run",
         ],
         cwd=str(REPO_ROOT),

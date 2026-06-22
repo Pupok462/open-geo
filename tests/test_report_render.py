@@ -45,8 +45,8 @@ from report.generate import (
 from report.i18n import DEFAULT_LANG, Translator
 from report.textshape import is_rtl, shape, shaping_available
 
-BRAND = "Acme"
-DOMAIN = "acme.com"
+BRAND = "Example"
+DOMAIN = "example.com"
 ENGINE = "google"
 
 PNG_MAGIC = b"\x89PNG"
@@ -115,7 +115,7 @@ def _report_data(**overrides) -> ReportData:
         prev_metrics={"all": _lm("all", n_queries=24, n_overviews=15)},
         sentiments={
             "general": [("how to choose", "recommended as a leading brand")],
-            "branded": [("Acme reviews", "named a reliable choice")],
+            "branded": [("Example reviews", "named a reliable choice")],
         },
         history=[],
     )
@@ -820,7 +820,7 @@ def test_shape_transforms_arabic_and_is_identity_otherwise():
 
 
 def test_shape_leaves_latin_digits_untouched_under_ar():
-    assert shape("acme.com", "ar") == "acme.com"
+    assert shape("example.com", "ar") == "example.com"
     assert shape("83%", "ar") == "83%"
 
 

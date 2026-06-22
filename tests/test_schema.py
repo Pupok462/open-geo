@@ -11,7 +11,7 @@ from pipeline.schema import Link, QueryCapture, normalize_domain
 
 def _min_capture() -> dict:
     return {
-        "query": "best orthopedic mattresses",
+        "query": "best task tracking tools",
         "lens": "general",
         "engine": "google",
         "captured_at": "2026-06-18T20:15:30Z",
@@ -50,13 +50,13 @@ def test_normalize_domain_empty_like_returns_empty(raw):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("acme.com", "acme.com"),
-        ("http://acme.com", "acme.com"),
-        ("https://acme.com", "acme.com"),
-        ("ftp://acme.com/x", "acme.com"),
-        ("gopher://acme.com", "acme.com"),
-        ("//acme.com/path", "acme.com"),
-        ("HTTPS://ACME.COM", "acme.com"),
+        ("example.com", "example.com"),
+        ("http://example.com", "example.com"),
+        ("https://example.com", "example.com"),
+        ("ftp://example.com/x", "example.com"),
+        ("gopher://example.com", "example.com"),
+        ("//example.com/path", "example.com"),
+        ("HTTPS://EXAMPLE.COM", "example.com"),
     ],
 )
 def test_normalize_domain_scheme(raw, expected):
@@ -66,11 +66,11 @@ def test_normalize_domain_scheme(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("user@acme.com", "acme.com"),
-        ("user:pass@acme.com", "acme.com"),
-        ("https://user:pass@acme.com/x", "acme.com"),
-        ("mailto:foo@acme.com", "acme.com"),
-        ("a@b@acme.com", "acme.com"),
+        ("user@example.com", "example.com"),
+        ("user:pass@example.com", "example.com"),
+        ("https://user:pass@example.com/x", "example.com"),
+        ("mailto:foo@example.com", "example.com"),
+        ("a@b@example.com", "example.com"),
     ],
 )
 def test_normalize_domain_userinfo(raw, expected):
@@ -80,14 +80,14 @@ def test_normalize_domain_userinfo(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("acme.com/path", "acme.com"),
+        ("example.com/path", "example.com"),
         ("h/x", "h"),
-        ("acme.com?q=1", "acme.com"),
+        ("example.com?q=1", "example.com"),
         ("h?q", "h"),
-        ("acme.com#frag", "acme.com"),
+        ("example.com#frag", "example.com"),
         ("h#f", "h"),
-        ("acme.com?a=/b#c", "acme.com"),
-        ("acme.com/p?q#f", "acme.com"),
+        ("example.com?a=/b#c", "example.com"),
+        ("example.com/p?q#f", "example.com"),
     ],
 )
 def test_normalize_domain_path_query_fragment(raw, expected):
@@ -97,12 +97,12 @@ def test_normalize_domain_path_query_fragment(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("acme.com.", "acme.com"),
-        (".acme.com", "acme.com"),
-        ("acme.com:8080", "acme.com"),
-        ("acme.com:443", "acme.com"),
-        ("ACME.COM", "acme.com"),
-        ("AcMe.CoM", "acme.com"),
+        ("example.com.", "example.com"),
+        (".example.com", "example.com"),
+        ("example.com:8080", "example.com"),
+        ("example.com:443", "example.com"),
+        ("EXAMPLE.COM", "example.com"),
+        ("ExAmPlE.CoM", "example.com"),
     ],
 )
 def test_normalize_domain_dot_port_case(raw, expected):
@@ -112,10 +112,10 @@ def test_normalize_domain_dot_port_case(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("www.acme.com", "acme.com"),
-        ("www.www.acme.com", "acme.com"),
-        ("www.www.www.acme.com", "acme.com"),
-        ("WWW.Acme.com", "acme.com"),
+        ("www.example.com", "example.com"),
+        ("www.www.example.com", "example.com"),
+        ("www.www.www.example.com", "example.com"),
+        ("WWW.Example.com", "example.com"),
         ("www.com", "com"),
     ],
 )
@@ -127,10 +127,10 @@ def test_normalize_domain_www(raw, expected):
     "raw, expected",
     [
         ("localhost", "localhost"),
-        ("acme.com", "acme.com"),
+        ("example.com", "example.com"),
         ("a.b.example.com", "example.com"),
         ("w.x.y.z.example.com", "example.com"),
-        ("sub.acme.com", "acme.com"),
+        ("sub.example.com", "example.com"),
     ],
 )
 def test_normalize_domain_label_count(raw, expected):
@@ -145,7 +145,7 @@ def test_normalize_domain_label_count(raw, expected):
         ("x.com.au", "x.com.au"),
         ("y.co.jp", "y.co.jp"),
         ("z.gov.uk", "z.gov.uk"),
-        ("blog.acme.org.uk", "acme.org.uk"),
+        ("blog.example.org.uk", "example.org.uk"),
         ("news.site.govt.nz", "site.govt.nz"),
         ("a.b.c.example.com.br", "example.com.br"),
     ],
@@ -169,8 +169,8 @@ def test_normalize_domain_v1_limitation_unknown_multipart(raw, expected):
 
 def test_normalize_domain_combined_scheme_www_port_path_query():
     assert (
-        normalize_domain("https://www.Acme.COM:443/catalog/running?utm=1")
-        == "acme.com"
+        normalize_domain("https://www.Example.COM:443/catalog/running?utm=1")
+        == "example.com"
     )
 
 
@@ -182,7 +182,7 @@ def test_normalize_domain_combined_userinfo_subdomain_multipart():
 
 
 def test_normalize_domain_surrounding_whitespace_trimmed():
-    assert normalize_domain("   https://www.acme.com/x   ") == "acme.com"
+    assert normalize_domain("   https://www.example.com/x   ") == "example.com"
 
 
 def test_normalize_domain_unicode_host_lowercased_kept():
@@ -190,17 +190,17 @@ def test_normalize_domain_unicode_host_lowercased_kept():
 
 
 def test_normalize_domain_returns_str_type():
-    out = normalize_domain("https://www.acme.com")
+    out = normalize_domain("https://www.example.com")
     assert isinstance(out, str)
 
 
 def test_link_valid_construction():
-    link = Link(rank=2, url="https://acme.com/x", domain="acme.com")
-    assert (link.rank, link.url, link.domain) == (2, "https://acme.com/x", "acme.com")
+    link = Link(rank=2, url="https://example.com/x", domain="example.com")
+    assert (link.rank, link.url, link.domain) == (2, "https://example.com/x", "example.com")
 
 
 def test_link_rank_str_to_int_coercion():
-    link = Link(rank="1", url="https://acme.com/x", domain="acme.com")
+    link = Link(rank="1", url="https://example.com/x", domain="example.com")
     assert link.rank == 1
     assert isinstance(link.rank, int)
 
@@ -219,7 +219,7 @@ def test_link_rank_negative_is_accepted():
 
 @pytest.mark.parametrize("missing", ["rank", "url", "domain"])
 def test_link_missing_required_field_raises(missing):
-    data = {"rank": 1, "url": "https://acme.com/x", "domain": "acme.com"}
+    data = {"rank": 1, "url": "https://example.com/x", "domain": "example.com"}
     del data[missing]
     with pytest.raises(ValidationError) as exc:
         Link.model_validate(data)
@@ -238,19 +238,19 @@ def test_link_extra_field_ignored():
 
 def test_query_capture_full_valid_object():
     data = {
-        "query": "best mattress for back sleepers",
+        "query": "best project management software",
         "lens": "comparative",
         "engine": "google",
         "captured_at": "2026-06-18T20:15:30Z",
-        "answer_text_md": "**Acme** offers several suitable options...",
+        "answer_text_md": "**Example** offers several suitable options...",
         "screenshot_path": "data/screenshots/42/0003.png",
         "overview_present": True,
         "sources": [
-            {"rank": 1, "url": "https://sleepfoundation.org/x", "domain": "sleepfoundation.org"},
-            {"rank": 2, "url": "https://acme.com/catalog", "domain": "acme.com"},
+            {"rank": 1, "url": "https://g2.com/x", "domain": "g2.com"},
+            {"rank": 2, "url": "https://example.com/catalog", "domain": "example.com"},
         ],
         "citations": [
-            {"rank": 1, "url": "https://acme.com/catalog", "domain": "acme.com"},
+            {"rank": 1, "url": "https://example.com/catalog", "domain": "example.com"},
         ],
         "target_source_ranks": [2],
         "target_citation_ranks": [1],
@@ -364,14 +364,14 @@ def test_query_capture_nested_link_dicts_parse_to_link():
     cap = QueryCapture.model_validate(
         {
             **_min_capture(),
-            "sources": [{"rank": 1, "url": "https://acme.com/s", "domain": "acme.com"}],
-            "citations": [{"rank": 2, "url": "https://acme.com/c", "domain": "acme.com"}],
+            "sources": [{"rank": 1, "url": "https://example.com/s", "domain": "example.com"}],
+            "citations": [{"rank": 2, "url": "https://example.com/c", "domain": "example.com"}],
         }
     )
     assert isinstance(cap.sources[0], Link)
     assert isinstance(cap.citations[0], Link)
     assert cap.sources[0].rank == 1
-    assert cap.citations[0].domain == "acme.com"
+    assert cap.citations[0].domain == "example.com"
 
 
 def test_query_capture_nested_link_invalid_reports_indexed_loc():
@@ -379,7 +379,7 @@ def test_query_capture_nested_link_invalid_reports_indexed_loc():
         QueryCapture.model_validate(
             {
                 **_min_capture(),
-                "sources": [{"rank": 1, "url": "https://acme.com/s"}],
+                "sources": [{"rank": 1, "url": "https://example.com/s"}],
             }
         )
     err = exc.value.errors()[0]
@@ -402,8 +402,8 @@ def test_query_capture_model_validate_dump_round_trip():
         "answer_text_md": "text",
         "screenshot_path": "data/s/0.png",
         "overview_present": True,
-        "sources": [{"rank": 1, "url": "https://acme.com/s", "domain": "acme.com"}],
-        "citations": [{"rank": 1, "url": "https://acme.com/c", "domain": "acme.com"}],
+        "sources": [{"rank": 1, "url": "https://example.com/s", "domain": "example.com"}],
+        "citations": [{"rank": 1, "url": "https://example.com/c", "domain": "example.com"}],
         "target_source_ranks": [1],
         "target_citation_ranks": [1],
         "brand_in_answer_text": True,
@@ -439,8 +439,8 @@ def test_models_are_pydantic_base_models():
         ("www", "www"),
         ("www.www.", "www"),
         ("wwwx.com", "wwwx.com"),
-        ("xwww.acme.com", "acme.com"),
-        (".www.acme.com", "acme.com"),
+        ("xwww.example.com", "example.com"),
+        (".www.example.com", "example.com"),
     ],
 )
 def test_normalize_domain_www_prefix_edge_cases(raw, expected):
@@ -453,7 +453,7 @@ def test_normalize_domain_www_prefix_edge_cases(raw, expected):
         ("://x", "x"),
         ("a://b", "b"),
         ("http://a://b", "a"),
-        ("scheme://www.acme.com", "acme.com"),
+        ("scheme://www.example.com", "example.com"),
     ],
 )
 def test_normalize_domain_scheme_split_first_only(raw, expected):
@@ -463,10 +463,10 @@ def test_normalize_domain_scheme_split_first_only(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("acme.com/path@evil", "evil"),
-        ("acme.com?u=a@b", "b"),
-        ("acme.com/u@host.com/x", "host.com"),
-        ("a@b@acme.com", "acme.com"),
+        ("example.com/path@evil", "evil"),
+        ("example.com?u=a@b", "b"),
+        ("example.com/u@host.com/x", "host.com"),
+        ("a@b@example.com", "example.com"),
     ],
 )
 def test_normalize_domain_userinfo_split_precedes_path_strip(raw, expected):
@@ -476,10 +476,10 @@ def test_normalize_domain_userinfo_split_precedes_path_strip(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("acme.com.:8080", "com."),
-        ("acme.co.uk.:443", "uk."),
-        ("acme.com:8080", "acme.com"),
-        ("acme.com.", "acme.com"),
+        ("example.com.:8080", "com."),
+        ("example.co.uk.:443", "uk."),
+        ("example.com:8080", "example.com"),
+        ("example.com.", "example.com"),
     ],
 )
 def test_normalize_domain_trailing_dot_before_port_wart(raw, expected):
@@ -493,8 +493,8 @@ def test_normalize_domain_ipv6_bracket_degrades_to_bracket():
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("user@acme.com:8080", "acme.com"),
-        ("https://user:pass@www.acme.com:443/x?y#z", "acme.com"),
+        ("user@example.com:8080", "example.com"),
+        ("https://user:pass@www.example.com:443/x?y#z", "example.com"),
     ],
 )
 def test_normalize_domain_userinfo_and_port(raw, expected):
@@ -681,9 +681,9 @@ def test_query_capture_query_and_engine_reject_none():
 
 def test_query_capture_unicode_query_and_sentiment_preserved():
     cap = QueryCapture.model_validate(
-        {**_min_capture(), "query": "лучший матрас café ☕", "sentiment": "упомянут нейтрально"}
+        {**_min_capture(), "query": "лучший проект café ☕", "sentiment": "упомянут нейтрально"}
     )
-    assert cap.query == "лучший матрас café ☕"
+    assert cap.query == "лучший проект café ☕"
     assert cap.sentiment == "упомянут нейтрально"
 
 
@@ -704,18 +704,18 @@ def test_query_capture_multiple_missing_fields_all_reported():
 def test_query_capture_full_object_json_round_trip():
     cap = QueryCapture.model_validate(
         {
-            "query": "best mattress",
+            "query": "best task tracker",
             "lens": "comparative",
             "engine": "google",
             "captured_at": "2026-06-18T20:15:30+00:00",
-            "answer_text_md": "**Acme** is solid.",
+            "answer_text_md": "**Example** is solid.",
             "screenshot_path": "data/s/1.png",
             "overview_present": True,
             "sources": [
                 {"rank": 1, "url": "https://a.com/1", "domain": "a.com"},
-                {"rank": 2, "url": "https://acme.com/2", "domain": "acme.com"},
+                {"rank": 2, "url": "https://example.com/2", "domain": "example.com"},
             ],
-            "citations": [{"rank": 1, "url": "https://acme.com/2", "domain": "acme.com"}],
+            "citations": [{"rank": 1, "url": "https://example.com/2", "domain": "example.com"}],
             "target_source_ranks": [2],
             "target_citation_ranks": [1],
             "brand_in_answer_text": True,
@@ -725,7 +725,7 @@ def test_query_capture_full_object_json_round_trip():
     again = QueryCapture.model_validate_json(cap.model_dump_json())
     assert again == cap
     assert isinstance(again.sources[0], Link)
-    assert again.sources[1].domain == "acme.com"
+    assert again.sources[1].domain == "example.com"
 
 
 def test_lens_literal_members_are_exactly_three():

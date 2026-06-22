@@ -2,7 +2,8 @@
 
 FastAPI backend (read-only over `data/aeo.db`) + Vite/React/TypeScript/Tailwind/Recharts
 frontend. Shows AI-visibility metrics per brand/engine with retrospective charts,
-read-time deltas, lens breakdown, a per-query results table, and a PDF export. The
+read-time deltas, lens breakdown, a **top-domains (competitor) leaderboard**, a per-query
+results table, and a PDF export. The
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
 (`/api/engines`), so as capture expands beyond Google AI Overview (ROADMAP Feature 3) new
 engines surface automatically with no dashboard change (the Google-flavored metric *labels*
@@ -70,6 +71,7 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/runs?brand_id=&engine=` | runs newest-first |
 | GET  | `/api/metrics?brand_id=&engine=&period=today\|all&lens=` | metrics + read-time deltas + per-lens `sentiment_summary` |
 | GET  | `/api/timeseries?brand_id=&engine=&lens=` | per-run points over time (retrospective) |
+| GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |
 | GET  | `/api/results?run_id=&lens=` | per-query rows (JSON cols decoded, incl. sentiment) |
 | GET  | `/api/i18n` | the `i18n/locales.json` registry — `[{code, name}]`, drives the language switcher |
 | GET  | `/api/i18n/{code}` | that locale's string dict (`i18n/<code>.json`); falls back to `en` for an unknown code |
@@ -91,6 +93,19 @@ web UI surfaces these as a **"Sentiment by lens"** panel above the per-query res
 Because the API is **read-only and never calls `init_db`**, a DB created before this table existed
 degrades gracefully: the endpoint returns rows with `sentiment_summary: null` (catching
 `no such table`) instead of erroring.
+
+`/api/competitors` returns the **top-domains leaderboard** (the `domain_stats` table, INTERFACES
+§2/§4.2): every domain appearing in `sources`/`citations` for the scope — brand competitors and
+publishers alike — with `appearances_sources`/`appearances_citations` (presence over
+overview-present queries), `avg_source_position`/`avg_citation_position`, and read-time
+`share_sources`/`share_citations` (appearances ÷ that scope's `n_overviews`). `is_brand` flags the
+brand's own row. `period=today` reads the latest completed run; `period=all` rolls the period up
+across completed runs (avg positions via summed `min`-rank weights). `sort` (default `sources`)
+picks the top-`limit` (default 15); the web UI re-sorts those rows client-side on column click. As
+with sentiment, the read-only API never calls `init_db`, so a DB predating `domain_stats` returns
+an empty `domains: []` (catching `no such table`) instead of erroring. The web UI surfaces this as a
+**"Top domains in answer space"** panel (the brand row highlighted with a "you" badge); the PDF
+report carries the same as its top-domains section.
 
 The frontend shows the **Trend across runs** chart only in the `all` (whole-period) view; the
 `today` (latest-run) view is a pure snapshot — KPI cards with read-time deltas, no trend chart.
@@ -164,6 +179,6 @@ curl -s 'http://127.0.0.1:8077/api/i18n'
 cd dashboard/web && npm install && npm run build
 ```
 
-The fixture seeds two brands (e.g. Acme / Restwell), each with three completed runs of
+The fixture seeds two brands (e.g. Example / Globex), each with three completed runs of
 increasing visibility plus one still-running run, across all three lenses — enough to
 exercise deltas, the retrospective chart, lens breakdown, and the results table.

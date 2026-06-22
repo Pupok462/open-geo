@@ -92,6 +92,27 @@ export type ResultsResponse = {
   results: ResultRow[];
 };
 
+export type CompetitorRow = {
+  domain: string;
+  is_brand: boolean;
+  appearances_sources: number;
+  appearances_citations: number;
+  share_sources: Num;
+  share_citations: Num;
+  avg_source_position: Num;
+  avg_citation_position: Num;
+};
+
+export type CompetitorsResponse = {
+  brand_id: number;
+  engine: string;
+  period: "today" | "all";
+  lens: string;
+  n_overviews: number;
+  run: { run_id: number; run_at: string; status: string } | null;
+  domains: CompetitorRow[];
+};
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
@@ -125,6 +146,16 @@ export const api = {
     getJSON<TimeseriesResponse>(`/api/timeseries${qs({ brand_id: brandId, engine, lens })}`),
   results: (runId: number, lens?: string) =>
     getJSON<ResultsResponse>(`/api/results${qs({ run_id: runId, lens })}`),
+  competitors: (
+    brandId: number,
+    engine: string,
+    period: "today" | "all",
+    lens?: string,
+    limit = 15,
+  ) =>
+    getJSON<CompetitorsResponse>(
+      `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit })}`,
+    ),
   reportUrl: (brandId: number, engine: string, period: "today" | "all", lang?: string) =>
     `${API_BASE}/api/report${qs({ brand_id: brandId, engine, period, lang })}`,
 };

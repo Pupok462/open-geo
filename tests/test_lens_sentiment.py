@@ -15,7 +15,7 @@ def _fresh_db_with_run(tmp_path, name="aeo.db") -> tuple[str, int]:
     conn = get_conn(db_path)
     try:
         init_db(conn)
-        brand_id = get_or_create_brand(conn, "Acme", "acme.com")
+        brand_id = get_or_create_brand(conn, "Example", "example.com")
         run_id = create_run(conn, brand_id, "google")
     finally:
         conn.close()

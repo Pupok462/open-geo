@@ -25,8 +25,9 @@ logged-in browser and records whether your domain makes it into the **sources**,
   citation chips), normalizes domains, and emits one validated record per query. No brittle
   scraping of a surface no engine ever promised to keep stable.
 - **A visibility funnel, not a vanity score.** Six metrics that nest as a funnel — answer →
-  sources → citations — plus a qualitative sentiment read. **No composite index, no made-up
-  share-of-voice.** Every number is auditable to [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md).
+  sources → citations — plus a qualitative sentiment read **and a top-domains leaderboard** (your
+  brand ranked against every other domain in the answers). **No composite index, no made-up
+  share-of-voice *index*.** Every number is auditable to [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md).
 - **Local-first, multi-brand time-series.** Captures land in a local SQLite (WAL) database, so you
   build per-brand, per-engine history and run-over-run deltas. Deliverables are a themed **PDF** and
   a **FastAPI + React dashboard** with a four-language switcher. Your data never leaves your machine.
@@ -49,6 +50,11 @@ logged-in browser and records whether your domain makes it into the **sources**,
   the source→citation conversion (`relative_citation`) and a short free-text note on how each
   answer treats the brand. The dashboard and PDF also show a **per-lens qualitative sentiment
   summary** synthesized from those per-query notes (see [Metrics](#metrics)).
+- **A top-domains (competitor) leaderboard** — the average-position metric generalized from your
+  brand to *every* domain in the answers, ranked by how often it appears (with its average
+  source/citation position). The honest "who shares your answer space" — brand rivals and
+  publishers alike, your brand highlighted — as a sortable dashboard panel and a PDF section. No
+  extra capture: it's computed from the data you already collected, so it works on past runs too.
 - **SQLite multi-brand time-series** — every run is stored in `data/aeo.db` (SQLite, WAL),
   so you accumulate history per brand + engine and get run-over-run deltas.
 - **A dashboard with a four-language switcher** — English, Русский, 中文, العربية (RTL-aware) —
@@ -69,7 +75,7 @@ shell commands. The whole setup is: clone, ask Claude to install it, then use it
 
 2. **Ask Claude to set it up.** In a Claude Code session in that folder, say something like:
 
-   > Set up open-geo (run `scripts/setup.sh`), then track `acme.com` (brand "Acme") on `google`
+   > Set up open-geo (run `scripts/setup.sh`), then track `example.com` (brand "Example") on `google`
    > using `examples/questions.csv`.
 
    Claude runs the install and the capture for you — and prints a dashboard link and a summary.
@@ -77,14 +83,14 @@ shell commands. The whole setup is: clone, ask Claude to install it, then use it
 3. **Or run it directly** as a command once installed:
 
    ```bash
-   /open-geo examples/questions.csv google acme.com --brand "Acme" --n-worker 3 --output both
+   /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
    ```
 
 **Track it on a schedule.** Wrap the command in Claude Code's **`/loop`** to re-capture on an
 interval and watch the drift — e.g. a weekly read:
 
 ```bash
-/loop 1w /open-geo examples/questions.csv google acme.com --brand "Acme" --output both
+/loop 1w /open-geo examples/questions.csv google example.com --brand "Example" --output both
 ```
 
 > The one thing Claude can't do for you: connect the **Claude-in-Chrome** extension and log the
@@ -104,7 +110,7 @@ Python: Claude orchestrates capture → metrics → deliverables and hands you a
 |---|---|
 | `<questions.csv>` | CSV with columns **`query,lens`**, where `lens ∈ general \| branded \| comparative`. Ready sample: `examples/questions.csv`. |
 | `<engine>` | which AI engine to track (e.g. `google`). The same slot takes any engine that has a capture playbook under `engines/`. |
-| `<domain>` | the target domain (any spelling: `https://www.acme.com`, `acme.com` — normalized automatically). |
+| `<domain>` | the target domain (any spelling: `https://www.example.com`, `example.com` — normalized automatically). |
 | `--brand "<name>"` | human brand name (used in report/dashboard titles and the summary). |
 | `--n-worker <N>` | number of capture workers run **in parallel** — the run's concurrency. |
 | `--output` | `dashboard` (default) \| `pdf` \| `both`. |
@@ -177,35 +183,39 @@ The six metrics are just ratios and positions along that funnel:
   "Sentiment by lens" strip in the dashboard and as the lead of the PDF's sentiment section. It
   follows the language of the captured data, not `--lang`.
 
-There is intentionally **no competitors, no share-of-voice, and no composite index.** **Deltas**
-between runs are computed at read-time against the previous completed run of the same brand +
-engine; they are not stored. Authority: [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4.
+A **top-domains leaderboard** (INTERFACES §4.2) ranks every domain in the answers — your brand
+highlighted — by appearances and average source/citation position, for honest competitive context
+computed from the same captured data. There is still intentionally **no composite index, no
+share-of-voice *index*, and no numeric sentiment** — the leaderboard is plain frequencies and
+positions, not a blended score. **Deltas** between runs are computed at read-time against the
+previous completed run of the same brand + engine; they are not stored. Authority:
+[`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4.
 
 ## Sample output
 
 Every run produces two deliverables — a themed **PDF report** and a local **dashboard**, both
 built from the same scored run.
 
-The PDF's **key-metrics page** (from the seeded **Acme** demo — engine `google`;
-[download the full sample PDF](assets/sample-report-acme.pdf)):
+The PDF's **key-metrics page** (from the seeded **Example** demo — engine `google`;
+[download the full sample PDF](assets/sample-report-example.pdf)):
 
 <p align="center">
-  <img src="assets/report-metrics.png" alt="open-geo PDF report — key metrics page for Acme (acme.com): six KPI cards with run-over-run deltas and a per-lens breakdown table" width="78%">
+  <img src="assets/report-metrics.png" alt="open-geo PDF report — key metrics page for Example (example.com): six KPI cards with run-over-run deltas and a per-lens breakdown table" width="78%">
 </p>
 
 The **dashboard** — KPI cards with read-time deltas, the per-lens breakdown, a "Sentiment by lens"
-strip, a retrospective chart and a per-query table, with a four-language switcher and light/dark
-themes:
+strip, a **"Top domains in answer space"** leaderboard, a retrospective chart and a per-query
+table, with a four-language switcher and light/dark themes:
 
 <p align="center">
-  <img src="assets/dashboard-en.png" alt="open-geo dashboard — Acme on google: six KPI cards with deltas, breakdown by lens, and a sentiment-by-lens section" width="100%">
+  <img src="assets/dashboard-en.png" alt="open-geo dashboard — Example on google: six KPI cards with deltas, breakdown by lens, and a sentiment-by-lens section" width="100%">
 </p>
 
 At the end of a run, `/open-geo` prints a short headline summary built from the `lens="all"` row
-(here, the seeded Acme demo — engine `google`, run of 2026-06-09):
+(here, the seeded Example demo — engine `google`, run of 2026-06-09):
 
 ```
-Run for brand "Acme" (engine google), queries: 24.
+Run for brand "Example" (engine google), queries: 24.
 • AI Overview coverage: 83% (20 of 24 queries).
 • Visibility in sources: 60% of overview queries.
 • Visibility in citations: 45% of overview queries.
@@ -220,7 +230,7 @@ The six metrics for `lens="all"`, with the underlying funnel counts
 | Metric | Value | Plain meaning | Direction |
 |---|---|---|---|
 | `overview_coverage` | **0.83** (20/24) | Share of queries where an AI answer rendered at all | higher = better |
-| `visibility_in_sources` | **0.60** (12/20) | Of answer queries, share where `acme.com` made it into the relied-on sources | higher = better |
+| `visibility_in_sources` | **0.60** (12/20) | Of answer queries, share where `example.com` made it into the relied-on sources | higher = better |
 | `visibility_in_citations` | **0.45** (9/20) | Of answer queries, share where the domain is cited in the answer prose | higher = better |
 | `avg_source_position` | **2.50** | Average best (`min`) rank among sources, over queries where it appears | lower = better |
 | `avg_citation_position` | **1.00** | Average best (`min`) rank among citations, over queries where it is cited | lower = better |
@@ -249,7 +259,8 @@ account.
 Because they form a **funnel** (answer → sources → citations), and collapsing it into one number
 invites hand-wavy weighting and invented baselines. Every number is auditable to one formula in
 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4, plus a free-text sentiment note that is never
-reduced to a number. No composite index, no competitors, no share-of-voice.
+reduced to a number. A top-domains leaderboard (§4.2) gives competitive context as plain
+frequencies + positions — still no composite index and no share-of-voice index.
 
 ### What is `--n-worker`, and how long does a run take?
 `--n-worker N` is the run's **concurrency**: the queries are split into N chunks and N capture

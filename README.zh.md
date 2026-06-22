@@ -25,8 +25,8 @@ Claude、Google AI Overview、Yandex、DeepSeek。每条回答都依赖少数几
   引用标记），对域名做归一化处理，并为每个查询输出一条经过校验的记录。绝不靠脆弱的
   抓取去解析某个没有任何引擎承诺会保持稳定的表层。
 - **一条可见度漏斗，而不是虚荣指标。** 六项指标层层嵌套成一条漏斗——回答 →
-  来源 → 引用——外加一项定性的情感判读。**没有综合指数，没有编造的
-  share-of-voice。** 每个数字都可追溯到 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) 进行审计。
+  来源 → 引用——外加一项定性的情感判读**以及一个热门域名排行榜**（你的品牌与回答中所有其他域名的对比）。
+  **没有综合指数，没有编造的 share-of-voice 指数。** 每个数字都可追溯到 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) 进行审计。
 - **本地优先、多品牌时间序列。** 捕获结果落入本地 SQLite（WAL）数据库，于是你可以
   构建按品牌、按引擎的历史，并得到逐次运行之间的差值。交付物是一份带主题的 **PDF** 和
   一个**带四语言切换器的 FastAPI + React 仪表盘**。你的数据永不离开你的机器。
@@ -49,6 +49,10 @@ Claude、Google AI Overview、Yandex、DeepSeek。每条回答都依赖少数几
   来源→引用的转化率（`relative_citation`），以及一条关于每条回答如何对待品牌的简短自由文本注记。
   仪表盘和 PDF 还会展示一份从这些逐查询注记综合而成的**按视角分组的定性情感
   摘要**（见 **指标**）。
+- **热门域名（竞争对手）排行榜** —— 把平均位置这一指标从你的品牌推广到回答中出现的*每一个*域名，
+  按出现频次排序（并附其平均来源/引用位置）。这是诚实的「谁在与你共享回答空间」——品牌竞争对手与
+  发布方/聚合站一视同仁，你的品牌高亮显示——以仪表盘中的可排序面板和 PDF 中的一节呈现。无需额外抓取：
+  它由你已采集的数据算出，因此对历史运行同样有效。
 - **SQLite 多品牌时间序列** —— 每次运行都存入 `data/aeo.db`（SQLite，WAL），
   于是你能按品牌 + 引擎累积历史，并得到逐次运行之间的差值。
 - **带四语言切换器的仪表盘** —— English、Русский、中文、العربية（支持 RTL）——
@@ -70,21 +74,21 @@ shell 命令。整个上手流程是：克隆、让 Claude 安装它，然后把
 2. **让 Claude 帮你完成设置。** 在该文件夹下的 Claude Code 会话里，说类似这样的话：
 
    > 设置好 open-geo（运行 `scripts/setup.sh`），然后用 `examples/questions.csv`
-   > 在 `google` 上追踪 `acme.com`（品牌为 "Acme"）。
+   > 在 `google` 上追踪 `example.com`（品牌为 "Example"）。
 
    Claude 会替你执行安装和捕获——并打印出一个仪表盘链接和一份摘要。
 
 3. **或者在安装后直接以命令运行：**
 
    ```bash
-   /open-geo examples/questions.csv google acme.com --brand "Acme" --n-worker 3 --output both
+   /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
    ```
 
 **按计划追踪。** 用 Claude Code 的 **`/loop`** 把命令包起来，以一定间隔重新捕获并
 观察漂移——例如做一次每周的判读：
 
 ```bash
-/loop 1w /open-geo examples/questions.csv google acme.com --brand "Acme" --output both
+/loop 1w /open-geo examples/questions.csv google example.com --brand "Example" --output both
 ```
 
 > 唯一一件 Claude 无法替你做的事：连接 **Claude-in-Chrome** 扩展，并把浏览器
@@ -104,7 +108,7 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 |---|---|
 | `<questions.csv>` | 含列 **`query,lens`** 的 CSV，其中 `lens ∈ general \| branded \| comparative`。现成样例：`examples/questions.csv`。 |
 | `<engine>` | 要追踪哪个 AI 引擎（如 `google`）。同一个位置可接受任何在 `engines/` 下有捕获 playbook 的引擎。 |
-| `<domain>` | 目标域名（任意写法：`https://www.acme.com`、`acme.com`——会被自动归一化）。 |
+| `<domain>` | 目标域名（任意写法：`https://www.example.com`、`example.com`——会被自动归一化）。 |
 | `--brand "<name>"` | 人类可读的品牌名（用于报告/仪表盘标题和摘要）。 |
 | `--n-worker <N>` | **并行**运行的捕获 worker 数量——即本次运行的并发度。 |
 | `--output` | `dashboard`（默认）\| `pdf` \| `both`。 |
@@ -174,7 +178,9 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
   「Sentiment by lens」条带，并作为 PDF 情感章节的开头。它
   跟随被捕获数据的语言，而不是 `--lang`。
 
-刻意**没有竞争对手、没有 share-of-voice、也没有综合指数。** 运行之间的**差值**
+一个**热门域名排行榜**（INTERFACES §4.2）按出现频次与平均来源/引用位置对回答中的每个域名排名
+（你的品牌高亮）——由同一批采集数据算出的诚实竞争语境。仍然刻意**没有综合指数、没有 share-of-voice
+指数、也没有数值化情感**——排行榜只是频次与位置，而非混合分数。 运行之间的**差值**
 在读取时针对同一品牌 + 引擎的上一次已完成运行计算得出；
 它们不被存储。权威：[`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4。
 
@@ -183,26 +189,26 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 每次运行产出两件交付物——一份带主题的 **PDF 报告**和一个本地**仪表盘**，二者
 都从同一次打分后的运行构建而来。
 
-PDF 的**关键指标页**（来自预置的 **Acme** 演示——引擎 `google`；
-[下载完整示例 PDF](assets/sample-report-acme.pdf)）：
+PDF 的**关键指标页**（来自预置的 **Example** 演示——引擎 `google`；
+[下载完整示例 PDF](assets/sample-report-example.pdf)）：
 
 <p align="center">
-  <img src="assets/report-metrics.png" alt="open-geo PDF 报告——Acme（acme.com）的关键指标页：六张 KPI 卡片，带逐次运行差值，以及一张按视角的拆分表" width="78%">
+  <img src="assets/report-metrics.png" alt="open-geo PDF 报告——Example（example.com）的关键指标页：六张 KPI 卡片，带逐次运行差值，以及一张按视角的拆分表" width="78%">
 </p>
 
 **仪表盘** —— 带读取时差值的 KPI 卡片、按视角的拆分、一个「Sentiment by lens」
-条带、一张回顾图表和一张逐查询表格，配有四语言切换器和浅色/深色
+条带、一个**「Top domains in answer space」排行榜**、一张回顾图表和一张逐查询表格，配有四语言切换器和浅色/深色
 主题：
 
 <p align="center">
-  <img src="assets/dashboard-zh.png" alt="open-geo 仪表盘——google 上的 Acme：六张带差值的 KPI 卡片、按视角的拆分，以及一个按视角分组的情感章节" width="100%">
+  <img src="assets/dashboard-zh.png" alt="open-geo 仪表盘——google 上的 Example：六张带差值的 KPI 卡片、按视角的拆分，以及一个按视角分组的情感章节" width="100%">
 </p>
 
 在一次运行结束时，`/open-geo` 会从 `lens="all"` 行构建并打印一份简短的标题摘要
-（此处为预置的 Acme 演示——引擎 `google`，2026-06-09 的运行）：
+（此处为预置的 Example 演示——引擎 `google`，2026-06-09 的运行）：
 
 ```
-Run for brand "Acme" (engine google), queries: 24.
+Run for brand "Example" (engine google), queries: 24.
 • AI Overview coverage: 83% (20 of 24 queries).
 • Visibility in sources: 60% of overview queries.
 • Visibility in citations: 45% of overview queries.
@@ -217,7 +223,7 @@ Run for brand "Acme" (engine google), queries: 24.
 | Metric | 取值 | 大白话含义 | 方向 |
 |---|---|---|---|
 | `overview_coverage` | **0.83** (20/24) | 总共有多大比例的查询渲染出了 AI 回答 | 越高越好 |
-| `visibility_in_sources` | **0.60** (12/20) | 在有回答的查询中，`acme.com` 进入所依赖来源的比例 | 越高越好 |
+| `visibility_in_sources` | **0.60** (12/20) | 在有回答的查询中，`example.com` 进入所依赖来源的比例 | 越高越好 |
 | `visibility_in_citations` | **0.45** (9/20) | 在有回答的查询中，域名在回答正文里被引用的比例 | 越高越好 |
 | `avg_source_position` | **2.50** | 在域名出现的查询上，它在来源中的平均最佳（`min`）名次 | 越低越好 |
 | `avg_citation_position` | **1.00** | 在域名被引用的查询上，它在引用中的平均最佳（`min`）名次 | 越低越好 |
@@ -246,7 +252,8 @@ Run for brand "Acme" (engine google), queries: 24.
 因为它们构成一条**漏斗**（回答 → 来源 → 引用），而把它压成一个数字
 会招来含糊的加权和臆造的基准。每个数字都可追溯到
 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4 中的某一个公式进行审计，外加一条永远
-不被压成数字的自由文本情感注记。没有综合指数，没有竞争对手，也没有 share-of-voice。
+不被压成数字的自由文本情感注记。一个热门域名排行榜（§4.2）以频次 + 位置提供竞争语境——但仍然
+没有综合指数，也没有 share-of-voice 指数。
 
 ### `--n-worker` 是什么，一次运行要多久？
 `--n-worker N` 是本次运行的**并发度**：查询被切成 N 个分块，N 个捕获

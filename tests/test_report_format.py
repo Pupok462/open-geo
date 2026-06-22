@@ -365,7 +365,7 @@ def test_delta_num_digits_zero_threshold(t_en):
 def test_metrics_row_to_obj_coerces_counts_and_keeps_none_rates(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_metric(
             conn,
@@ -407,7 +407,7 @@ def test_metrics_row_to_obj_coerces_counts_and_keeps_none_rates(empty_db_path):
 def test_load_metrics_for_run_maps_lens_to_object(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_metric(conn, run_id=rid, brand_id=bid, lens="all", overview_coverage=0.8)
         _insert_metric(conn, run_id=rid, brand_id=bid, lens="general", overview_coverage=0.9)
@@ -433,7 +433,7 @@ def test_load_metrics_for_run_empty_when_no_rows(empty_db_path):
 def test_resolve_brand_id_exact_match(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        bid = _resolve_brand_id(conn, "Acme", "https://www.acme.com/foo")
+        bid = _resolve_brand_id(conn, "Example", "https://www.example.com/foo")
         assert bid == 1
     finally:
         conn.close()
@@ -442,8 +442,8 @@ def test_resolve_brand_id_exact_match(seeded_db_path):
 def test_resolve_brand_id_wrong_domain_raises_with_known_domains(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        with pytest.raises(ValueError, match="acme.com"):
-            _resolve_brand_id(conn, "Acme", "totally-different.example")
+        with pytest.raises(ValueError, match="example.com"):
+            _resolve_brand_id(conn, "Example", "totally-different.example")
     finally:
         conn.close()
 
@@ -451,7 +451,7 @@ def test_resolve_brand_id_wrong_domain_raises_with_known_domains(seeded_db_path)
 def test_resolve_brand_id_unknown_name_is_none(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        assert _resolve_brand_id(conn, "NoSuchBrand", "acme.com") is None
+        assert _resolve_brand_id(conn, "NoSuchBrand", "example.com") is None
     finally:
         conn.close()
 
@@ -489,7 +489,7 @@ def test_completed_runs_only_runs_with_metrics_newest_first(seeded_db_path):
 def test_completed_runs_excludes_runs_without_metrics(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         with_metrics = create_run(conn, bid, ENGINE)
         without_metrics = create_run(conn, bid, ENGINE)  # noqa: F841 — intentionally bare
         update_run_counts(conn, with_metrics, status="done")
@@ -506,7 +506,7 @@ def test_completed_runs_excludes_runs_without_metrics(empty_db_path):
 def test_completed_runs_excludes_non_done_status(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         done_run = create_run(conn, bid, ENGINE)
         running_run = create_run(conn, bid, ENGINE)
         failed_run = create_run(conn, bid, ENGINE)
@@ -535,7 +535,7 @@ def test_completed_runs_wrong_engine_is_empty(seeded_db_path):
 def test_completed_runs_tie_break_by_id_desc(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         r1 = create_run(conn, bid, ENGINE)
         r2 = create_run(conn, bid, ENGINE)
         same = "2026-06-01T00:00:00+00:00"
@@ -554,7 +554,7 @@ def test_completed_runs_tie_break_by_id_desc(empty_db_path):
 def test_load_sentiments_groups_by_lens_newest_first(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_result(conn, run_id=rid, lens="general", query="old",
                        captured_at="2026-06-01T08:00:00Z", sentiment="oldest")
@@ -577,7 +577,7 @@ def test_load_sentiments_groups_by_lens_newest_first(empty_db_path):
 def test_load_sentiments_dedups_identical_phrase_within_lens(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_result(conn, run_id=rid, lens="general", query="q1",
                        captured_at="2026-06-01T12:00:00Z", sentiment="same phrase")
@@ -597,7 +597,7 @@ def test_load_sentiments_dedups_identical_phrase_within_lens(empty_db_path):
 def test_load_sentiments_caps_at_per_lens_default_four(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         for i in range(6):
             _insert_result(
@@ -616,7 +616,7 @@ def test_load_sentiments_caps_at_per_lens_default_four(empty_db_path):
 def test_load_sentiments_custom_per_lens(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         for i in range(5):
             _insert_result(
@@ -634,7 +634,7 @@ def test_load_sentiments_custom_per_lens(empty_db_path):
 def test_load_sentiments_skips_null_and_empty(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_result(conn, run_id=rid, lens="general", query="null", sentiment=None)
         _insert_result(conn, run_id=rid, lens="general", query="blank", sentiment="   ")
@@ -658,7 +658,7 @@ def test_load_sentiments_empty_run_is_empty_dict(empty_db_path):
 def test_load_sentiments_strips_padding_on_kept_phrase(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         _insert_result(conn, run_id=rid, lens="general", query="  q  ",
                        captured_at="2026-06-01T12:00:00Z",
@@ -673,7 +673,7 @@ def test_load_sentiments_strips_padding_on_kept_phrase(empty_db_path):
 def test_load_sentiments_tab_only_passes_sql_but_strips_empty(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         rid = create_run(conn, bid, ENGINE)
         whitespace_only = "\t\t\t"
         sql_keeps, py_empties = conn.execute(
@@ -721,8 +721,8 @@ def test_lensmetrics_construction_holds_fields():
 
 def test_reportdata_history_defaults_to_empty_list():
     rd = ReportData(
-        brand_name="Acme",
-        brand_domain="acme.com",
+        brand_name="Example",
+        brand_domain="example.com",
         engine=ENGINE,
         period="today",
         run_id=1,
@@ -746,7 +746,7 @@ def test_reportdata_history_defaults_to_empty_list():
 def test_load_report_data_today_resolves_prev_run(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        data = load_report_data(conn, "Acme", "https://www.acme.com", ENGINE, "today")
+        data = load_report_data(conn, "Example", "https://www.example.com", ENGINE, "today")
         assert data.period == "today"
         assert data.run_id == 5
         assert data.run_at == "2026-06-09T09:00:00+00:00"
@@ -756,7 +756,7 @@ def test_load_report_data_today_resolves_prev_run(seeded_db_path):
         assert "all" in data.prev_metrics
         assert set(data.sentiments).issubset({"general", "branded", "comparative"})
         assert data.sentiments
-        assert data.brand_domain == "acme.com"
+        assert data.brand_domain == "example.com"
         assert data.history == []
     finally:
         conn.close()
@@ -765,7 +765,7 @@ def test_load_report_data_today_resolves_prev_run(seeded_db_path):
 def test_load_report_data_all_fills_history_oldest_to_newest(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        data = load_report_data(conn, "Acme", "acme.com", ENGINE, "all")
+        data = load_report_data(conn, "Example", "example.com", ENGINE, "all")
         assert data.period == "all"
         assert len(data.history) == 5
         hist_dates = [run_at for run_at, _m in data.history]
@@ -799,13 +799,13 @@ def test_load_report_data_single_run_has_no_prev(empty_db_path):
 def test_load_report_data_display_domain_from_db_row(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "https://WWW.Acme.com/x")
+        bid = get_or_create_brand(conn, "Example", "https://WWW.Example.com/x")
         rid = create_run(conn, bid, ENGINE)
         update_run_counts(conn, rid, n_queries=1, n_ok=1, n_failed=0, status="done")
         _insert_metric(conn, run_id=rid, brand_id=bid, lens="all")
         conn.commit()
-        data = load_report_data(conn, "Acme", "https://WWW.Acme.com/x", ENGINE, "today")
-        assert data.brand_domain == "acme.com"
+        data = load_report_data(conn, "Example", "https://WWW.Example.com/x", ENGINE, "today")
+        assert data.brand_domain == "example.com"
     finally:
         conn.close()
 
@@ -833,19 +833,19 @@ def test_load_report_data_brand_without_runs_raises(empty_db_path):
 def test_load_report_data_run_with_no_metrics_treated_as_no_run(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
-        bid = get_or_create_brand(conn, "Acme", "acme.com")
+        bid = get_or_create_brand(conn, "Example", "example.com")
         create_run(conn, bid, ENGINE)
         conn.commit()
         with pytest.raises(ValueError, match="no completed runs with metrics"):
-            load_report_data(conn, "Acme", "acme.com", ENGINE, "today")
+            load_report_data(conn, "Example", "example.com", ENGINE, "today")
     finally:
         conn.close()
 
 
 def test_reportdata_sentiment_summaries_defaults_to_empty_dict():
     rd = ReportData(
-        brand_name="Acme",
-        brand_domain="acme.com",
+        brand_name="Example",
+        brand_domain="example.com",
         engine=ENGINE,
         period="today",
         run_id=1,
@@ -869,7 +869,7 @@ def test_reportdata_sentiment_summaries_defaults_to_empty_dict():
 def test_load_report_data_populates_sentiment_summaries(seeded_db_path):
     conn = get_conn(seeded_db_path)
     try:
-        data = load_report_data(conn, "Acme", "acme.com", ENGINE, "today")
+        data = load_report_data(conn, "Example", "example.com", ENGINE, "today")
         assert data.sentiment_summaries
         assert set(data.sentiment_summaries).issubset(
             {"general", "branded", "comparative", "all"}
@@ -885,7 +885,7 @@ def test_load_report_data_summaries_match_focus_run(seeded_db_path):
 
     conn = get_conn(seeded_db_path)
     try:
-        data = load_report_data(conn, "Acme", "acme.com", ENGINE, "today")
+        data = load_report_data(conn, "Example", "example.com", ENGINE, "today")
         direct = get_lens_sentiments(conn, data.run_id)
     finally:
         conn.close()

@@ -334,6 +334,143 @@ def timeseries(
         conn.close()
 
 
+def _competitor_rows_today(
+    conn: sqlite3.Connection, brand_id: int, engine: str, lens: str
+) -> tuple[Optional[int], int, list[dict]]:
+    run_id = _latest_run_id(conn, brand_id, engine, only_done=True)
+    if run_id is None:
+        return None, 0, []
+    nov = conn.execute(
+        "SELECT n_overviews FROM metrics WHERE run_id = ? AND lens = ?",
+        (run_id, lens),
+    ).fetchone()
+    n_overviews = int(nov["n_overviews"]) if nov and nov["n_overviews"] is not None else 0
+    try:
+        rows = conn.execute(
+            """
+            SELECT domain, is_brand, appearances_sources, appearances_citations,
+                   avg_source_position, avg_citation_position
+            FROM domain_stats WHERE run_id = ? AND lens = ?
+            """,
+            (run_id, lens),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    out = [
+        {
+            "domain": r["domain"],
+            "is_brand": bool(r["is_brand"]),
+            "appearances_sources": int(r["appearances_sources"] or 0),
+            "appearances_citations": int(r["appearances_citations"] or 0),
+            "avg_source_position": r["avg_source_position"],
+            "avg_citation_position": r["avg_citation_position"],
+        }
+        for r in rows
+    ]
+    return run_id, n_overviews, out
+
+
+def _competitor_rows_all(
+    conn: sqlite3.Connection, brand_id: int, engine: str, lens: str
+) -> tuple[int, list[dict]]:
+    nov = conn.execute(
+        """
+        SELECT SUM(m.n_overviews) AS nov
+        FROM metrics m JOIN runs r ON r.id = m.run_id
+        WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND m.lens = ?
+        """,
+        (brand_id, engine, lens),
+    ).fetchone()
+    n_overviews = int(nov["nov"]) if nov and nov["nov"] is not None else 0
+    try:
+        rows = conn.execute(
+            """
+            SELECT d.domain,
+                   MAX(d.is_brand) AS is_brand,
+                   SUM(d.appearances_sources) AS app_s,
+                   SUM(d.appearances_citations) AS app_c,
+                   SUM(d.sum_min_source_rank) AS sum_s,
+                   SUM(d.sum_min_citation_rank) AS sum_c
+            FROM domain_stats d JOIN runs r ON r.id = d.run_id
+            WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND d.lens = ?
+            GROUP BY d.domain
+            """,
+            (brand_id, engine, lens),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    out: list[dict] = []
+    for r in rows:
+        app_s = int(r["app_s"] or 0)
+        app_c = int(r["app_c"] or 0)
+        sum_s = r["sum_s"]
+        sum_c = r["sum_c"]
+        out.append(
+            {
+                "domain": r["domain"],
+                "is_brand": bool(r["is_brand"]),
+                "appearances_sources": app_s,
+                "appearances_citations": app_c,
+                "avg_source_position": (sum_s / app_s) if app_s and sum_s is not None else None,
+                "avg_citation_position": (sum_c / app_c) if app_c and sum_c is not None else None,
+            }
+        )
+    return n_overviews, out
+
+
+@app.get("/api/competitors")
+def competitors(
+    brand_id: int = Query(...),
+    engine: str = Query(...),
+    period: str = Query("today"),
+    lens: str = Query("all"),
+    sort: str = Query("sources"),
+    limit: int = Query(15),
+) -> dict:
+    if period not in ("today", "all"):
+        raise HTTPException(status_code=400, detail="period must be 'today' or 'all'")
+    if sort not in ("sources", "citations"):
+        raise HTTPException(status_code=400, detail="sort must be 'sources' or 'citations'")
+
+    conn = _connect()
+    try:
+        run_payload = None
+        if period == "all":
+            n_overviews, rows = _competitor_rows_all(conn, brand_id, engine, lens)
+        else:
+            run_id, n_overviews, rows = _competitor_rows_today(conn, brand_id, engine, lens)
+            if run_id is not None:
+                rr = conn.execute(
+                    "SELECT id AS run_id, run_at, status FROM runs WHERE id = ?",
+                    (run_id,),
+                ).fetchone()
+                run_payload = dict(rr) if rr else None
+    finally:
+        conn.close()
+
+    for d in rows:
+        d["share_sources"] = d["appearances_sources"] / n_overviews if n_overviews else None
+        d["share_citations"] = d["appearances_citations"] / n_overviews if n_overviews else None
+
+    if sort == "citations":
+        rows.sort(key=lambda d: (-d["appearances_citations"], -d["appearances_sources"], d["domain"]))
+    else:
+        rows.sort(key=lambda d: (-d["appearances_sources"], -d["appearances_citations"], d["domain"]))
+
+    if limit and limit > 0:
+        rows = rows[:limit]
+
+    return {
+        "brand_id": brand_id,
+        "engine": engine,
+        "period": period,
+        "lens": lens,
+        "n_overviews": n_overviews,
+        "run": run_payload,
+        "domains": rows,
+    }
+
+
 @app.get("/api/results")
 def results(run_id: int = Query(...), lens: Optional[str] = None) -> dict:
     conn = _connect()

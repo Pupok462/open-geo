@@ -15,10 +15,10 @@ from pipeline.db import (
 )
 
 FIXTURE_DB = "data/_fixture_report.db"
-BRAND = "Acme"
-DOMAIN = "https://www.acme.com"
+BRAND = "Example"
+DOMAIN = "https://www.example.com"
 ENGINE = "google"
-TARGET = "acme.com"
+TARGET = "example.com"
 
 
 def _link(rank: int, domain: str) -> dict:
@@ -74,7 +74,7 @@ def _seed_run(conn, brand_id: int, run_at: datetime, profile: str) -> int:
     conn.execute("UPDATE runs SET run_at = ? WHERE id = ?", (run_at.isoformat(), run_id))
 
     ts = run_at.isoformat()
-    OTHER = ["restwell.com", "wikipedia.org", "sleepfoundation.org", "healthline.com", "nytimes.com"]
+    OTHER = ["globex.com", "wikipedia.org", "g2.com", "techradar.com", "nytimes.com"]
 
     sent_reco = "recommended as one of the top options, with a direct catalog link"
     sent_neutral = "mentioned neutrally among several options"
@@ -122,8 +122,8 @@ def _seed_run(conn, brand_id: int, run_at: datetime, profile: str) -> int:
         ]
 
     blocks = {
-        "general": (general, "best orthopedic mattresses for sleep"),
-        "branded": (branded, f"{BRAND} mattress reviews"),
+        "general": (general, "best task tracking tools for teams"),
+        "branded": (branded, f"{BRAND} reviews"),
         "comparative": (comparative, f"{BRAND} vs competitor which to choose"),
     }
 
