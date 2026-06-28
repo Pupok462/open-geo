@@ -18,6 +18,9 @@
 /LAUNCH.md
 /LAUNCH_POSTS.md
 /*_smoke.csv
+# Marketing / demo-video production (shot list, card generators, footage) —
+# promo material, not part of the product. Kept local.
+/media/
 
 # --- Python ---
 .venv/
@@ -102,3 +105,5 @@ Thumbs.db
 # The canonical shared sample is examples/questions.csv (kept committed). Drop
 # your own real or scratch query lists here without committing them.
 examples/test_queries.csv
+# Real-market audit inputs (the user's own questions.csv, not the Example demo).
+/mattress_questions.csv
