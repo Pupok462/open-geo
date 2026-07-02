@@ -515,7 +515,6 @@ def chart_funnel(t: Translator, m: LensMetrics) -> bytes:
     y_positions = list(range(len(stages)))[::-1]
     for (label, count, color), y in zip(stages, y_positions):
         width = count / base
-        ax.barh(y, width, height=0.62, color=color, edgecolor="none")
         ax.barh(y, 1.0, height=0.62, color=PANEL_ALT, edgecolor="none", zorder=0)
         ax.barh(y, width, height=0.62, color=color, edgecolor="none", zorder=1)
         ax.text(
@@ -957,7 +956,7 @@ def render_lenses(doc: Doc, t: Translator, data: ReportData) -> None:
             doc.c.setFillColor(dot_color)
             doc.c.circle(MARGIN + 9, row_top - row_h / 2, 2.0, stroke=0, fill=1)
         label = lens_label(t, lens)
-        doc.c.setFillColor(INK if not is_all else INK)
+        doc.c.setFillColor(INK)
         doc.c.setFont(FONT_BOLD if is_all else FONT, 9.5)
         doc.c.drawString(MARGIN + (6 if is_all else 15), row_top - row_h / 2 - 3, label)
 

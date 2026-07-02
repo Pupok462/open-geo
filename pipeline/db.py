@@ -257,8 +257,10 @@ def get_lens_sentiments(conn: sqlite3.Connection, run_id: int) -> dict[str, str]
             "SELECT lens, summary FROM lens_sentiment WHERE run_id = ?",
             (run_id,),
         ).fetchall()
-    except sqlite3.OperationalError:
-        return {}
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc):
+            return {}
+        raise
     return {row["lens"]: row["summary"] for row in rows if row["summary"] is not None}
 
 
@@ -278,8 +280,10 @@ def get_domain_stats(
             """,
             (run_id, lens),
         ).fetchall()
-    except sqlite3.OperationalError:
-        return []
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc):
+            return []
+        raise
     return [dict(row) for row in rows]
 
 

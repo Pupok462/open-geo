@@ -71,6 +71,11 @@ def test_normalize_domain_scheme(raw, expected):
         ("https://user:pass@example.com/x", "example.com"),
         ("mailto:foo@example.com", "example.com"),
         ("a@b@example.com", "example.com"),
+        ("https://medium.com/@ravityuval/how-i-cut-costs", "medium.com"),
+        ("https://medium.com/@meecrypt/the-comparison-of-depin", "medium.com"),
+        ("https://example.com/?email=a@b.com", "example.com"),
+        ("https://example.com/path#frag@thing", "example.com"),
+        ("https://user@host.com:8080/x", "host.com"),
     ],
 )
 def test_normalize_domain_userinfo(raw, expected):
@@ -463,13 +468,13 @@ def test_normalize_domain_scheme_split_first_only(raw, expected):
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ("example.com/path@evil", "evil"),
-        ("example.com?u=a@b", "b"),
-        ("example.com/u@host.com/x", "host.com"),
+        ("example.com/path@evil", "example.com"),
+        ("example.com?u=a@b", "example.com"),
+        ("example.com/u@host.com/x", "example.com"),
         ("a@b@example.com", "example.com"),
     ],
 )
-def test_normalize_domain_userinfo_split_precedes_path_strip(raw, expected):
+def test_normalize_domain_path_strip_precedes_userinfo_split(raw, expected):
     assert normalize_domain(raw) == expected
 
 

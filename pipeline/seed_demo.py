@@ -127,8 +127,6 @@ def _make_capture(
     multi_rank: bool,
     n_idx: int,
 ) -> QueryCapture:
-    screenshot = f"data/screenshots/seed/{lens}_{n_idx:03d}.png"
-
     if not overview_present:
         return QueryCapture(
             query=query,
@@ -136,7 +134,7 @@ def _make_capture(
             engine=ENGINE,
             captured_at=captured_at,
             answer_text_md=None,
-            screenshot_path=screenshot,
+            screenshot_path=None,
             overview_present=False,
             sources=[],
             citations=[],
@@ -158,7 +156,7 @@ def _make_capture(
             engine=ENGINE,
             captured_at=captured_at,
             answer_text_md="Several project management tools from different vendors are compared.",
-            screenshot_path=screenshot,
+            screenshot_path=None,
             overview_present=True,
             sources=sources,
             citations=[],
@@ -202,7 +200,7 @@ def _make_capture(
             "Among the suitable options, **Example** is frequently mentioned — "
             "a well-known project management tool."
         ),
-        screenshot_path=screenshot,
+        screenshot_path=None,
         overview_present=True,
         sources=sources,
         citations=citations,

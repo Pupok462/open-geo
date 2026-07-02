@@ -179,9 +179,9 @@ def test_make_capture_sentiment_neutral_when_rank_above_one():
     assert cap.sentiment in sd._SENTIMENTS_NEUTRAL
 
 
-def test_make_capture_screenshot_path_encodes_lens_and_index():
+def test_make_capture_screenshot_path_always_null():
     cap = _mk(0, lens="comparative", overview_present=False, n_idx=7)
-    assert cap.screenshot_path == "data/screenshots/seed/comparative_007.png"
+    assert cap.screenshot_path is None
 
 
 @pytest.mark.parametrize("seed", range(12))

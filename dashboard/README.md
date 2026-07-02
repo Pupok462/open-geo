@@ -5,8 +5,8 @@ frontend. Shows AI-visibility metrics per brand/engine with retrospective charts
 read-time deltas, lens breakdown, a **top-domains (competitor) leaderboard**, a per-query
 results table, and a PDF export. The
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
-(`/api/engines`), so as capture expands beyond Google AI Overview (ROADMAP Feature 3) new
-engines surface automatically with no dashboard change (the Google-flavored metric *labels*
+(`/api/engines`), so every captured engine (five ship today; ROADMAP Feature 3 adds more)
+surfaces automatically with no dashboard change (the Google-flavored metric *labels*
 in `i18n/` are the one thing Feature 3 may revisit). The
 React UI has light & dark themes (toggle, system-aware), a **language switcher** (EN/RU/ZH/AR,
 extensible — driven by `i18n/`, see below), and per-metric `(i)` tooltips carrying the

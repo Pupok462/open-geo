@@ -42,6 +42,11 @@ class QueryCapture(BaseModel):
                 f"what it retrieved); cited domain(s) absent from sources: "
                 f"{sorted(extra)}"
             )
+        if self.target_citation_ranks and not self.target_source_ranks:
+            raise ValueError(
+                "target_citation_ranks non-empty requires non-empty "
+                "target_source_ranks (a cited target is also a source)"
+            )
         return self
 
 
@@ -75,13 +80,13 @@ def normalize_domain(url_or_host: str) -> str:
         if host.startswith("//"):
             host = host[2:]
 
-    if "@" in host:
-        host = host.rsplit("@", 1)[1]
-
     for sep in ("/", "?", "#"):
         idx = host.find(sep)
         if idx != -1:
             host = host[:idx]
+
+    if "@" in host:
+        host = host.rsplit("@", 1)[1]
 
     host = host.strip().strip(".").lower()
 

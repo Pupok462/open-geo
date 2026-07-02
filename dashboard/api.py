@@ -354,7 +354,9 @@ def _competitor_rows_today(
             """,
             (run_id, lens),
         ).fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        if "no such table" not in str(exc):
+            raise
         rows = []
     out = [
         {
@@ -397,7 +399,9 @@ def _competitor_rows_all(
             """,
             (brand_id, engine, lens),
         ).fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        if "no such table" not in str(exc):
+            raise
         rows = []
     out: list[dict] = []
     for r in rows:
@@ -602,7 +606,7 @@ def report(
             text=True,
             timeout=180,
         )
-    except Exception as exc:  # noqa: BLE001 - surface any launch failure to the UI
+    except Exception as exc:  # noqa: BLE001
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(exc), "command": cli},
