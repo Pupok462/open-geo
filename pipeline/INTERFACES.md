@@ -8,8 +8,10 @@
 > it identically.
 >
 > **All of the following are implemented:** `pipeline/schema.py`,
-> `pipeline/db.py`, the `python -m pipeline.ingest` and
-> `python -m pipeline.aggregate` CLIs, the PDF report (`report.generate`), and
+> `pipeline/db.py`, the `python -m pipeline.ingest`,
+> `python -m pipeline.aggregate` and `python -m pipeline.lens_sentiment` CLIs,
+> the question-harvesting package (`harvest/schema.py` + `python -m harvest.build`, §6),
+> the PDF report (`report.generate`), and
 > the dashboard (`dashboard/api.py` + `dashboard/web/`).
 
 ---
@@ -542,3 +544,81 @@ run_id = create_run(conn, brand_id, "google")
 
 cap = QueryCapture.model_validate_json(some_json_string)  # raises ValidationError on bad input
 ```
+
+---
+
+## 6. The question-harvest contract — `QuestionCandidate` JSON → `questions.csv` (Feature 1)
+
+**Question harvesting** produces the `<questions.csv>` that the run consumes (§3). It is
+**agentic, not a deterministic algorithm**: a written methodology (`harvest/METHODOLOGY.md`,
+the harvest counterpart of `engines/<engine>.md`) executed by **recon sub-agents** that ground
+every candidate query in an **observable demand signal**, then a synthesis + adversarial-skeptic
+pass. This mirrors the capture side (sub-agents + natural-language playbook) rather than the old
+Wordstat/embeddings pipeline. It is a **subsystem beside the main command**, invoked from the
+skill's question-sourcing step (SKILL STEP A.5); the capture contract (§1) is **unchanged** — the
+harvest's only hand-off to the run is the CSV.
+
+### 6.1 What a recon worker emits — `QuestionCandidate` JSON
+
+A **harvest worker** covers ONE segment/angle, drives the browser to gather grounded candidates,
+and **returns a JSON array of `QuestionCandidate` to the orchestrator** — a harvest worker never
+writes files a run reads and never touches `data/aeo.db` (same boundary as capture-worker). Model:
+`harvest/schema.py :: QuestionCandidate` (pydantic v2).
+
+| field | type | required | meaning |
+|---|---|---|---|
+| `query` | string | yes | The query **as a real person would type it to an assistant** (natural, conversational — not keyword-stuffed). |
+| `lens` | `"general" \| "branded" \| "comparative"` | yes | Same `Lens` vocabulary as §1. `general` = no brand named; `branded` = brand named; `comparative` = brand vs alternatives (or a niche "X vs Y" the brand should intrude on). |
+| `segment` | string | yes | The audience/angle this candidate came from (e.g. `demand-inference`, `supply-side`, `branded-reputation`, `comparative-direct`) — free text, used for balance + the rationale. |
+| `signal` | string | yes | The **observable evidence** this is really searched (e.g. `"google autocomplete: 'cheapest gpu cloud for'"`, `"r/LocalLLaMA thread title"`, `"People-also-ask"`). The reality guardrail — no signal ⟹ the candidate is dropped. |
+| `source_url` | string | yes | A URL backing `signal` (where the pattern was observed). |
+| `note` | string \| null | no (default `null`) | Optional short intent note. |
+
+### 6.2 What the orchestrator does with them — `python -m harvest.build`
+
+The orchestrator collects all workers' candidate arrays, **dedups by meaning** and **balances to
+the target lens split** (agentic reasoning — this is the synthesis phase, not code), runs the
+**skeptic** pass (KEEP/CUT), then commits the final set to CSV via the build CLI:
+
+`python -m harvest.build --out <questions.csv> [--brand "<name>"]`
+— reads a JSON **array** of `QuestionCandidate` on STDIN. (A distinct **query
+language** is handled by calling `harvest.build` again with its own `--out
+<name>_<code>.csv`, not a flag — the CSV language follows the candidates, SKILL
+STEP A.5.)
+
+- Validates each object against `QuestionCandidate`; **invalid rows do not abort the batch** —
+  they go to `errors` (index/query/field/msg), exactly like `pipeline.ingest` (§3.2).
+- **Exact/normalized dedup** — drops later candidates whose `normalize_query(query)` (lowercase,
+  whitespace-collapsed, trailing-punctuation-stripped) is already present. (Meaning-level dedup is
+  the orchestrator's job upstream; this is the deterministic safety net.)
+- **Lens/brand guard** (when `--brand` is given, deterministic mirror of the methodology's
+  invariants): a `general` candidate whose text contains the brand token, or a `branded` candidate
+  whose text does **not**, is rejected into `errors` (`field="lens"`) so the orchestrator fixes the
+  lens rather than shipping a mislabeled row. Brand matching (`contains_brand`) is **Unicode-aware
+  and whole-word**: every whitespace-separated brand token must appear as a whole word (each token
+  present for a multi-word brand), case-insensitively — so non-Latin brands (e.g. «Аскона») match
+  their own script and a mere substring (`асконаленд`) does not.
+- Writes the surviving rows to `--out` as a **valid `query,lens` CSV** (header `query,lens`, RFC-4180
+  quoting) — **the exact input contract the run reads in SKILL STEP 2 / §3**. `segment`/`signal`/
+  `source_url` are **not** in the CSV; provenance lives in the sibling `<name>_rationale.md` the
+  orchestrator writes (like `gonka_questions_rationale.md`).
+- **STDOUT:**
+  ```json
+  {
+    "out": "questions.csv",
+    "written": 36,
+    "by_lens": { "general": 16, "branded": 10, "comparative": 10 },
+    "dropped_dups": 4,
+    "errors": [ { "index": 7, "query": "<q or null>", "field": "lens", "msg": "..." } ]
+  }
+  ```
+
+### 6.3 Boundaries (unchanged contracts)
+
+- The harvested CSV is a **normal `<questions.csv>`** — a user's own hand-made CSV is equally valid,
+  so harvesting is **opt-in** (SKILL STEP A.5 offers own-CSV vs generate). Nothing downstream of the
+  CSV changes.
+- Harvest workers, like capture workers, **return JSON and clean up their own browser tabs**; the
+  orchestrator owns synthesis, the skeptic pass, `harvest.build`, and writing `questions.csv` +
+  `<name>_rationale.md`. See `harvest/METHODOLOGY.md` (authority for the process) and
+  `.claude/agents/harvest-worker.md` / `.claude/agents/harvest-skeptic.md`.

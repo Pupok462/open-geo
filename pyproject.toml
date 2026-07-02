@@ -31,7 +31,7 @@ filterwarnings = [
 # ---------------------------------------------------------------------------
 [tool.coverage.run]
 branch = true
-source = ["pipeline", "report", "dashboard"]
+source = ["pipeline", "report", "dashboard", "harvest"]
 omit = [
     "*/web/*",        # the React frontend is measured by Vitest, not coverage.py
     "tests/*",

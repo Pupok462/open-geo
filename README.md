@@ -263,6 +263,15 @@ balanced across the three lenses (a handful of each is enough to start). The bun
 [`examples/questions.csv`](examples/questions.csv) is a **placeholder** for a fictional brand — use
 it to see the format, then replace it with yours.
 
+**Don't have a list yet? open-geo can harvest one for you.** If you don't pass a CSV, the wizard
+offers to **generate a grounded set** (question harvesting): recon sub-agents gather real,
+signal-backed user queries across several angles on your product (demand, supply, category,
+reputation, comparisons), a skeptic pass cuts anything invented or mislabeled, and you get a
+`query,lens` CSV plus a `*_rationale.md` explaining *why these questions* — which you review
+(apply / edit / discard) before the run. It is **grounded, not made-up** (every query traces to an
+observable signal), and fully **opt-in** — your own hand-made CSV is always a first-class input. The
+process is documented in [`harvest/METHODOLOGY.md`](harvest/METHODOLOGY.md).
+
 ### Do I need any paid API keys?
 No external data API and no paid keys. You need **Claude Code**, the **Claude-in-Chrome** extension
 connected, and a **browser already logged in** to the engine / market you want to track.
