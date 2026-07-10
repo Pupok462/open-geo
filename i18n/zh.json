@@ -121,7 +121,11 @@
     "report_error": "报告错误（{status}）",
     "report_cli_label": "CLI 命令：",
     "report_not_ready": "report.generate 模块尚未就绪。待其可用后请手动运行该命令。",
-    "report_failed": "report.generate 运行出错退出"
+    "report_failed": "report.generate 运行出错退出",
+    "audit_panel_title": "GEO 就绪度审计",
+    "audit_panel_info": "在运行前对目标域名进行的技术审计——AI 引擎能否读取它（硬性阻断项）以及是否已优化以便被引用（建议项）。在抓取前运行；阻断项可中止运行。",
+    "audit_empty": "该域名尚无审计。",
+    "audit_checked_at": "审计于 {datetime}"
   },
   "report": {
     "cover_eyebrow": "AI 可见性报告",
@@ -175,6 +179,34 @@
     "sentiment_intro": "AI 回答中关于该品牌的代表性表述——无数值评分，原样呈现。",
     "sentiment_empty": "本次运行没有定性的情感标记。",
     "sentiment_by_query": "对应查询： ",
-    "all_queries": "全部查询"
+    "all_queries": "全部查询",
+    "section_audit": "GEO 就绪度审计",
+    "audit_intro": "运行前对目标域名的技术审计：A 类检查为硬性阻断项（AI 引擎能否读取你），其余为建议项。阻断项可在抓取前中止运行。",
+    "audit_verdict_line": "结论：{verdict} · GEO 就绪度 {score}/100",
+    "audit_empty": "该域名没有已记录的审计。",
+    "audit_caption": "A 类 = 抓取访问阻断项；B/C/D = 建议项。检查标题与引擎无关；修复片段见审计 JSON。"
+  },
+  "audit": {
+    "verdict_ready": "就绪",
+    "verdict_ready_with_warnings": "就绪（有警告）",
+    "verdict_blocked": "受阻",
+    "severity_blocker": "阻断项",
+    "severity_recommended": "建议",
+    "severity_nice_to_have": "可选",
+    "status_pass": "通过",
+    "status_warn": "警告",
+    "status_fail": "失败",
+    "status_skip": "跳过",
+    "score": "GEO 就绪度",
+    "blockers": "阻断项",
+    "col_check": "检查项",
+    "col_severity": "严重度",
+    "col_status": "状态",
+    "col_detail": "详情",
+    "col_fix": "如何修复",
+    "category_A": "抓取访问",
+    "category_B": "机器可读性",
+    "category_C": "实体与信任",
+    "category_D": "新鲜度"
   }
 }

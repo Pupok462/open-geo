@@ -67,6 +67,17 @@ logged-in browser and records whether your domain makes it into the **sources**,
   source/citation position). The honest "who shares your answer space" — brand rivals and
   publishers alike, your brand highlighted — as a sortable dashboard panel and a PDF section. No
   extra capture: it's computed from the data you already collected, so it works on past runs too.
+- **A pre-run GEO-readiness audit** — before spending capture tokens, a fast, deterministic
+  (non-LLM) check of whether an AI engine can even read the target domain and whether it's set up
+  to be cited. It grades by severity: **hard blockers** — HTTPS/reachability, a homepage that
+  returns 200, `robots.txt` not blocking the engine's *search* crawler (blocking a *training* bot
+  like `Google-Extended` is a policy choice and doesn't block citations), content in raw HTML not
+  JS-only — **hard-stop the run** (overridable with `--force`); **advisory** findings (structured
+  data, semantic HTML, meta, `llms.txt`, entity/trust, freshness) ship with a concrete fix but
+  never block it. It runs first, is stored, and surfaces in the PDF and the dashboard. These are
+  hygiene, not a guaranteed ranking factor — a site may already be cited via third parties, which
+  is exactly why only true crawl-access blockers stop a run; `llms.txt` (not `llm.txt`) is an
+  emerging ~10–15%-adoption convention, cheap to add but unproven.
 - **SQLite multi-brand time-series** — every run is stored in `data/aeo.db` (SQLite, WAL),
   so you accumulate history per brand + engine and get run-over-run deltas.
 - **A dashboard with a four-language switcher** — English, Русский, 中文, العربية (RTL-aware) —

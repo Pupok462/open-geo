@@ -121,7 +121,11 @@
     "report_error": "Report error ({status})",
     "report_cli_label": "CLI command:",
     "report_not_ready": "The report.generate module is not ready yet. Run the command manually once it is available.",
-    "report_failed": "report.generate exited with an error"
+    "report_failed": "report.generate exited with an error",
+    "audit_panel_title": "GEO-readiness audit",
+    "audit_panel_info": "A pre-run technical audit of the target domain — whether AI engines can read it (hard blockers) and whether it is optimized to be cited (advisory). Runs before capture; blockers can hard-stop a run.",
+    "audit_empty": "No audit for this domain yet.",
+    "audit_checked_at": "Audited {datetime}"
   },
   "report": {
     "cover_eyebrow": "AI VISIBILITY REPORT",
@@ -175,6 +179,34 @@
     "sentiment_intro": "Representative phrasings from AI answers about the brand — no numeric score, as-is.",
     "sentiment_empty": "No qualitative sentiment marks in this run.",
     "sentiment_by_query": "for query: ",
-    "all_queries": "All queries"
+    "all_queries": "All queries",
+    "section_audit": "GEO-readiness audit",
+    "audit_intro": "A pre-run technical audit of the target domain: category-A checks are hard blockers (can an AI engine read you at all); the rest are advisory. Blockers can stop a run before capture.",
+    "audit_verdict_line": "Verdict: {verdict} · GEO-readiness {score}/100",
+    "audit_empty": "No audit recorded for this domain.",
+    "audit_caption": "Category A = crawl-access blockers; B/C/D = advisory. Check titles are engine-neutral; the remediation snippets live in the audit JSON."
+  },
+  "audit": {
+    "verdict_ready": "Ready",
+    "verdict_ready_with_warnings": "Ready with warnings",
+    "verdict_blocked": "Blocked",
+    "severity_blocker": "Blocker",
+    "severity_recommended": "Recommended",
+    "severity_nice_to_have": "Nice to have",
+    "status_pass": "Pass",
+    "status_warn": "Warn",
+    "status_fail": "Fail",
+    "status_skip": "Skip",
+    "score": "GEO-readiness",
+    "blockers": "Blockers",
+    "col_check": "Check",
+    "col_severity": "Severity",
+    "col_status": "Status",
+    "col_detail": "Detail",
+    "col_fix": "How to fix",
+    "category_A": "Crawl access",
+    "category_B": "Machine-readability",
+    "category_C": "Entity & trust",
+    "category_D": "Freshness"
   }
 }

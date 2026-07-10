@@ -113,6 +113,35 @@ export type CompetitorsResponse = {
   domains: CompetitorRow[];
 };
 
+export type AuditCheck = {
+  id: string;
+  category: "A" | "B" | "C" | "D" | string;
+  title: string;
+  severity: "blocker" | "recommended" | "nice_to_have" | string;
+  status: "pass" | "warn" | "fail" | "skip" | string;
+  detail: string;
+  remediation: string | null;
+};
+
+export type AuditResult = {
+  target: string;
+  domain: string;
+  engine: string | null;
+  checked_at: string;
+  verdict: "ready" | "ready_with_warnings" | "blocked" | string;
+  score: number;
+  passed: boolean;
+  blockers: string[];
+  checks: AuditCheck[];
+};
+
+export type AuditResponse = {
+  brand_id: number;
+  engine: string | null;
+  domain: string;
+  audit: AuditResult | null;
+};
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
@@ -156,6 +185,8 @@ export const api = {
     getJSON<CompetitorsResponse>(
       `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit })}`,
     ),
+  audit: (brandId: number, engine?: string) =>
+    getJSON<AuditResponse>(`/api/audit${qs({ brand_id: brandId, engine })}`),
   reportUrl: (brandId: number, engine: string, period: "today" | "all", lang?: string) =>
     `${API_BASE}/api/report${qs({ brand_id: brandId, engine, period, lang })}`,
 };

@@ -35,7 +35,7 @@ validates every object against it.
 |---|---|---|---|
 | `query` | string | yes | The exact query sent to the engine. |
 | `lens` | `"general" \| "branded" \| "comparative"` | yes | Framing of the query. `general` = neutral, no brand named; `branded` = brand explicitly named; `comparative` = brand vs alternatives. |
-| `engine` | string | yes | Engine id, snake_case — the orchestrator's `<engine>` argument **copied through verbatim** (it equals the capture playbook basename, e.g. `google` ↔ `engines/google.md`, `chatgpt_search` ↔ `engines/chatgpt_search.md`); do not hardcode a different value. **Open string by design** — this is the multi-engine extension point: one `engines/<engine>.md` playbook per engine. Shipped today: **`google`** (Google AI Overview), **`chatgpt_search`** (ChatGPT web search), **`claude_search`** (Claude web search), **`yandex_neuro`** (Yandex Alice / Нейро) and **`gemini`** (Google Gemini); more (Perplexity, DeepSeek, …) remain a backlog item (ROADMAP Feature 3). |
+| `engine` | string | yes | Engine id, snake_case — the orchestrator's `<engine>` argument **copied through verbatim** (it equals the capture playbook basename, e.g. `google` ↔ `engines/google.md`, `chatgpt_search` ↔ `engines/chatgpt_search.md`); do not hardcode a different value. **Open string by design** — this is the multi-engine extension point: one `engines/<engine>.md` playbook per engine. Shipped today: **`google`** (Google AI Overview), **`chatgpt_search`** (ChatGPT web search), **`claude_search`** (Claude web search), **`yandex_neuro`** (Yandex Alice / Нейро), **`gemini`** (Google Gemini) and **`deepseek`** (DeepSeek web search); **`perplexity`** (Perplexity) has an authored playbook (`engines/perplexity.md`, grounded-answer gate) pending its first live-validation run; more remain a backlog item (ROADMAP Feature 3). |
 | `captured_at` | string (ISO-8601 datetime) | yes | When the answer was captured. Parsed by pydantic into `datetime`. Use UTC, e.g. `"2026-06-18T20:15:30Z"`. |
 | `answer_text_md` | string \| null | no (default `null`) | The answer prose as Markdown. `null` if no overview / not captured. |
 | `screenshot_path` | string \| null | no (default `null`) | **v1: always `null`.** A *transient* screenshot may be taken to read the overview, but screenshots are **not persisted**, so nothing is stored here (column kept for forward-compat). |
@@ -279,6 +279,30 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 > this change it MUST treat a missing `domain_stats` as "no leaderboard" (catch `no such table` →
 > empty list), never error. Rows populate on the next `aggregate` of each run.
 
+**`audits`** (one row per audit of a domain — the **GEO-Audit Gate** result, Feature 2 / §7; both the history and the TTL cache)
+
+| column | type | notes |
+|---|---|---|
+| `id` | INTEGER PK | |
+| `target` | TEXT | the audited target as given — `normalize_target` (registrable domain or URL prefix) |
+| `domain` | TEXT | registrable domain (`normalize_domain` of the target host) — the report/dashboard join key |
+| `engine` | TEXT \| NULL | the engine context the audit ran for (A3 is **engine-aware**, §7); `NULL` = generic |
+| `checked_at` | TEXT | ISO-8601 |
+| `verdict` | TEXT | `ready` \| `ready_with_warnings` \| `blocked` |
+| `score` | INTEGER | 0–100 GEO-readiness readout (§7) |
+| `blocked` | INTEGER | 0/1 — `1` iff `verdict='blocked'` |
+| `result_json` | TEXT | the full `AuditResult` JSON (§7), incl. every `CheckResult` |
+
+> **Who writes it:** `python -m audit.gate` (§7) — the deterministic gate, **not** any run /
+> `aggregate`. Keyed by `domain` (not `run_id`): the audit is about a domain's readiness and runs
+> **before** any run exists (SKILL STEP 0). It is **append-only** time-series (like `runs`); the
+> most recent row within the TTL doubles as the **cache** (`get_latest_audit` + `audit.cache.is_fresh`).
+>
+> **New table / migration:** `init_db` creates it (`CREATE TABLE IF NOT EXISTS`) — no `ALTER`
+> needed. The read-only dashboard API does **not** call `init_db`, so against a DB created before
+> this change it MUST treat a missing `audits` as "no audit" (catch `no such table` → `None`),
+> never error.
+
 ### DB helpers provided by `pipeline/db.py`
 
 - `get_conn(db_path="data/aeo.db") -> sqlite3.Connection`
@@ -291,6 +315,8 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - `get_domain_stats(conn, run_id, lens="all") -> list[dict]` (the leaderboard rows for one run+lens, ordered by `appearances_sources` desc; returns `[]` if the `domain_stats` table is absent)
 - `get_captured_keys(conn, run_id) -> set[tuple[str, str]]` (the `(query, lens)` pairs already in `results` for the run — the resume diff source)
 - `find_unfinished_run(conn, brand_id, engine) -> int | None` (most recent `status='running'` run for that brand+engine — the crashed run to resume, or `None`)
+- `insert_audit(conn, target, domain, engine, checked_at, verdict, score, blocked, result_json) -> int` (appends one `audits` row, §7; returns its id)
+- `get_latest_audit(conn, domain, engine=None) -> dict | None` (most recent audit for the registrable `domain`, preferring an `engine`-matched row then any; returns `None` if the `audits` table is absent — read-only-API safe)
 
 ### 2.1 Run lifecycle, incremental ingest & resume
 
@@ -456,15 +482,17 @@ holds and `n_cited` can never exceed `n_in_sources`.
 > **always-answering** chat assistants a reply alone is meaningless as a
 > denominator, so the top-of-funnel gate is **reinterpreted per engine** as "a
 > grounded / sourced answer rendered" rather than "an overview rendered". **This
-> has landed for `chatgpt_search`, `claude_search`, `yandex_neuro` and `gemini`**
-> (`engines/chatgpt_search.md`, `engines/claude_search.md`, `engines/yandex_neuro.md`,
-> `engines/gemini.md`):
+> has landed for `chatgpt_search`, `claude_search`, `yandex_neuro`, `gemini` and
+> `deepseek`** (`engines/chatgpt_search.md`, `engines/claude_search.md`,
+> `engines/yandex_neuro.md`, `engines/gemini.md`, `engines/deepseek.md`), and a
+> playbook has been **authored for `perplexity`** (`engines/perplexity.md`,
+> grounded-answer gate — pending its first live-validation run):
 > there `overview_present` means *the model ran a web search and rendered a sourced
 > answer* (it retrieved ≥1 source and surfaced sources / inline citations) — the
 > **same field, same funnel shape**
 > (`n_cited ≤ n_in_sources ≤ n_overviews ≤ n_queries`), only the top-of-funnel
 > reading changes, so the contract field is unchanged. The remaining engines
-> (Perplexity, DeepSeek, …) are still a **backlog item —
+> are still a **backlog item —
 > ROADMAP Feature 3**, each pinning its own gate when its playbook is authored.
 > Where an engine's reading differs, the metric labels stay engine-neutral in the
 > UI (e.g. "Answer coverage"); the formulas below are unchanged across engines.
@@ -653,3 +681,94 @@ STEP A.5.)
   orchestrator owns synthesis, the skeptic pass, `harvest.build`, and writing `questions.csv` +
   `<name>_rationale.md`. See `harvest/METHODOLOGY.md` (authority for the process) and
   `.claude/agents/harvest-worker.md` / `.claude/agents/harvest-skeptic.md`.
+
+---
+
+## 7. The audit-gate contract — `AuditResult` JSON + `python -m audit.gate` (Feature 2)
+
+The **Domain GEO-Audit Gate** is a fast, **deterministic (non-LLM)** readiness audit of a
+domain that runs **before** a capture run (SKILL STEP 0), so the operator does not spend
+capture tokens on a domain an AI engine cannot read. It grades every check by **severity** and
+**hard-stops only on real blockers**; everything else is advisory. It is a **subsystem beside
+the main command** (like harvest, §6): the capture contract (§1) is untouched. The **check
+semantics, the AI-crawler matrix, the SSR heuristic, the score/verdict rules and the module
+signatures are authoritative in `audit/CHECKS.md`**; this section is the **data shapes + CLI +
+storage contract**.
+
+### 7.1 `AuditResult` / `CheckResult` JSON
+
+Canonical models: `audit/schema.py :: AuditResult` / `CheckResult` (pydantic v2). `score`,
+`verdict`, `passed` and `blockers` are **computed** (derived from `checks`, not stored inputs);
+they appear in `model_dump()` / STDOUT but are recomputed on read.
+
+**`CheckResult`**
+
+| field | type | meaning |
+|---|---|---|
+| `id` | string | check id, e.g. `A1`, `A3`, `A3b`, `B1` (see `CHECKS.md §3`). |
+| `category` | `"A" \| "B" \| "C" \| "D"` | crawl-access / machine-readability / entity-trust / freshness. |
+| `title` | string | short human title. |
+| `severity` | `"blocker" \| "recommended" \| "nice_to_have"` | 🔴 / 🟡 / ⚪. **Only `blocker` can hard-stop.** |
+| `status` | `"pass" \| "warn" \| "fail" \| "skip"` | `skip` = not applicable / not evaluable (excluded from `score`). |
+| `detail` | string | what was found. |
+| `remediation` | string \| null | concrete "how to fix" (a robots allow-block, a JSON-LD snippet, …); `null` on pass. |
+
+**`AuditResult`**
+
+| field | type | meaning |
+|---|---|---|
+| `target` | string | the audited target, `normalize_target` (registrable domain or URL prefix). |
+| `domain` | string | registrable domain (`normalize_domain` of the target host) — the storage / report join key. |
+| `engine` | string \| null | the engine the audit ran for; makes **A3 engine-aware** (`audit.bots.gating_ua`). `null` = generic (`Googlebot`). |
+| `checked_at` | string (ISO-8601) | when the audit ran. |
+| `checks` | array of `CheckResult` | every check evaluated. |
+| `blockers` | array of string | *(computed)* ids of `blocker` checks that `fail`. |
+| `verdict` | `"ready" \| "ready_with_warnings" \| "blocked"` | *(computed)* `blocked` iff `blockers` non-empty; else `ready_with_warnings` if any `warn`/`fail`; else `ready`. |
+| `passed` | bool | *(computed)* `verdict != "blocked"`. |
+| `score` | int | *(computed)* 0–100 weighted readiness readout (`CHECKS.md §1`). A **readout beside** the verdict, never the verdict itself. |
+
+### 7.2 `python -m audit.gate --domain <domain-or-url-prefix> [flags]`
+
+| flag | default | meaning |
+|---|---|---|
+| `--domain <d>` | — (required) | target: registrable domain (`example.com`) or URL prefix (`github.com/user/repo`). |
+| `--engine <e>` | *(none)* | engine context → **A3 blocker is that engine's search bot** (`google`→`Googlebot`, `chatgpt_search`→`OAI-SearchBot`, …; `CHECKS.md §2`). Omitted → generic (`Googlebot`). |
+| `--no-cache` | off | force a fresh audit even if a recent one exists. |
+| `--max-age <s>` | `86400` | cache TTL: reuse the latest stored audit for this `domain` if newer than this. |
+| `--db <path>` | `data/aeo.db` | SQLite DB (the `audits` table doubles as history + cache). |
+| `--no-db` | off | do not read or write the DB (pure stdout, e.g. throwaway/CI). |
+| `--timeout <s>` | `10` | per-request HTTP timeout. |
+
+- **STDOUT:** a single `AuditResult` JSON object (with the computed fields). Human-readable
+  summary (blockers, advisory list, score, verdict) goes to **STDERR**.
+- **Exit code:** `0` on any **completed** audit — the `verdict` is **data**, read it from the
+  JSON (an unreachable domain is a normal `blocked` result via `A1`, not an error). `1` only on
+  an operational failure (bad args / unexpected exception).
+- **Persistence:** unless `--no-db`, appends one row to `audits` (§2) via `insert_audit`. Unless
+  `--no-cache`, a stored audit for the same registrable `domain` newer than `--max-age` is
+  **returned as-is** (no re-fetch).
+
+### 7.3 Gate policy & where it runs (SKILL STEP 0)
+
+- The orchestrator runs the gate **first**, right after `<domain>` is resolved (STEP A) and
+  **before** question harvesting (STEP A.5) and the run (STEP 1) — no point harvesting/capturing
+  against an unreadable domain.
+- **`verdict == "blocked"` ⟹ hard-stop** before any run is created, printing the remediation
+  (blockers + how to fix) in `--lang`, **unless** the operator passed **`--force`** (then it
+  warns loudly and continues). `ready` / `ready_with_warnings` ⟹ continue; the advisory problems
+  are surfaced (skill summary + the PDF section + the dashboard panel).
+- The blocker set is **category A only** (can an AI engine physically read you): `A1`
+  HTTPS/reachability, `A2` homepage 200, `A3` the engine's search bot not blocked in
+  `robots.txt`, `A5` content in raw HTML (not JS-only). All of B/C/D is advisory. Authority for
+  the exact criteria and remediation: `audit/CHECKS.md`.
+- The friendly human write-up is the **skill's** job (it is already an LLM), not the gate's — the
+  gate stays deterministic and only emits structured JSON (same division as `lens_sentiment`
+  prose vs `aggregate` math).
+
+### 7.4 Where it surfaces (read side)
+
+The latest audit for a brand's registrable domain (`get_latest_audit`, §2) is read at report /
+dashboard time and rendered as **an audit section in the PDF** and **an audit panel in the
+dashboard** (verdict + score + the per-check table with severity and remediation). Like the
+funnel metrics, the audit is **data** — its check titles/remediation are English canon and the
+UI chrome around it is localized via the i18n layer (`--lang`).

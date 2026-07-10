@@ -140,11 +140,24 @@ def init_db(conn: sqlite3.Connection) -> None:
             UNIQUE(run_id, lens, domain)
         );
 
+        CREATE TABLE IF NOT EXISTS audits (
+            id          INTEGER PRIMARY KEY,
+            target      TEXT NOT NULL,
+            domain      TEXT NOT NULL,
+            engine      TEXT,
+            checked_at  TEXT NOT NULL,
+            verdict     TEXT NOT NULL,
+            score       INTEGER NOT NULL,
+            blocked     INTEGER NOT NULL,
+            result_json TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_runs_brand_engine ON runs(brand_id, engine);
         CREATE INDEX IF NOT EXISTS idx_results_run        ON results(run_id);
         CREATE INDEX IF NOT EXISTS idx_metrics_run        ON metrics(run_id);
         CREATE INDEX IF NOT EXISTS idx_lens_sentiment_run ON lens_sentiment(run_id);
         CREATE INDEX IF NOT EXISTS idx_domain_stats_run   ON domain_stats(run_id);
+        CREATE INDEX IF NOT EXISTS idx_audits_domain       ON audits(domain, checked_at);
         """
     )
     _ensure_columns(conn, "metrics", _METRICS_MIGRATION_COLUMNS)
@@ -287,6 +300,65 @@ def get_domain_stats(
     return [dict(row) for row in rows]
 
 
+def insert_audit(
+    conn: sqlite3.Connection,
+    target: str,
+    domain: str,
+    engine: Optional[str],
+    checked_at: str,
+    verdict: str,
+    score: int,
+    blocked: bool,
+    result_json: str,
+) -> int:
+    cur = conn.execute(
+        """
+        INSERT INTO audits
+            (target, domain, engine, checked_at, verdict, score, blocked, result_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            target,
+            domain,
+            engine,
+            checked_at,
+            verdict,
+            score,
+            1 if blocked else 0,
+            result_json,
+        ),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def get_latest_audit(
+    conn: sqlite3.Connection, domain: str, engine: Optional[str] = None
+) -> Optional[dict]:
+    cols = (
+        "target, domain, engine, checked_at, verdict, score, blocked, result_json"
+    )
+    try:
+        if engine is not None:
+            row = conn.execute(
+                f"SELECT {cols} FROM audits WHERE domain = ? AND engine = ? "
+                "ORDER BY checked_at DESC, id DESC LIMIT 1",
+                (domain, engine),
+            ).fetchone()
+            if row is not None:
+                return dict(row)
+        row = conn.execute(
+            f"SELECT {cols} FROM audits WHERE domain = ? "
+            "ORDER BY checked_at DESC, id DESC LIMIT 1",
+            (domain,),
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc):
+            return None
+        raise
+    return dict(row) if row is not None else None
+
+
 __all__ = [
     "get_conn",
     "init_db",
@@ -298,4 +370,6 @@ __all__ = [
     "upsert_lens_sentiment",
     "get_lens_sentiments",
     "get_domain_stats",
+    "insert_audit",
+    "get_latest_audit",
 ]

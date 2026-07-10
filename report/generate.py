@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import os
 import sqlite3
 import sys
@@ -21,8 +22,14 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-from pipeline.db import get_conn, get_domain_stats, get_lens_sentiments, init_db
-from pipeline.schema import normalize_target
+from pipeline.db import (
+    get_conn,
+    get_domain_stats,
+    get_latest_audit,
+    get_lens_sentiments,
+    init_db,
+)
+from pipeline.schema import normalize_domain, normalize_target
 from report.i18n import DEFAULT_LANG, Translator, available_codes
 from report.textshape import is_rtl, shape
 
@@ -161,6 +168,7 @@ class ReportData:
     history: list[tuple[str, dict[str, LensMetrics]]] = field(default_factory=list)
     sentiment_summaries: dict[str, str] = field(default_factory=dict)
     competitors: list[dict] = field(default_factory=list)
+    audit: Optional[dict] = None
 
 
 def _row_get(row: sqlite3.Row, key: str) -> Any:
@@ -295,6 +303,9 @@ def load_report_data(
     ).fetchone()
     display_domain = brow["domain"] if brow is not None else normalize_target(domain)
 
+    audit_row = get_latest_audit(conn, normalize_domain(domain), engine)
+    audit = json.loads(audit_row["result_json"]) if audit_row is not None else None
+
     history: list[tuple[str, dict[str, LensMetrics]]] = []
     if period == "all":
         for r in reversed(runs):
@@ -315,6 +326,7 @@ def load_report_data(
         history=history,
         sentiment_summaries=sentiment_summaries,
         competitors=competitors,
+        audit=audit,
     )
 
 
@@ -1248,6 +1260,123 @@ def render_competitors(doc: Doc, t: Translator, data: ReportData) -> None:
     _table_border_and_caption(doc, top, avail, table_h, t.t("report.competitors_caption"))
 
 
+_AUDIT_STATUS_RANK = {"fail": 0, "warn": 1, "skip": 2, "pass": 3}
+
+_AUDIT_STATUS_COLOR = {
+    "pass": GOOD,
+    "warn": WARN,
+    "fail": BAD,
+    "skip": INK_FAINT,
+}
+
+
+def _truncate_to_width(s: str, font: str, size: float, max_w: float) -> str:
+    if pdfmetrics.stringWidth(s, font, size) <= max_w:
+        return s
+    ellipsis = "…"
+    while s and pdfmetrics.stringWidth(s + ellipsis, font, size) > max_w:
+        s = s[:-1]
+    return s + ellipsis
+
+
+def render_audit(doc: Doc, t: Translator, data: ReportData) -> None:
+    _section_header(doc, "06", t.t("report.section_audit"))
+
+    doc.text(t.t("report.audit_intro"), 9, INK_DIM, FONT)
+    doc.move(12)
+
+    audit = data.audit
+    if audit is None:
+        doc.text(t.t("report.audit_empty"), 10, INK_DIM, FONT)
+        doc.move(12)
+        return
+
+    verdict = str(audit.get("verdict", ""))
+    verdict_key = f"audit.verdict_{verdict}"
+    verdict_label = t.t(verdict_key) if t.has(verdict_key) else verdict
+    doc.text(
+        t.t("report.audit_verdict_line", verdict=verdict_label, score=audit.get("score", "")),
+        10,
+        INK,
+        FONT_BOLD,
+    )
+    doc.move(14)
+
+    checks = sorted(
+        audit.get("checks", []),
+        key=lambda c: (_AUDIT_STATUS_RANK.get(c.get("status"), 99), str(c.get("id", ""))),
+    )
+
+    avail = PAGE_W - 2 * MARGIN
+    col_check_w = 46 * mm
+    col_sev_w = 26 * mm
+    col_status_w = 22 * mm
+    col_detail_w = avail - col_check_w - col_sev_w - col_status_w
+    sev_x = MARGIN + col_check_w + 6
+    status_x = MARGIN + col_check_w + col_sev_w + 6
+    detail_x = MARGIN + col_check_w + col_sev_w + col_status_w + 6
+
+    row_h = 8 * mm
+    header_h = 8 * mm
+    table_h = header_h + row_h * len(checks)
+    doc.ensure(table_h + 6)
+
+    top = doc.y
+    doc.rounded_panel(MARGIN, top, avail, header_h, fill=PANEL_ALT, stroke=None, radius=4)
+    doc.c.setFillColor(INK_DIM)
+    doc.c.setFont(FONT_BOLD, 9)
+    hy = top - header_h + 3 * mm
+    doc.c.drawString(MARGIN + 6, hy, t.t("audit.col_check"))
+    doc.c.drawString(sev_x, hy, t.t("audit.col_severity"))
+    doc.c.drawString(status_x, hy, t.t("audit.col_status"))
+    doc.c.drawString(detail_x, hy, t.t("audit.col_detail"))
+
+    row_top = top - header_h
+    for idx, c in enumerate(checks):
+        status = str(c.get("status", ""))
+        severity = str(c.get("severity", ""))
+        status_color = _AUDIT_STATUS_COLOR.get(status, INK_DIM)
+        bg = PANEL if idx % 2 == 0 else BG
+        doc.c.setFillColor(bg)
+        doc.c.rect(MARGIN, row_top - row_h, avail, row_h, stroke=0, fill=1)
+
+        cy = row_top - row_h / 2 - 3
+        doc.c.setFillColor(status_color)
+        doc.c.circle(MARGIN + 9, row_top - row_h / 2, 2.0, stroke=0, fill=1)
+
+        doc.c.setFillColor(INK)
+        doc.c.setFont(FONT, 9.5)
+        doc.c.drawString(
+            MARGIN + 15,
+            cy,
+            _truncate_to_width(str(c.get("title", "")), FONT, 9.5, col_check_w - 15),
+        )
+
+        sev_key = f"audit.severity_{severity}"
+        sev_label = t.t(sev_key) if t.has(sev_key) else severity
+        doc.c.setFillColor(INK_DIM)
+        doc.c.setFont(FONT, 9.5)
+        doc.c.drawString(sev_x, cy, _truncate_to_width(sev_label, FONT, 9.5, col_sev_w - 8))
+
+        status_key = f"audit.status_{status}"
+        status_label = t.t(status_key) if t.has(status_key) else status
+        doc.c.setFillColor(status_color)
+        doc.c.setFont(FONT_BOLD, 9.5)
+        doc.c.drawString(status_x, cy, _truncate_to_width(status_label, FONT_BOLD, 9.5, col_status_w - 8))
+
+        doc.c.setFillColor(INK_DIM)
+        doc.c.setFont(FONT, 9)
+        doc.c.drawString(
+            detail_x,
+            cy,
+            _truncate_to_width(str(c.get("detail", "")), FONT, 9, col_detail_w - 8),
+        )
+
+        row_top -= row_h
+
+    _table_border_and_caption(doc, top, avail, table_h, t.t("report.audit_caption"))
+
+
 def render_footer(doc: Doc, t: Translator, data: ReportData, page_label_only: bool = False) -> None:
     c = doc.c
     c.setStrokeColor(STROKE)
@@ -1328,6 +1457,7 @@ def build_pdf(
         render_history(doc, t, data)
     render_competitors(doc, t, data)
     render_sentiment(doc, t, data)
+    render_audit(doc, t, data)
 
     render_footer(doc, t, data)
     c.showPage()

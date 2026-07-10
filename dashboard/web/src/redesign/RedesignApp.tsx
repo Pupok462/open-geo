@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   api,
+  type AuditResponse,
   type Brand,
   type CompetitorsResponse,
   type MetricRow,
@@ -24,6 +25,7 @@ import { MetricsChart } from "./components/MetricsChart";
 import { LensBreakdown } from "./components/LensBreakdown";
 import { LensSentiment } from "./components/LensSentiment";
 import { CompetitorsPanel } from "./components/CompetitorsPanel";
+import { AuditPanel } from "./components/AuditPanel";
 import { ResultsTable } from "./components/ResultsTable";
 import { ChevronDownIcon, DownloadIcon } from "./components/icons";
 
@@ -42,6 +44,7 @@ function Dashboard() {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesResponse | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorsResponse | null>(null);
+  const [audit, setAudit] = useState<AuditResponse | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -76,15 +79,17 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [r, m, ts, comp] = await Promise.all([
+      const [r, m, ts, comp, aud] = await Promise.all([
         api.runs(brandId, engine),
         api.metrics(brandId, engine, period),
         api.timeseries(brandId, engine, lens),
         api.competitors(brandId, engine, period, lens),
+        api.audit(brandId, engine),
       ]);
       setMetrics(m);
       setTimeseries(ts);
       setCompetitors(comp);
+      setAudit(aud);
 
       const runId =
         m.run?.run_id ?? r.find((x) => x.status === "done")?.run_id ?? r[0]?.run_id;
@@ -238,6 +243,14 @@ function Dashboard() {
           )}
         </div>
       )}
+
+      <Panel
+        title={t("dashboard.audit_panel_title")}
+        info={t("dashboard.audit_panel_info")}
+        className="mb-6"
+      >
+        <AuditPanel audit={audit?.audit ?? null} />
+      </Panel>
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         {METRICS.map((def) => (

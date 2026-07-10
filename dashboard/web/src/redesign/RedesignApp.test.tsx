@@ -3,6 +3,7 @@ import { render, screen, waitFor, within, cleanup } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import RedesignApp from "./RedesignApp";
 import type {
+  AuditResponse,
   Brand,
   CompetitorsResponse,
   MetricRow,
@@ -150,6 +151,7 @@ type RouterOverrides = {
   metrics?: (period: string, lens: string | null) => Promise<Response> | Response;
   timeseries?: (lens: string) => Promise<Response> | Response;
   competitors?: (period: string, lens: string | null) => Promise<Response> | Response;
+  audit?: (engine: string | null) => Promise<Response> | Response;
   results?: (runId: string | null, lens: string | null) => Promise<Response> | Response;
   report?: (init?: RequestInit) => Promise<Response> | Response;
   i18nRegistry?: () => Promise<Response> | Response;
@@ -185,6 +187,45 @@ function makeCompetitors(over: Partial<CompetitorsResponse> = {}): CompetitorsRe
         avg_citation_position: null,
       },
     ],
+    ...over,
+  };
+}
+
+function makeAudit(over: Partial<AuditResponse> = {}): AuditResponse {
+  return {
+    brand_id: 1,
+    engine: "google",
+    domain: "example.com",
+    audit: {
+      target: "example.com",
+      domain: "example.com",
+      engine: "google",
+      checked_at: "2026-06-18T09:00:00Z",
+      verdict: "ready_with_warnings",
+      score: 82,
+      passed: true,
+      blockers: [],
+      checks: [
+        {
+          id: "A1",
+          category: "A",
+          title: "HTTPS reachable",
+          severity: "blocker",
+          status: "pass",
+          detail: "200 over HTTPS",
+          remediation: null,
+        },
+        {
+          id: "B1",
+          category: "B",
+          title: "Structured data present",
+          severity: "recommended",
+          status: "warn",
+          detail: "No JSON-LD found",
+          remediation: "Add Organization JSON-LD",
+        },
+      ],
+    },
     ...over,
   };
 }
@@ -261,6 +302,11 @@ function installFetch(overrides: RouterOverrides = {}) {
       const lens = params.get("lens");
       if (overrides.competitors) return overrides.competitors(period, lens);
       return jsonResponse(makeCompetitors({ period: period as "today" | "all" }));
+    }
+    if (path === "/api/audit") {
+      const engine = params.get("engine");
+      if (overrides.audit) return overrides.audit(engine);
+      return jsonResponse(makeAudit());
     }
     if (path === "/api/results") {
       const runId = params.get("run_id");
@@ -379,6 +425,31 @@ describe("RedesignApp — initial load", () => {
     await waitFor(() =>
       expect(container.querySelector('[aria-busy="false"]')).toBeTruthy(),
     );
+  });
+});
+
+describe("RedesignApp — audit panel", () => {
+  it("renders the audit panel with the verdict badge and score from /api/audit", async () => {
+    const { calls } = installFetch();
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+
+    expect(screen.getByText("GEO-readiness audit")).toBeInTheDocument();
+    expect(screen.getByText("Ready with warnings")).toBeInTheDocument();
+    expect(screen.getByText("82")).toBeInTheDocument();
+    expect(screen.getByText("Structured data present")).toBeInTheDocument();
+    expect(callsTo(calls, "/api/audit").length).toBeGreaterThanOrEqual(1);
+    const auditCall = callsTo(calls, "/api/audit").at(-1)!;
+    expect(new URL(auditCall.url, "http://localhost").searchParams.get("engine")).toBe(
+      "google",
+    );
+  });
+
+  it("shows the empty-state copy when /api/audit returns audit=null", async () => {
+    installFetch({ audit: () => jsonResponse(makeAudit({ audit: null })) });
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+    expect(screen.getByText("No audit for this domain yet.")).toBeInTheDocument();
   });
 });
 

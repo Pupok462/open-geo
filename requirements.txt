@@ -8,3 +8,5 @@ uvicorn
 pytest
 pytest-cov
 httpx
+protego>=0.6,<1
+selectolax>=0.4,<0.5
