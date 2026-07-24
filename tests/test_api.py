@@ -21,6 +21,7 @@ _DELTA_METRICS = (
     "visibility_in_citations",
     "avg_source_position",
     "avg_citation_position",
+    "brand_mention_rate",
 )
 
 
@@ -1604,3 +1605,79 @@ def test_audit_no_500_when_table_absent(make_client, seeded_db_path):
     resp = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE})
     assert resp.status_code == 200
     assert resp.json()["audit"] is None
+
+
+def test_metrics_today_includes_brand_mention_fields(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    body = client.get(
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
+    ).json()
+    all_row = next(r for r in body["metrics"] if r["lens"] == "all")
+    assert all_row["n_brand_mentions"] is not None
+    assert all_row["brand_mention_rate"] is not None
+    assert 0.0 <= all_row["brand_mention_rate"] <= 1.0
+    assert "brand_mention_rate_delta" in all_row
+    assert "brand_mention_rate_prev" in all_row
+
+
+def test_metrics_period_all_includes_brand_mention_fields(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    body = client.get(
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "all"}
+    ).json()
+    all_row = next(r for r in body["metrics"] if r["lens"] == "all")
+    assert all_row["n_brand_mentions"] is not None
+    assert all_row["brand_mention_rate"] is not None
+    assert all_row["brand_mention_rate"] == pytest.approx(
+        all_row["n_brand_mentions"] / all_row["n_overviews"]
+    )
+
+
+def test_timeseries_includes_brand_mention_rate(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    body = client.get(
+        "/api/timeseries", params={"brand_id": example, "engine": ENGINE, "lens": "all"}
+    ).json()
+    assert body["points"]
+    for p in body["points"]:
+        assert "brand_mention_rate" in p
+        assert "n_brand_mentions" in p
+
+
+def _drop_mention_columns(db_path: str) -> None:
+    conn = get_conn(db_path)
+    try:
+        conn.execute("ALTER TABLE metrics DROP COLUMN n_brand_mentions")
+        conn.execute("ALTER TABLE metrics DROP COLUMN brand_mention_rate")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_metrics_no_500_on_db_without_mention_columns(make_client, dash_fixture_db_path):
+    _drop_mention_columns(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    for period in ("today", "all"):
+        body = client.get(
+            "/api/metrics",
+            params={"brand_id": example, "engine": ENGINE, "period": period},
+        )
+        assert body.status_code == 200
+        all_row = next(r for r in body.json()["metrics"] if r["lens"] == "all")
+        assert all_row["brand_mention_rate"] is None
+
+
+def test_timeseries_no_500_on_db_without_mention_columns(make_client, dash_fixture_db_path):
+    _drop_mention_columns(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.get(
+        "/api/timeseries", params={"brand_id": example, "engine": ENGINE, "lens": "all"}
+    )
+    assert resp.status_code == 200
+    for p in resp.json()["points"]:
+        assert p["brand_mention_rate"] is None

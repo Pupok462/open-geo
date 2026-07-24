@@ -827,3 +827,59 @@ def test_main_returns_int_not_none(empty_db_path, capsys):
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_scope_brand_mentions_counted_among_overview_rows_only():
+    rows = [
+        dict(_row(1), brand_in_answer_text=1),
+        dict(_row(1, src="[2]"), brand_in_answer_text=0),
+        dict(_row(0), brand_in_answer_text=1),
+    ]
+    s = _compute_scope(rows)
+    assert s["n_brand_mentions"] == 1
+    assert s["brand_mention_rate"] == pytest.approx(0.5)
+
+
+def test_scope_brand_mention_rate_none_without_overviews():
+    s = _compute_scope([dict(_row(0), brand_in_answer_text=1)])
+    assert s["n_brand_mentions"] == 0
+    assert s["brand_mention_rate"] is None
+    s_empty = _compute_scope([])
+    assert s_empty["n_brand_mentions"] == 0
+    assert s_empty["brand_mention_rate"] is None
+
+
+def test_scope_unlinked_mention_counts_outside_funnel():
+    s = _compute_scope([dict(_row(1), brand_in_answer_text=True)])
+    assert s["n_brand_mentions"] == 1
+    assert s["brand_mention_rate"] == pytest.approx(1.0)
+    assert s["n_in_sources"] == 0
+    assert s["n_cited"] == 0
+
+
+def test_scope_missing_mention_key_treated_as_absent():
+    s = _compute_scope([_row(1, src="[1]")])
+    assert s["n_brand_mentions"] == 0
+    assert s["brand_mention_rate"] == pytest.approx(0.0)
+
+
+def test_aggregate_run_persists_brand_mention_columns(empty_db_path):
+    run_id, _ = _fresh_run(
+        empty_db_path,
+        [
+            _cap(lens="general", source_ranks=[1], citation_ranks=[1]),
+            _cap(lens="general"),
+        ],
+    )
+    conn = get_conn(empty_db_path)
+    try:
+        aggregate_run(conn, run_id)
+        row = conn.execute(
+            "SELECT n_brand_mentions, brand_mention_rate FROM metrics "
+            "WHERE run_id = ? AND lens = 'all'",
+            (run_id,),
+        ).fetchone()
+        assert row["n_brand_mentions"] == 1
+        assert row["brand_mention_rate"] == pytest.approx(0.5)
+    finally:
+        conn.close()

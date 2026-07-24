@@ -102,7 +102,7 @@ afterEach(() => {
 describe("MetricCard — label & info tooltip", () => {
   it("renders the localized metric label", () => {
     renderCard({ def: COVERAGE, row: makeRow() });
-    expect(screen.getByText("AI Overview coverage")).toBeInTheDocument();
+    expect(screen.getByText("Answer coverage")).toBeInTheDocument();
   });
 
   it("renders an (i) info trigger labelled for accessibility", () => {
@@ -123,7 +123,7 @@ describe("MetricCard — label & info tooltip", () => {
 
     await user.hover(trigger);
     const tip = await screen.findByRole("tooltip");
-    expect(tip).toHaveTextContent(/Share of queries for which Google showed/);
+    expect(tip).toHaveTextContent(/Share of queries where the engine rendered/);
     expect(trigger).toHaveAttribute("aria-describedby", tip.id);
 
     await user.unhover(trigger);
@@ -318,7 +318,7 @@ describe("MetricCard — sub-line", () => {
       def: VIS_SOURCES,
       row: makeRow({ n_in_sources: 30, n_overviews: 40 }),
     });
-    expect(screen.getByText("30 of 40 overviews")).toBeInTheDocument();
+    expect(screen.getByText("30 of 40 answers")).toBeInTheDocument();
   });
 
   it("renders the static 'lower is better' sub-line for an avg-position card (no subVars)", () => {

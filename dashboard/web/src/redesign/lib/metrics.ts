@@ -7,7 +7,8 @@ export type MetricKey =
   | "visibility_in_citations"
   | "avg_source_position"
   | "avg_citation_position"
-  | "relative_citation";
+  | "relative_citation"
+  | "brand_mention_rate";
 
 export interface MetricDef {
   key: MetricKey;
@@ -66,6 +67,20 @@ export const METRICS: MetricDef[] = [
     infoKey: "metrics.relative_citation.hint",
     subKey: "common.dash",
     subRender: (r, t) => `${r.n_cited} ${t("common.of")} ${r.n_in_sources}`,
+  },
+  {
+    key: "brand_mention_rate",
+    asPct: true,
+    higherIsBetter: true,
+    value: (r) => r.brand_mention_rate,
+    delta: (r) => r.brand_mention_rate_delta,
+    labelKey: "metrics.brand_mention_rate.label",
+    infoKey: "metrics.brand_mention_rate.hint",
+    subKey: "report.card_visibility_sub",
+    subVars: (r) => ({
+      numerator: r.n_brand_mentions ?? 0,
+      n_overviews: r.n_overviews,
+    }),
   },
   {
     key: "avg_source_position",

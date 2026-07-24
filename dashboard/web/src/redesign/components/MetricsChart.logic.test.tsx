@@ -189,7 +189,7 @@ describe("MetricsChart (data mapping & formatter)", () => {
     expect(data.map((r) => r.overview_coverage)).toEqual([10, 20, 30]);
   });
 
-  it("wires two Y axes (percentage left, position right) and five lines", () => {
+  it("wires two Y axes (percentage left, position right) and six lines", () => {
     renderChart([fullPoint()]);
     expect(captured.yAxes).toHaveLength(2);
     const pctAxis = captured.yAxes.find((a) => a.yAxisId === "pct");
@@ -203,13 +203,14 @@ describe("MetricsChart (data mapping & formatter)", () => {
     expect(tickFormatter(50)).toBe("50%");
     expect(tickFormatter(100)).toBe("100%");
 
-    expect(captured.lines).toHaveLength(5);
+    expect(captured.lines).toHaveLength(6);
     const pctLines = captured.lines.filter((l) => l.yAxisId === "pct");
     const posLines = captured.lines.filter((l) => l.yAxisId === "pos");
     expect(pctLines.map((l) => l.dataKey)).toEqual([
       "overview_coverage",
       "visibility_in_sources",
       "visibility_in_citations",
+      "brand_mention_rate",
     ]);
     expect(posLines.map((l) => l.dataKey)).toEqual([
       "avg_source_position",
@@ -223,9 +224,10 @@ describe("MetricsChart (data mapping & formatter)", () => {
     const byKey = Object.fromEntries(
       captured.lines.map((l) => [l.dataKey as string, l.name]),
     );
-    expect(byKey.overview_coverage).toBe("AI Overview coverage");
+    expect(byKey.overview_coverage).toBe("Answer coverage");
     expect(byKey.visibility_in_sources).toBe("Visibility in sources");
     expect(byKey.visibility_in_citations).toBe("Visibility in citations");
+    expect(byKey.brand_mention_rate).toBe("Brand mentioned");
     expect(byKey.avg_source_position).toBe("Avg. source position");
     expect(byKey.avg_citation_position).toBe("Avg. citation position");
   });
@@ -240,10 +242,10 @@ describe("MetricsChart (data mapping & formatter)", () => {
 
     it("formats a percentage series value with a % suffix", () => {
       const fmt = getFormatter();
-      const out = fmt(75, "AI Overview coverage", {
+      const out = fmt(75, "Answer coverage", {
         dataKey: "overview_coverage",
       });
-      expect(out).toEqual(["75%", "AI Overview coverage"]);
+      expect(out).toEqual(["75%", "Answer coverage"]);
     });
 
     it("formats a position series value raw (no % suffix)", () => {

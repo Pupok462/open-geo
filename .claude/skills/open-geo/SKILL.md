@@ -552,8 +552,9 @@ Read the **`lens="all"`** row from the `pipeline.aggregate` JSON captured in ste
 print a short summary of headline metrics for this run, **in the `--lang` language** (default
 English). Cover:
 
-- **AI Overview coverage** (`overview_coverage`) — share of queries where an AI Overview
-  rendered at all.
+- **Answer coverage** (`overview_coverage`) — share of queries where a grounded,
+  source-backed answer rendered at all (an AI Overview on `google`; a web-search-backed
+  answer on the chat engines).
 - **Visibility in sources** (`visibility_in_sources`) — share of overview queries where the
   target domain made it into `sources` (`n_in_sources / n_overviews`).
 - **Visibility in citations** (`visibility_in_citations`) — share of overview queries where
@@ -567,6 +568,11 @@ English). Cover:
   (`n_cited / n_in_sources`; **higher = better**, `∈ [0, 1]`; `—` if the domain never appears
   in sources). This is the last step of the visibility funnel
   (`n_cited ≤ n_in_sources ≤ n_overviews ≤ n_queries`).
+- **Brand mention rate** (`brand_mention_rate`) — of the grounded answers, the share whose
+  prose mentions the brand **name**, linked or not (`n_brand_mentions / n_overviews`;
+  higher = better). An **adjacent axis, not a funnel stage** — an unlinked mention is
+  invisible to the link funnel, so do not read it as nested in sources/citations
+  (INTERFACES §4).
 
 Format as percentages where natural, and **note guard cases** (`null` → "no data" / "—", not
 `0`). End by pointing to the produced deliverable(s): the dashboard URL and/or the PDF path.
@@ -577,12 +583,13 @@ Example shape (English; fill with real numbers; one `lens="all"` row drives it):
 
 ```
 Run for brand "Example" (engine google), queries: 30.
-• AI Overview coverage: 73% (22 of 30 queries).
-• Visibility in sources: 41% of overview queries.
-• Visibility in citations: 32% of overview queries.
+• Answer coverage: 73% (22 of 30 queries).
+• Visibility in sources: 41% of grounded answers.
+• Visibility in citations: 32% of grounded answers.
 • Average source position: 2.4 (lower is better).
 • Average citation position: 1.7 (lower is better).
 • Source→citation conversion (relative citation): 78% (higher is better).
+• Brand mention rate: 55% of grounded answers name the brand.
 Report: reports/example_2026-06-19.pdf · Dashboard: http://localhost:5173/?lang=en
 ```
 

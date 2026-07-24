@@ -17,6 +17,7 @@ type Row = {
   overview_coverage: number | null;
   visibility_in_sources: number | null;
   visibility_in_citations: number | null;
+  brand_mention_rate: number | null;
   avg_source_position: number | null;
   avg_citation_position: number | null;
 };
@@ -47,6 +48,12 @@ const LINES: {
     yAxisId: "pct",
     nameKey: "dashboard.chart_series_visibility_citations",
     stroke: "var(--c-vis-cit)",
+  },
+  {
+    dataKey: "brand_mention_rate",
+    yAxisId: "pct",
+    nameKey: "dashboard.chart_series_mention_rate",
+    stroke: "var(--c-mention)",
   },
   {
     dataKey: "avg_source_position",
@@ -86,6 +93,7 @@ export function MetricsChart({ points }: { points: TimeseriesPoint[] }) {
     overview_coverage: toPct(p.overview_coverage),
     visibility_in_sources: toPct(p.visibility_in_sources),
     visibility_in_citations: toPct(p.visibility_in_citations),
+    brand_mention_rate: toPct(p.brand_mention_rate),
     avg_source_position: toRaw(p.avg_source_position),
     avg_citation_position: toRaw(p.avg_citation_position),
   }));

@@ -52,7 +52,11 @@ def _ensure_results_unique_index(conn: sqlite3.Connection) -> None:
     )
 
 
-_METRICS_MIGRATION_COLUMNS = {"relative_citation": "REAL"}
+_METRICS_MIGRATION_COLUMNS = {
+    "relative_citation": "REAL",
+    "n_brand_mentions": "INTEGER",
+    "brand_mention_rate": "REAL",
+}
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -110,6 +114,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             avg_source_position     REAL,
             avg_citation_position   REAL,
             relative_citation       REAL,
+            n_brand_mentions        INTEGER,
+            brand_mention_rate      REAL,
             computed_at             TEXT
         );
 

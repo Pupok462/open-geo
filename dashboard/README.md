@@ -7,8 +7,9 @@ read-time deltas, lens breakdown, a **GEO-readiness audit panel**, a **top-domai
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
 (`/api/engines`), so every captured engine (six live-validated today, plus Perplexity's
 authored playbook pending its first live run; ROADMAP Feature 3 adds more)
-surfaces automatically with no dashboard change (the Google-flavored metric *labels*
-in `i18n/` are the one thing Feature 3 may revisit). The
+surfaces automatically with no dashboard change — the metric labels in `i18n/` are
+**engine-neutral** ("Answer coverage", "Grounded answer shown"), so no per-engine label
+work is needed either. The
 React UI has light & dark themes (toggle, system-aware), a **language switcher** (EN/RU/ZH/AR,
 extensible — driven by `i18n/`, see below), and per-metric `(i)` tooltips carrying the
 §4 definitions; it lives in `web/src/redesign/` as a self-contained, dependency-free
@@ -85,6 +86,13 @@ line up without `VITE_API_BASE`.
 - `all` → whole-period view aggregated across **all** completed runs (the §4 ratios
   recomputed from summed numerators/denominators); no per-run delta in this mode.
 
+Each metrics row carries all **seven** §4 metrics, including
+**`n_brand_mentions`/`brand_mention_rate`** (share of grounded answers whose prose mentions
+the brand name — an adjacent axis beside the funnel, INTERFACES §4). On a DB whose `metrics`
+table predates these columns the read-only API returns them as `null` (never an error, never a
+fake `0`); the `period=all` rollup likewise computes the rate only over runs that actually
+carry the column (honest denominator). `/api/timeseries` points carry the same two fields.
+
 Each per-lens row from `/api/metrics` (incl. the `all` row) also carries
 **`sentiment_summary`** (`string | null`) — the orchestrator's per-lens **qualitative** roll-up
 of that lens's per-query `sentiment`s, read from the `lens_sentiment` table (INTERFACES §2; it is
@@ -129,6 +137,13 @@ carries the same as its audit section.
 
 The frontend shows the **Trend across runs** chart only in the `all` (whole-period) view; the
 `today` (latest-run) view is a pure snapshot — KPI cards with read-time deltas, no trend chart.
+
+The per-query results table has an **outcome filter** (chip row above the table): All / Cited /
+In sources, not cited / Mentioned, no link / Absent / No answer — each chip shows its row count,
+and "Absent" is the actionable gap list (queries where the engine rendered a grounded answer but
+the brand appears nowhere: no source, no citation, no name mention). The table also carries a
+**Mention** column rendering the per-query `brand_in_answer_text` flag. The filter is pure
+client-side (`/api/results` is unchanged).
 
 `/api/report` invokes the report CLI
 (`python -m report.generate --brand --domain --engine --period --lang --out --db`) into a

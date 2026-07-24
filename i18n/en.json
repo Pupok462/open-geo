@@ -16,20 +16,20 @@
   },
   "metrics": {
     "overview_coverage": {
-      "label": "AI Overview coverage",
-      "hint": "Share of queries for which Google showed an AI Overview. This is the denominator for all visibility: you can only show up where an overview appeared at all. Formula: overviews ÷ all queries."
+      "label": "Answer coverage",
+      "hint": "Share of queries where the engine rendered a grounded, source-backed answer — an AI Overview on Google, a web-search-backed answer on chat engines. This is the denominator for all visibility: you can only show up where a grounded answer appeared at all. Formula: grounded answers ÷ all queries."
     },
     "visibility_in_sources": {
       "label": "Visibility in sources",
-      "hint": "Of queries with an overview — the share where your domain made it into the sources panel (at any position). Formula: queries with the domain in sources ÷ queries with an overview."
+      "hint": "Of queries with a grounded answer — the share where your domain made it into the answer's source list (at any position). Formula: queries with the domain in sources ÷ queries with a grounded answer."
     },
     "visibility_in_citations": {
       "label": "Visibility in citations",
-      "hint": "Of queries with an overview — the share where your domain is cited in the answer text (an inline link in the prose). Citations are a subset of sources: the model cites what it retrieved, so a cited domain is always a source too. Formula: queries with a citation ÷ queries with an overview."
+      "hint": "Of queries with a grounded answer — the share where your domain is cited in the answer text (an inline link in the prose). Citations are a subset of sources: the model cites what it retrieved, so a cited domain is always a source too. Formula: queries with a citation ÷ queries with a grounded answer."
     },
     "avg_source_position": {
       "label": "Avg. source position",
-      "hint": "Average best (minimum) position of your domain in the sources panel — averaged over the queries where it is present. Lower is better."
+      "hint": "Average best (minimum) position of your domain in the answer's source list — averaged over the queries where it is present. Lower is better."
     },
     "avg_citation_position": {
       "label": "Avg. citation position",
@@ -38,6 +38,10 @@
     "relative_citation": {
       "label": "Source→citation conversion",
       "hint": "Of the queries where your domain made it into sources, the share where the model actually cited you. Formula: n_cited ÷ n_in_sources. Higher is better."
+    },
+    "brand_mention_rate": {
+      "label": "Brand mention rate",
+      "hint": "Of queries with a grounded answer — the share where the answer text mentions the brand NAME, linked or not. An unlinked mention is invisible to the link funnel, so this is a separate axis: mentioned does not imply cited, and cited does not imply mentioned. Formula: answers mentioning the brand ÷ grounded answers."
     }
   },
   "lens": {
@@ -73,9 +77,10 @@
     "chart_info": "Metric values across completed runs over time, for the selected lens. Percentages on the left axis, average positions on the right (lower is better).",
     "chart_lens": "lens: {lens}",
     "chart_empty": "No completed runs to plot a trend.",
-    "chart_series_coverage": "AI Overview coverage",
+    "chart_series_coverage": "Answer coverage",
     "chart_series_visibility_sources": "Visibility in sources",
     "chart_series_visibility_citations": "Visibility in citations",
+    "chart_series_mention_rate": "Brand mentioned",
     "chart_series_position_sources": "Avg. source position",
     "chart_series_position_citations": "Avg. citation position",
     "lens_panel_title": "Breakdown by lens",
@@ -83,19 +88,20 @@
     "lens_empty": "No metrics for the selected run.",
     "lens_col_lens": "Lens",
     "lens_col_queries": "Queries",
-    "lens_col_overview": "Overview",
+    "lens_col_overview": "Answered",
     "lens_col_coverage": "Coverage",
     "lens_col_visibility_sources": "Vis. in sources",
     "lens_col_visibility_citations": "Vis. in citations",
+    "lens_col_mentions": "Mentioned",
     "lens_col_position_sources": "Avg. src pos.",
     "lens_col_position_citations": "Avg. cit. pos.",
     "sentiment_panel_title": "Sentiment by lens",
     "sentiment_panel_info": "A short qualitative summary of how AI answers treat the brand, per query type — synthesized from the per-query sentiments.",
     "sentiment_lens_empty": "Not mentioned in this lens.",
     "competitors_panel_title": "Top domains in answer space",
-    "competitors_panel_info": "Every domain that appears in the AI answers for the selected scope — brand competitors and publishers alike — ranked by how often it shows up, with its average position. Your brand is highlighted. Share = appearances ÷ queries with an overview. Click a column header to re-sort.",
+    "competitors_panel_info": "Every domain that appears in the AI answers for the selected scope — brand competitors and publishers alike — ranked by how often it shows up, with its average position. Your brand is highlighted. Share = appearances ÷ queries with a grounded answer. Click a column header to re-sort.",
     "competitors_empty": "No domain data for the selected run.",
-    "competitors_meta": "{n} domains · {nov} overviews",
+    "competitors_meta": "{n} domains · {nov} answers",
     "competitors_you": "you",
     "competitors_col_domain": "Domain",
     "competitors_col_sources": "In sources",
@@ -110,13 +116,24 @@
     "results_empty": "No result rows for the selected run / lens.",
     "results_col_query": "Query",
     "results_col_lens": "Lens",
-    "results_col_overview": "Overview",
+    "results_col_overview": "Answer",
     "results_col_source_ranks": "Source ranks",
     "results_col_citation_ranks": "Citation ranks",
+    "results_col_mention": "Mention",
     "results_col_sentiment": "Sentiment",
-    "results_overview_shown": "AI Overview shown",
-    "results_overview_absent": "Overview not shown",
+    "results_overview_shown": "Grounded answer shown",
+    "results_overview_absent": "No grounded answer",
+    "results_mention_yes": "Brand mentioned in the answer text",
+    "results_mention_no": "Brand not mentioned in the answer text",
     "results_brand_absent": "brand not mentioned",
+    "results_filter_label": "Filter by outcome",
+    "results_filter_all": "All",
+    "results_filter_cited": "Cited",
+    "results_filter_sources_only": "In sources, not cited",
+    "results_filter_mention_only": "Mentioned, no link",
+    "results_filter_absent": "Absent",
+    "results_filter_no_answer": "No answer",
+    "results_filter_empty": "No rows match this filter.",
     "footer": "open-geo dashboard",
     "report_error": "Report error ({status})",
     "report_cli_label": "CLI command:",
@@ -147,7 +164,7 @@
     "competitors_intro": "Every domain that shares the AI answer space for these queries — brand competitors and publishers alike — by how often it appears and its average position. Your brand's row is highlighted.",
     "competitors_col_domain": "Domain",
     "competitors_col_share_sources": "In sources",
-    "competitors_caption": "Share = queries where the domain is in sources ÷ queries with an overview. Average positions in ranks (lower is better). Your brand's row is marked “(you)”.",
+    "competitors_caption": "Share = queries where the domain is in sources ÷ queries with a grounded answer. Average positions in ranks (lower is better). Your brand's row is marked “(you)”.",
     "competitors_empty": "No domain data for this run.",
     "competitors_you": "you",
     "kpi_compare": "Current run: {current}   ·   compared with previous: {previous}",
@@ -158,22 +175,22 @@
     "delta_zero": "0",
     "delta_pp_suffix": "pp",
     "card_coverage_sub": "{n_overviews} of {n_queries} queries",
-    "card_visibility_sub": "{numerator} of {n_overviews} overviews",
+    "card_visibility_sub": "{numerator} of {n_overviews} answers",
     "lenses_table_col_type": "Query type",
     "lenses_table_col_coverage": "Coverage",
     "lenses_table_col_visibility_sources": "Vis. src.",
     "lenses_table_col_visibility_citations": "Vis. cit.",
     "lenses_table_col_position_sources": "Avg. src pos.",
     "lenses_table_col_position_citations": "Avg. cit. pos.",
-    "lenses_caption": "Visibility in % (of queries with an overview); average positions in ranks (lower is better). The “All queries” row is the cross-lens total.",
-    "chart_group_coverage": "AI Overview coverage",
+    "lenses_caption": "Visibility in % (of queries with a grounded answer); average positions in ranks (lower is better). The “All queries” row is the cross-lens total.",
+    "chart_group_coverage": "Answer coverage",
     "chart_group_visibility_sources": "Visibility in sources",
     "chart_group_visibility_citations": "Visibility in citations",
-    "funnel_intro": "The brand's path inside AI answers, narrowing at each step: where an overview is shown → where the brand made it into sources → where it is cited (citations are a subset of sources — the last step is the source→citation conversion).",
-    "funnel_stage_overview": "AI Overview shown",
+    "funnel_intro": "The brand's path inside AI answers, narrowing at each step: where a grounded answer is shown → where the brand made it into sources → where it is cited (citations are a subset of sources — the last step is the source→citation conversion).",
+    "funnel_stage_overview": "Grounded answer shown",
     "funnel_stage_sources": "Brand in sources",
     "funnel_stage_cited": "Brand cited",
-    "funnel_rates": "Of queries with an overview: in sources {sources}    •    in citations {citations}",
+    "funnel_rates": "Of queries with a grounded answer: in sources {sources}    •    in citations {citations}",
     "funnel_empty": "No data to build the funnel.",
     "history_intro": "Change in key metrics (the “All queries” lens) across completed runs.",
     "sentiment_intro": "Representative phrasings from AI answers about the brand — no numeric score, as-is.",

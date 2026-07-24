@@ -25,6 +25,8 @@ function makeRow(over: Partial<MetricRow> = {}): MetricRow {
     avg_source_position: 2.5,
     avg_citation_position: 3.125,
     relative_citation: 0.75,
+    n_brand_mentions: 8,
+    brand_mention_rate: 0.25,
     ...over,
   };
 }
@@ -59,7 +61,7 @@ describe("LensBreakdown — empty data", () => {
 
 
 describe("LensBreakdown — table structure", () => {
-  it("renders a table with all eight column headers when rows are present", () => {
+  it("renders a table with all nine column headers when rows are present", () => {
     renderWithProviders(<LensBreakdown rows={[makeRow()]} />);
 
     expect(screen.getByRole("table")).toBeInTheDocument();
@@ -67,10 +69,11 @@ describe("LensBreakdown — table structure", () => {
     const headerLabels = [
       "Lens",
       "Queries",
-      "Overview",
+      "Answered",
       "Coverage",
       "Vis. in sources",
       "Vis. in citations",
+      "Mentioned",
       "Avg. src pos.",
       "Avg. cit. pos.",
     ];
@@ -165,6 +168,7 @@ describe("LensBreakdown — numeric cell formatting", () => {
       "75.0%",
       "40.0%",
       "30.0%",
+      "25.0%",
       "2.50",
       "3.13",
     ]);
@@ -187,6 +191,7 @@ describe("LensBreakdown — missing metric values", () => {
       overview_coverage: null,
       visibility_in_sources: null,
       visibility_in_citations: null,
+      brand_mention_rate: null,
       avg_source_position: null,
       avg_citation_position: null,
     });
@@ -202,6 +207,7 @@ describe("LensBreakdown — missing metric values", () => {
       "—",
       "—",
       "—",
+      "—",
     ]);
   });
 
@@ -211,6 +217,7 @@ describe("LensBreakdown — missing metric values", () => {
       overview_coverage: undefined,
       visibility_in_sources: undefined,
       visibility_in_citations: undefined,
+      brand_mention_rate: undefined,
       avg_source_position: undefined,
       avg_citation_position: undefined,
     });
@@ -218,7 +225,7 @@ describe("LensBreakdown — missing metric values", () => {
 
     const bodyRow = screen.getByRole("rowheader", { name: "Branded" }).closest("tr")!;
     const dashes = within(bodyRow).getAllByText("—");
-    expect(dashes).toHaveLength(5);
+    expect(dashes).toHaveLength(6);
   });
 
   it("mixes present and missing metrics within a single row", () => {
@@ -253,7 +260,7 @@ describe("LensBreakdown — delta fields are ignored", () => {
     renderWithProviders(<LensBreakdown rows={[row]} />);
 
     const bodyRow = screen.getByRole("rowheader", { name: "General" }).closest("tr")!;
-    expect(within(bodyRow).getAllByRole("cell")).toHaveLength(7);
+    expect(within(bodyRow).getAllByRole("cell")).toHaveLength(8);
     expect(within(bodyRow).queryByText(/\+12\.0/)).not.toBeInTheDocument();
     expect(within(bodyRow).queryByText(/pp/)).not.toBeInTheDocument();
   });

@@ -33,9 +33,9 @@ logged-in browser and records whether your domain makes it into the **sources**,
   (`engines/<engine>.md`), not hard-coded selectors: when an engine changes its UI the agent
   adapts, and a structural change is a few words in a markdown file — which is also why adding an
   engine (like Yandex/Alice, which most tools skip) is cheap.
-- **A visibility funnel, not a vanity score.** Six metrics that nest as a funnel — answer →
-  sources → citations — plus a qualitative sentiment read **and a top-domains leaderboard** (your
-  brand ranked against every other domain in the answers). **No composite index, no made-up
+- **A visibility funnel, not a vanity score.** Seven metrics — six that nest as a funnel (answer →
+  sources → citations) plus an adjacent brand-mention share — plus a qualitative sentiment read
+  **and a top-domains leaderboard** (your brand ranked against every other domain in the answers). **No composite index, no made-up
   share-of-voice *index*.** Every number is auditable to [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md).
 - **Local-first, multi-brand time-series.** Captures land in a local SQLite (WAL) database, so you
   build per-brand, per-engine history and run-over-run deltas. Deliverables are a themed **PDF** and
@@ -57,10 +57,11 @@ logged-in browser and records whether your domain makes it into the **sources**,
 
 - **Capture of AI answers** — a list of queries is run through an engine in a real, logged-in
   browser, and how the target domain shows up is recorded, one validated record per query.
-- **Six metrics + qualitative sentiment** — a visibility funnel (answer → sources → citations):
-  coverage, a visibility rate and an average best position for sources *and* for citations, plus
-  the source→citation conversion (`relative_citation`) and a short free-text note on how each
-  answer treats the brand. The dashboard and PDF also show a **per-lens qualitative sentiment
+- **Seven metrics + qualitative sentiment** — a visibility funnel (answer → sources → citations):
+  coverage, a visibility rate and an average best position for sources *and* for citations, the
+  source→citation conversion (`relative_citation`), plus a **brand mention rate** — the share of
+  answers whose text names the brand, linked or not (an adjacent axis, not a funnel stage) — and a
+  short free-text note on how each answer treats the brand. The dashboard and PDF also show a **per-lens qualitative sentiment
   summary** synthesized from those per-query notes (see [Metrics](#metrics)).
 - **A top-domains (competitor) leaderboard** — the average-position metric generalized from your
   brand to *every* domain in the answers, ranked by how often it appears (with its average
@@ -203,7 +204,7 @@ model can only cite what it retrieved.) The **denominator for visibility is answ
 — you can only be visible where an answer actually rendered. Everything is computed **per lens**
 (`general` / `branded` / `comparative`) plus an aggregate `all` row.
 
-The six metrics are just ratios and positions along that funnel:
+The seven metrics are just ratios and positions along that funnel — plus one adjacent axis:
 
 - **`overview_coverage`** — share of queries that produced an AI answer at all
   (`n_overviews / n_queries`).
@@ -218,6 +219,12 @@ The six metrics are just ratios and positions along that funnel:
 - **`relative_citation`** — the **source→citation conversion**: of the queries where you were
   retrieved into sources, the share where the model actually cited you (`n_cited / n_in_sources`;
   **higher is better**, bounded to `[0, 1]`).
+- **`brand_mention_rate`** — of answer queries, the share where the answer **text mentions the
+  brand name** — linked or not (`n_brand_mentions / n_overviews`). It surfaces the per-query
+  `brand_in_answer_text` field capture has always recorded, as a plain share — not a composite
+  index. An **adjacent axis, not a funnel stage**: an unlinked mention is invisible to the link
+  funnel (mentioned does not imply cited, and cited does not imply mentioned), so the three-step
+  funnel and its inequality are unchanged.
 - **sentiment** — a short **qualitative** phrase per query describing how the answer treats the
   brand. It is **free text, not a number**. At finalize the orchestrator also rolls the per-query
   notes into a **per-lens summary** (one short line per lens plus an `all` synthesis), shown as a
@@ -257,15 +264,16 @@ At the end of a run, `/open-geo` prints a short headline summary built from the 
 
 ```
 Run for brand "Example" (engine google), queries: 24.
-• AI Overview coverage: 83% (20 of 24 queries).
+• Answer coverage: 83% (20 of 24 queries).
 • Visibility in sources: 60% of overview queries.
 • Visibility in citations: 45% of overview queries.
 • Average source position: 2.5 (lower is better).
 • Average citation position: 1.0 (lower is better).
 • Source→citation conversion (relative citation): 75% (higher is better).
+• Brand mention rate: 55% of grounded answers name the brand.
 ```
 
-The six metrics for `lens="all"`, with the underlying funnel counts
+The seven metrics for `lens="all"`, with the underlying funnel counts
 (`n_queries = 24` → `n_overviews = 20` → `n_in_sources = 12` → `n_cited = 9`):
 
 | Metric | Value | Plain meaning | Direction |
@@ -311,8 +319,9 @@ No. open-geo is a local tool: every run is stored in a local **SQLite (WAL) data
 There is no SaaS and no account, so the methodology is yours to inspect and reproduce. (Capture
 itself runs through Claude Code / Claude-in-Chrome, so it is not an offline or air-gapped tool.)
 
-### Why six metrics and no single score?
-Because they form a **funnel** (answer → sources → citations), and collapsing it into one number
+### Why seven metrics and no single score?
+Because six of them form a **funnel** (answer → sources → citations) — the seventh, the brand
+mention rate, is an adjacent plain share, not another index — and collapsing it into one number
 invites hand-wavy weighting and invented baselines. Every number is auditable to one formula in
 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §4, plus a free-text sentiment note that is never
 reduced to a number. A top-domains leaderboard (§4.2) gives competitive context as plain

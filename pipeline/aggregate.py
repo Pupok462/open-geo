@@ -17,6 +17,13 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _row_value(result: sqlite3.Row, col: str) -> Any:
+    try:
+        return result[col]
+    except (KeyError, IndexError):
+        return None
+
+
 def _row_int_ranks(result: sqlite3.Row, col: str) -> list[int]:
     raw = result[col]
     if not raw:
@@ -66,6 +73,14 @@ def _compute_scope(results: list[sqlite3.Row]) -> dict[str, Any]:
     relative_citation: Optional[float] = (
         n_cited / n_in_sources if n_in_sources > 0 else None
     )
+    n_brand_mentions = sum(
+        1
+        for r in overview_rows
+        if int(_row_value(r, "brand_in_answer_text") or 0) == 1
+    )
+    brand_mention_rate: Optional[float] = (
+        n_brand_mentions / n_overviews if n_overviews > 0 else None
+    )
 
     return {
         "n_queries": n_queries,
@@ -78,6 +93,8 @@ def _compute_scope(results: list[sqlite3.Row]) -> dict[str, Any]:
         "avg_source_position": avg_source_position,
         "avg_citation_position": avg_citation_position,
         "relative_citation": relative_citation,
+        "n_brand_mentions": n_brand_mentions,
+        "brand_mention_rate": brand_mention_rate,
     }
 
 
@@ -247,8 +264,9 @@ def aggregate_run(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
                 n_cited, visibility_in_citations,
                 avg_source_position, avg_citation_position,
                 relative_citation,
+                n_brand_mentions, brand_mention_rate,
                 computed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -265,6 +283,8 @@ def aggregate_run(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
                 m["avg_source_position"],
                 m["avg_citation_position"],
                 m["relative_citation"],
+                m["n_brand_mentions"],
+                m["brand_mention_rate"],
                 computed_at,
             ),
         )

@@ -39,12 +39,15 @@ function metricRow(lens: string, over: Partial<MetricRow> = {}): MetricRow {
     avg_source_position: 2.5,
     avg_citation_position: 4.0,
     relative_citation: 0.45,
+    n_brand_mentions: 9,
+    brand_mention_rate: 0.75,
     overview_coverage_delta: 0.05,
     visibility_in_sources_delta: -0.1,
     visibility_in_citations_delta: 0,
     avg_source_position_delta: -0.3,
     avg_citation_position_delta: 0.2,
     relative_citation_delta: 0.04,
+    brand_mention_rate_delta: 0.1,
     ...over,
   };
 }
@@ -375,17 +378,18 @@ describe("RedesignApp — initial load", () => {
     expect(engineSelect.value).toBe("google");
   });
 
-  it("renders the six KPI cards with formatted values from the 'all' lens row", async () => {
+  it("renders the seven KPI cards with formatted values from the 'all' lens row", async () => {
     installFetch();
     const { container } = render(<RedesignApp />);
     await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
-    const grid = container.querySelector(".xl\\:grid-cols-6") as HTMLElement;
+    const grid = container.querySelector(".xl\\:grid-cols-4") as HTMLElement;
     expect(grid).toBeTruthy();
     const kpis = within(grid);
     expect(kpis.getByText("60.0%")).toBeInTheDocument();
     expect(kpis.getByText("50.0%")).toBeInTheDocument();
     expect(kpis.getByText("25.0%")).toBeInTheDocument();
     expect(kpis.getByText("45.0%")).toBeInTheDocument();
+    expect(kpis.getByText("75.0%")).toBeInTheDocument();
     expect(kpis.getByText("2.50")).toBeInTheDocument();
     expect(kpis.getByText("4.00")).toBeInTheDocument();
   });

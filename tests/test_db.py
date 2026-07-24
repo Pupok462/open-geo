@@ -166,6 +166,8 @@ def test_metrics_table_full_column_set(empty_conn):
         "avg_source_position",
         "avg_citation_position",
         "relative_citation",
+        "n_brand_mentions",
+        "brand_mention_rate",
         "computed_at",
     }
 
@@ -966,3 +968,37 @@ def test_get_or_create_brand_url_prefix_idempotent_different_writing(empty_conn)
         "SELECT COUNT(*) FROM brands WHERE name = 'X'"
     ).fetchone()[0]
     assert count == 1
+
+
+def test_init_db_migrates_legacy_metrics_adds_brand_mention_columns(tmp_path):
+    conn = get_conn(str(tmp_path / "legacy_mention.db"))
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE metrics (
+                id                      INTEGER PRIMARY KEY,
+                run_id                  INTEGER,
+                lens                    TEXT,
+                relative_citation       REAL,
+                computed_at             TEXT
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO metrics (run_id, lens, relative_citation, computed_at) "
+            "VALUES (?, ?, ?, ?)",
+            (1, "all", 0.5, _utcnow_iso()),
+        )
+        conn.commit()
+        assert "n_brand_mentions" not in _columns(conn, "metrics")
+        init_db(conn)
+        assert "n_brand_mentions" in _columns(conn, "metrics")
+        assert "brand_mention_rate" in _columns(conn, "metrics")
+        row = conn.execute(
+            "SELECT relative_citation, n_brand_mentions, brand_mention_rate FROM metrics"
+        ).fetchone()
+        assert row["relative_citation"] == 0.5
+        assert row["n_brand_mentions"] is None
+        assert row["brand_mention_rate"] is None
+    finally:
+        conn.close()

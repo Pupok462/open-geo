@@ -133,7 +133,8 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
   `PRAGMA journal_mode=WAL;` and `PRAGMA foreign_keys=ON;`.
 - **Schema creation / forward-migration:** `pipeline.db.init_db(conn)` — idempotent.
   Creates tables (`CREATE TABLE IF NOT EXISTS`) **and adds any column missing from an
-  existing table** (`ALTER TABLE … ADD COLUMN`; currently `metrics.relative_citation`).
+  existing table** (`ALTER TABLE … ADD COLUMN`; currently `metrics.relative_citation`,
+  `metrics.n_brand_mentions`, `metrics.brand_mention_rate`).
   Safe to call on every startup: it both initializes a fresh DB and forward-migrates an
   older one in place (existing rows read `NULL` for a newly added column until re-aggregated).
 - Arrays / nested objects are stored as **JSON strings** in `*_json` columns.
@@ -211,8 +212,18 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 | `avg_source_position` | REAL \| NULL | see §4 (NULL when `n_in_sources=0`) |
 | `avg_citation_position` | REAL \| NULL | see §4 (NULL when `n_cited=0`) |
 | `relative_citation` | REAL \| NULL | see §4 (NULL when `n_in_sources=0`) |
+| `n_brand_mentions` | INTEGER \| NULL | queries (among overview-present) with `brand_in_answer_text=1`; NULL on rows written before this column existed, until the run is re-aggregated |
+| `brand_mention_rate` | REAL \| NULL | see §4 (NULL when `n_overviews=0`, and NULL on pre-migration rows until re-aggregated) |
 | `computed_at` | TEXT | ISO-8601 |
 
+> **Schema change / migration (mention axis):** `n_brand_mentions` /
+> `brand_mention_rate` aggregate the long-captured `results.brand_in_answer_text`
+> (§1) — no capture change, purely a new aggregate readout. A DB created before
+> these columns **self-heals** on the next `init_db` (`ALTER TABLE … ADD COLUMN`);
+> existing rows read `NULL` until re-aggregated, and every read-time consumer
+> (dashboard API, report, `--period all` rollup) MUST treat `NULL` as "no data"
+> ("—"), never as `0`.
+>
 > **Schema change / migration:** `relative_citation` was **RE-ADDED** (reversing
 > its earlier removal — it is valid because citations ⊆ sources, so the ratio is
 > bounded; see §4). `visibility_in_citations` and `avg_citation_position` remain.
@@ -402,7 +413,8 @@ mid-run never loses already-captured work:
         "n_in_sources": 9, "visibility_in_sources": 0.409,
         "n_cited": 7, "visibility_in_citations": 0.318,
         "avg_source_position": 2.4, "avg_citation_position": 1.7,
-        "relative_citation": 0.778 },
+        "relative_citation": 0.778,
+        "n_brand_mentions": 12, "brand_mention_rate": 0.545 },
       { "lens": "general", "...": "..." },
       { "lens": "branded", "...": "..." },
       { "lens": "comparative", "...": "..." }
@@ -458,6 +470,12 @@ Let, within a scope (a specific lens, or `all` = across all lenses of the run):
 - `n_cited`     = results (**among overview-present**) with non-empty
   `target_citation_ranks`. Counts each query **once** even if the target (domain or
   URL prefix) is cited multiple times (presence, not occurrences).
+- `n_brand_mentions` = results (**among overview-present**) with
+  `brand_in_answer_text = 1` — the brand **name** appears in the answer prose,
+  independent of any link. This is an **adjacent axis, NOT a funnel stage**: a
+  brand can be mentioned without any link (unlinked mention) and linked without a
+  name mention, so `n_brand_mentions` has **no subset relation** with
+  `n_in_sources` / `n_cited`; the funnel inequality below is unchanged.
 
 The model is a **funnel**. Because capture folds every cited link into `sources`
 (citations ⊆ sources — the model can only cite what it retrieved; see §1), the
@@ -505,6 +523,7 @@ holds and `n_cited` can never exceed `n_in_sources`.
 | `avg_source_position` | mean over in-sources queries of `min(target_source_ranks)` | `null` if `n_in_sources = 0`; lower = better |
 | `avg_citation_position` | mean over cited queries of `min(target_citation_ranks)` | `null` if `n_cited = 0`; lower = better |
 | `relative_citation` | `n_cited / n_in_sources` | `null` if `n_in_sources = 0`; ∈ `[0, 1]`; higher = better |
+| `brand_mention_rate` | `n_brand_mentions / n_overviews` | `null` if `n_overviews = 0`; higher = better |
 
 Notes:
 
@@ -520,6 +539,13 @@ Notes:
   partial sources panel as the whole retrieval set — that was a UI-panel
   artifact; capture now folds cited links into `sources`, so the funnel is
   well-defined.)
+- **`brand_mention_rate` surfaces the already-captured `brand_in_answer_text`** —
+  before it, a brand named in the prose **without any link** was invisible in every
+  aggregate (only the per-query results table showed it). It is a plain honest
+  share over the same denominator as the visibility metrics (overview-present
+  queries), **not** a composite index and **not** share-of-voice. Because it is an
+  adjacent axis (see the `n_brand_mentions` definition above), do **not** read it
+  as a funnel stage: mentioned ⊅ cited and cited ⊅ mentioned.
 - **`sentiment` is QUALITATIVE** (free text, per query in `results.sentiment`).
   It is **NOT** aggregated into any *numeric* metric — there is intentionally **no
   composite index and no share-of-voice index**, and sentiment itself stays non-numeric.
@@ -545,10 +571,10 @@ Deltas are computed by **report/dashboard at read-time**, by comparing a run's
 `metrics` to the **previous completed run** of the **same brand + engine**
 (i.e. the most recent run with `status='done'` and an earlier `run_at`, matched
 per `lens`). Deltas apply to `overview_coverage`, `visibility_in_sources`,
-`visibility_in_citations`, `avg_source_position`, `avg_citation_position`, and
-`relative_citation` (for the two `avg_*_position` deltas, remember **lower =
-better**, so a negative delta is an improvement). **Do not store deltas** in any
-table — derive them on read.
+`visibility_in_citations`, `avg_source_position`, `avg_citation_position`,
+`relative_citation`, and `brand_mention_rate` (for the two `avg_*_position`
+deltas, remember **lower = better**, so a negative delta is an improvement).
+**Do not store deltas** in any table — derive them on read.
 
 ### 4.2 Competitor / top-domain leaderboard (`domain_stats`)
 

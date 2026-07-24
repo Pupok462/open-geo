@@ -30,6 +30,8 @@ _METRIC_COLS = (
     "avg_source_position",
     "avg_citation_position",
     "relative_citation",
+    "n_brand_mentions",
+    "brand_mention_rate",
 )
 _DELTA_METRICS = (
     "overview_coverage",
@@ -38,6 +40,7 @@ _DELTA_METRICS = (
     "avg_source_position",
     "avg_citation_position",
     "relative_citation",
+    "brand_mention_rate",
 )
 
 app = FastAPI(title="open-geo dashboard API", version="1.0.0")
@@ -69,6 +72,14 @@ def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _has_mention_columns(conn: sqlite3.Connection) -> bool:
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(metrics)")}
+    except sqlite3.OperationalError:
+        return False
+    return "n_brand_mentions" in cols and "brand_mention_rate" in cols
 
 
 def _loads(raw: Optional[str], default: Any) -> Any:
@@ -254,7 +265,17 @@ def metrics(
 def _aggregate_period(
     conn: sqlite3.Connection, brand_id: int, engine: str, lens: Optional[str]
 ) -> list[dict]:
-    sql = """
+    has_mentions = _has_mention_columns(conn)
+    mention_select = (
+        """,
+               SUM(m.n_brand_mentions) AS n_brand_mentions,
+               SUM(CASE WHEN m.n_brand_mentions IS NOT NULL
+                        THEN m.n_overviews END) AS mention_nov
+        """
+        if has_mentions
+        else "\n"
+    )
+    sql = f"""
         SELECT m.lens,
                SUM(m.n_queries)    AS n_queries,
                SUM(m.n_overviews)  AS n_overviews,
@@ -263,7 +284,7 @@ def _aggregate_period(
                SUM(CASE WHEN m.avg_source_position IS NOT NULL
                         THEN m.avg_source_position * m.n_in_sources END) AS sum_src_rank,
                SUM(CASE WHEN m.avg_citation_position IS NOT NULL
-                        THEN m.avg_citation_position * m.n_cited END) AS sum_cit_rank
+                        THEN m.avg_citation_position * m.n_cited END) AS sum_cit_rank{mention_select}
         FROM metrics m
         JOIN runs r ON r.id = m.run_id
         WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done'
@@ -282,6 +303,8 @@ def _aggregate_period(
         n_cited = int(r["n_cited"] or 0)
         sum_src = r["sum_src_rank"]
         sum_cit = r["sum_cit_rank"]
+        n_mentions = r["n_brand_mentions"] if has_mentions else None
+        mention_nov = r["mention_nov"] if has_mentions else None
         payload: dict[str, Any] = {
             "lens": r["lens"],
             "n_queries": n_queries,
@@ -294,6 +317,12 @@ def _aggregate_period(
             "avg_source_position": (sum_src / n_in_sources) if n_in_sources and sum_src is not None else None,
             "avg_citation_position": (sum_cit / n_cited) if n_cited and sum_cit is not None else None,
             "relative_citation": (n_cited / n_in_sources) if n_in_sources else None,
+            "n_brand_mentions": int(n_mentions) if n_mentions is not None else None,
+            "brand_mention_rate": (
+                n_mentions / mention_nov
+                if n_mentions is not None and mention_nov
+                else None
+            ),
         }
         for m in _DELTA_METRICS:
             payload[f"{m}_delta"] = None
@@ -310,13 +339,17 @@ def timeseries(
 ) -> dict:
     conn = _connect()
     try:
+        has_mentions = _has_mention_columns(conn)
+        mention_select = (
+            ", m.n_brand_mentions, m.brand_mention_rate" if has_mentions else ""
+        )
         rows = conn.execute(
-            """
+            f"""
             SELECT r.id AS run_id, r.run_at, r.status,
                    m.lens, m.n_queries, m.n_overviews, m.overview_coverage,
                    m.n_in_sources, m.visibility_in_sources, m.n_cited,
                    m.visibility_in_citations, m.avg_source_position,
-                   m.avg_citation_position, m.relative_citation
+                   m.avg_citation_position, m.relative_citation{mention_select}
             FROM runs r
             JOIN metrics m ON m.run_id = r.id
             WHERE r.brand_id = ? AND r.engine = ? AND m.lens = ?
@@ -325,11 +358,18 @@ def timeseries(
             """,
             (brand_id, engine, lens),
         ).fetchall()
+        points = []
+        for r in rows:
+            p = dict(r)
+            if not has_mentions:
+                p["n_brand_mentions"] = None
+                p["brand_mention_rate"] = None
+            points.append(p)
         return {
             "brand_id": brand_id,
             "engine": engine,
             "lens": lens,
-            "points": [dict(r) for r in rows],
+            "points": points,
         }
     finally:
         conn.close()

@@ -16,20 +16,20 @@
   },
   "metrics": {
     "overview_coverage": {
-      "label": "AI Overview 覆盖率",
-      "hint": "Google 为其展示 AI Overview 的查询占比。这是所有可见性指标的分母：只有出现了概览，你才可能出现在其中。公式：概览 ÷ 全部查询。"
+      "label": "回答覆盖率",
+      "hint": "引擎为其呈现了有依据、带来源的回答的查询占比——Google 上是 AI Overview，聊天引擎上是经联网搜索支撑的回答。这是所有可见性指标的分母：只有出现了这类回答，你才可能出现在其中。公式：有依据的回答 ÷ 全部查询。"
     },
     "visibility_in_sources": {
       "label": "来源中的可见性",
-      "hint": "在有概览的查询中，你的域名进入来源面板（任意位置）的占比。公式：来源中含该域名的查询 ÷ 有概览的查询。"
+      "hint": "在有依据回答的查询中，你的域名进入回答来源列表（任意位置）的占比。公式：来源中含该域名的查询 ÷ 有依据回答的查询。"
     },
     "visibility_in_citations": {
       "label": "引用中的可见性",
-      "hint": "在有概览的查询中，你的域名在回答正文中被引用（正文内的内联链接）的占比。引用是来源的子集：模型只引用它检索到的内容，因此被引用的域名必然也是来源。公式：含引用的查询 ÷ 有概览的查询。"
+      "hint": "在有依据回答的查询中，你的域名在回答正文中被引用（正文内的内联链接）的占比。引用是来源的子集：模型只引用它检索到的内容，因此被引用的域名必然也是来源。公式：含引用的查询 ÷ 有依据回答的查询。"
     },
     "avg_source_position": {
       "label": "平均来源排名",
-      "hint": "你的域名在来源面板中的平均最优（最小）排名——仅对其出现的查询求平均。越低越好。"
+      "hint": "你的域名在回答来源列表中的平均最优（最小）排名——仅对其出现的查询求平均。越低越好。"
     },
     "avg_citation_position": {
       "label": "平均引用排名",
@@ -38,6 +38,10 @@
     "relative_citation": {
       "label": "来源→引用转化率",
       "hint": "在你的域名进入来源的查询中，模型真正引用你的占比。公式：n_cited ÷ n_in_sources。越高越好。"
+    },
+    "brand_mention_rate": {
+      "label": "品牌提及率",
+      "hint": "在有依据回答的查询中，回答正文提及品牌名称（无论是否带链接）的占比。无链接的提及在链接漏斗中不可见，因此这是一条独立的轴：被提及不等于被引用，被引用也不等于被提及。公式：提及品牌的回答 ÷ 有依据的回答。"
     }
   },
   "lens": {
@@ -73,9 +77,10 @@
     "chart_info": "所选视角下，各次已完成运行随时间的指标值。百分比在左轴，平均排名在右轴（越低越好）。",
     "chart_lens": "视角：{lens}",
     "chart_empty": "暂无已完成的运行可绘制趋势。",
-    "chart_series_coverage": "AI Overview 覆盖率",
+    "chart_series_coverage": "回答覆盖率",
     "chart_series_visibility_sources": "来源中的可见性",
     "chart_series_visibility_citations": "引用中的可见性",
+    "chart_series_mention_rate": "品牌被提及",
     "chart_series_position_sources": "平均来源排名",
     "chart_series_position_citations": "平均引用排名",
     "lens_panel_title": "按视角拆分",
@@ -83,19 +88,20 @@
     "lens_empty": "所选运行暂无指标。",
     "lens_col_lens": "视角",
     "lens_col_queries": "查询数",
-    "lens_col_overview": "概览",
+    "lens_col_overview": "有回答",
     "lens_col_coverage": "覆盖率",
     "lens_col_visibility_sources": "来源可见性",
     "lens_col_visibility_citations": "引用可见性",
+    "lens_col_mentions": "被提及",
     "lens_col_position_sources": "平均来源排名",
     "lens_col_position_citations": "平均引用排名",
     "sentiment_panel_title": "按视角的情感",
     "sentiment_panel_info": "按查询类型，对 AI 回答如何评价该品牌的简短定性总结——由各查询的情感综合得出。",
     "sentiment_lens_empty": "在该视角中未被提及。",
     "competitors_panel_title": "回答空间中的热门域名",
-    "competitors_panel_info": "在所选范围内出现在 AI 回答中的每个域名——品牌竞争对手与发布方/聚合站一视同仁——按出现频次排序，并附其平均排名。你的品牌已高亮。占比 = 出现次数 ÷ 有概览的查询。点击列标题可重新排序。",
+    "competitors_panel_info": "在所选范围内出现在 AI 回答中的每个域名——品牌竞争对手与发布方/聚合站一视同仁——按出现频次排序，并附其平均排名。你的品牌已高亮。占比 = 出现次数 ÷ 有依据回答的查询。点击列标题可重新排序。",
     "competitors_empty": "所选运行暂无域名数据。",
-    "competitors_meta": "{n} 个域名 · {nov} 个概览",
+    "competitors_meta": "{n} 个域名 · {nov} 个回答",
     "competitors_you": "你",
     "competitors_col_domain": "域名",
     "competitors_col_sources": "来源中",
@@ -110,13 +116,24 @@
     "results_empty": "所选运行 / 视角暂无结果行。",
     "results_col_query": "查询",
     "results_col_lens": "视角",
-    "results_col_overview": "概览",
+    "results_col_overview": "回答",
     "results_col_source_ranks": "来源排名",
     "results_col_citation_ranks": "引用排名",
+    "results_col_mention": "提及",
     "results_col_sentiment": "情感",
-    "results_overview_shown": "已展示 AI Overview",
-    "results_overview_absent": "未展示概览",
+    "results_overview_shown": "已展示有依据的回答",
+    "results_overview_absent": "无有依据的回答",
+    "results_mention_yes": "回答正文提及了品牌",
+    "results_mention_no": "回答正文未提及品牌",
     "results_brand_absent": "未提及品牌",
+    "results_filter_label": "按结果筛选",
+    "results_filter_all": "全部",
+    "results_filter_cited": "被引用",
+    "results_filter_sources_only": "在来源中，未被引用",
+    "results_filter_mention_only": "被提及，无链接",
+    "results_filter_absent": "缺席",
+    "results_filter_no_answer": "无回答",
+    "results_filter_empty": "没有符合该筛选的行。",
     "footer": "open-geo dashboard",
     "report_error": "报告错误（{status}）",
     "report_cli_label": "CLI 命令：",
@@ -147,7 +164,7 @@
     "competitors_intro": "在这些查询中与你共享 AI 回答空间的每个域名——品牌竞争对手与发布方/聚合站一视同仁——按出现频次及平均排名呈现。你的品牌一行已高亮。",
     "competitors_col_domain": "域名",
     "competitors_col_share_sources": "来源中",
-    "competitors_caption": "占比 = 域名出现在来源中的查询 ÷ 有概览的查询。平均排名以名次表示（越低越好）。你的品牌一行标记为「（你）」。",
+    "competitors_caption": "占比 = 域名出现在来源中的查询 ÷ 有依据回答的查询。平均排名以名次表示（越低越好）。你的品牌一行标记为「（你）」。",
     "competitors_empty": "本次运行暂无域名数据。",
     "competitors_you": "你",
     "kpi_compare": "当前运行：{current}   ·   对比上一次：{previous}",
@@ -158,22 +175,22 @@
     "delta_zero": "0",
     "delta_pp_suffix": "个百分点",
     "card_coverage_sub": "{n_queries} 个查询中的 {n_overviews} 个",
-    "card_visibility_sub": "{n_overviews} 个概览中的 {numerator} 个",
+    "card_visibility_sub": "{n_overviews} 个回答中的 {numerator} 个",
     "lenses_table_col_type": "查询类型",
     "lenses_table_col_coverage": "覆盖率",
     "lenses_table_col_visibility_sources": "来源可见性",
     "lenses_table_col_visibility_citations": "引用可见性",
     "lenses_table_col_position_sources": "平均来源排名",
     "lenses_table_col_position_citations": "平均引用排名",
-    "lenses_caption": "可见性以 %（占有概览的查询）表示；平均排名以名次表示（越低越好）。「全部查询」行为跨视角合计。",
-    "chart_group_coverage": "AI Overview 覆盖率",
+    "lenses_caption": "可见性以 %（占有依据回答的查询）表示；平均排名以名次表示（越低越好）。「全部查询」行为跨视角合计。",
+    "chart_group_coverage": "回答覆盖率",
     "chart_group_visibility_sources": "来源中的可见性",
     "chart_group_visibility_citations": "引用中的可见性",
-    "funnel_intro": "品牌在 AI 回答中的路径，每一步逐渐收窄：展示概览之处 → 品牌进入来源之处 → 被引用之处（引用是来源的子集——最后一步是来源→引用的转化）。",
-    "funnel_stage_overview": "已展示 AI Overview",
+    "funnel_intro": "品牌在 AI 回答中的路径，每一步逐渐收窄：展示有依据回答之处 → 品牌进入来源之处 → 被引用之处（引用是来源的子集——最后一步是来源→引用的转化）。",
+    "funnel_stage_overview": "有依据的回答",
     "funnel_stage_sources": "品牌在来源中",
     "funnel_stage_cited": "品牌被引用",
-    "funnel_rates": "在有概览的查询中：来源 {sources}    •    引用 {citations}",
+    "funnel_rates": "在有依据回答的查询中：来源 {sources}    •    引用 {citations}",
     "funnel_empty": "暂无数据可构建漏斗。",
     "history_intro": "关键指标（「全部查询」视角）在各次已完成运行中的变化。",
     "sentiment_intro": "AI 回答中关于该品牌的代表性表述——无数值评分，原样呈现。",

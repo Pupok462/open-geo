@@ -28,6 +28,8 @@ export type MetricRow = {
   avg_source_position: Num;
   avg_citation_position: Num;
   relative_citation: Num;
+  n_brand_mentions?: number | null;
+  brand_mention_rate?: Num;
   sentiment_summary?: string | null;
   overview_coverage_delta?: Num;
   visibility_in_sources_delta?: Num;
@@ -35,6 +37,7 @@ export type MetricRow = {
   avg_source_position_delta?: Num;
   avg_citation_position_delta?: Num;
   relative_citation_delta?: Num;
+  brand_mention_rate_delta?: Num;
 };
 
 export type MetricsResponse = {
@@ -59,6 +62,8 @@ export type TimeseriesPoint = {
   visibility_in_citations: Num;
   avg_source_position: Num;
   avg_citation_position: Num;
+  n_brand_mentions?: number | null;
+  brand_mention_rate?: Num;
 };
 
 export type TimeseriesResponse = {

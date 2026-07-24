@@ -252,7 +252,7 @@ function Dashboard() {
         <AuditPanel audit={audit?.audit ?? null} />
       </Panel>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {METRICS.map((def) => (
           <MetricCard key={def.key} def={def} row={allRow} loading={loading} />
         ))}

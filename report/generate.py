@@ -149,6 +149,8 @@ class LensMetrics:
     avg_source_position: Optional[float]
     avg_citation_position: Optional[float]
     relative_citation: Optional[float]
+    n_brand_mentions: int = 0
+    brand_mention_rate: Optional[float] = None
 
 
 @dataclass
@@ -188,6 +190,8 @@ def _metrics_row_to_obj(row: sqlite3.Row) -> LensMetrics:
         avg_source_position=row["avg_source_position"],
         avg_citation_position=row["avg_citation_position"],
         relative_citation=_row_get(row, "relative_citation"),
+        n_brand_mentions=int(_row_get(row, "n_brand_mentions") or 0),
+        brand_mention_rate=_row_get(row, "brand_mention_rate"),
     )
 
 
@@ -864,6 +868,17 @@ def _build_kpi_cards(t: Translator, cur, prev, lang: str) -> list[dict]:
             "sub": f"{(cur.n_cited if cur else 0)} / {(cur.n_in_sources if cur else 0)}",
             "delta": _delta_pct(t, g("relative_citation"), gp("relative_citation"), higher_is_better=True),
             "accent": ACCENT_3,
+        },
+        {
+            "label": t.t("metrics.brand_mention_rate.label"),
+            "value": _pct(g("brand_mention_rate"), lang),
+            "sub": t.t(
+                "report.card_visibility_sub",
+                numerator=(cur.n_brand_mentions if cur else 0),
+                n_overviews=(cur.n_overviews if cur else 0),
+            ),
+            "delta": _delta_pct(t, g("brand_mention_rate"), gp("brand_mention_rate"), higher_is_better=True),
+            "accent": ACCENT,
         },
     ]
 

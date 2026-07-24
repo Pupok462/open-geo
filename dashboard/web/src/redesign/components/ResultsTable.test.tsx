@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import enDict from "../../../../../i18n/en.json";
 import type { LinkRef, ResultRow } from "../lib/api";
 import { I18nProvider } from "../lib/i18n";
-import { ResultsTable } from "./ResultsTable";
+import { outcomeOf, ResultsTable } from "./ResultsTable";
 
 const D = enDict.dashboard;
 const DASH = enDict.common.dash;
@@ -73,11 +73,11 @@ describe("ResultsTable — empty state", () => {
 });
 
 describe("ResultsTable — table structure & headers", () => {
-  it("renders a table with all six column headers when rows are present", () => {
+  it("renders a table with all seven column headers when rows are present", () => {
     renderWithProviders(<ResultsTable rows={[makeRow()]} />);
     expect(screen.getByRole("table")).toBeInTheDocument();
     const headers = screen.getAllByRole("columnheader");
-    expect(headers).toHaveLength(6);
+    expect(headers).toHaveLength(7);
     expect(screen.getByRole("columnheader", { name: D.results_col_query })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: D.results_col_lens })).toBeInTheDocument();
     expect(
@@ -88,6 +88,9 @@ describe("ResultsTable — table structure & headers", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: D.results_col_citation_ranks }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: D.results_col_mention }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: D.results_col_sentiment }),
@@ -321,5 +324,100 @@ describe("ResultsTable — combined realistic rows", () => {
     renderWithProviders(<ResultsTable rows={[row]} />);
     expect(screen.queryByText(/secret\.example/)).not.toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
+describe("ResultsTable — mention badge", () => {
+  it("shows the mention CheckIcon when brand_in_answer_text is true", () => {
+    renderWithProviders(<ResultsTable rows={[makeRow({ brand_in_answer_text: true })]} />);
+    expect(screen.getByLabelText(D.results_mention_yes)).toBeInTheDocument();
+    expect(screen.queryByLabelText(D.results_mention_no)).not.toBeInTheDocument();
+  });
+
+  it("shows the mention MinusIcon when brand_in_answer_text is false", () => {
+    renderWithProviders(<ResultsTable rows={[makeRow({ brand_in_answer_text: false })]} />);
+    expect(screen.getByLabelText(D.results_mention_no)).toBeInTheDocument();
+    expect(screen.queryByLabelText(D.results_mention_yes)).not.toBeInTheDocument();
+  });
+});
+
+describe("ResultsTable — outcome classification", () => {
+  it("classifies each row shape into its outcome", () => {
+    expect(outcomeOf(makeRow({ overview_present: false }))).toBe("no_answer");
+    expect(
+      outcomeOf(makeRow({ target_source_ranks: [1], target_citation_ranks: [1] })),
+    ).toBe("cited");
+    expect(outcomeOf(makeRow({ target_source_ranks: [2] }))).toBe("sources_only");
+    expect(outcomeOf(makeRow({ brand_in_answer_text: true }))).toBe("mention_only");
+    expect(outcomeOf(makeRow())).toBe("absent");
+  });
+
+  it("cited wins over mention (citation implies presence in the funnel)", () => {
+    const row = makeRow({
+      target_source_ranks: [1],
+      target_citation_ranks: [1],
+      brand_in_answer_text: true,
+    });
+    expect(outcomeOf(row)).toBe("cited");
+  });
+});
+
+describe("ResultsTable — outcome filter chips", () => {
+  const mixedRows = [
+    makeRow({ id: 1, query: "q-cited", target_source_ranks: [1], target_citation_ranks: [1] }),
+    makeRow({ id: 2, query: "q-sources", target_source_ranks: [3] }),
+    makeRow({ id: 3, query: "q-mention", brand_in_answer_text: true }),
+    makeRow({ id: 4, query: "q-absent" }),
+    makeRow({ id: 5, query: "q-noanswer", overview_present: false }),
+  ];
+
+  it("renders one chip per filter with its row count", () => {
+    renderWithProviders(<ResultsTable rows={mixedRows} />);
+    const group = screen.getByRole("group", { name: D.results_filter_label });
+    const chips = within(group).getAllByRole("button");
+    expect(chips).toHaveLength(6);
+    expect(chips[0]).toHaveTextContent(D.results_filter_all);
+    expect(chips[0]).toHaveTextContent("5");
+    expect(chips[4]).toHaveTextContent(D.results_filter_absent);
+    expect(chips[4]).toHaveTextContent("1");
+  });
+
+  it("defaults to All with every row visible", () => {
+    renderWithProviders(<ResultsTable rows={mixedRows} />);
+    expect(screen.getAllByRole("rowheader")).toHaveLength(5);
+    const all = screen.getByRole("button", { name: new RegExp(D.results_filter_all) });
+    expect(all).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("clicking Absent narrows the table to the gap rows only", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderWithProviders(<ResultsTable rows={mixedRows} />);
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(D.results_filter_absent) }),
+    );
+    const rowHeaders = screen.getAllByRole("rowheader");
+    expect(rowHeaders).toHaveLength(1);
+    expect(rowHeaders[0]).toHaveTextContent("q-absent");
+  });
+
+  it("shows the filter-empty message when no rows match", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ResultsTable rows={[makeRow({ id: 1, target_citation_ranks: [1], target_source_ranks: [1] })]} />,
+    );
+    await user.click(
+      screen.getByRole("button", { name: new RegExp(D.results_filter_no_answer) }),
+    );
+    expect(screen.getByText(D.results_filter_empty)).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("does not render chips at all for an empty rows array", () => {
+    renderWithProviders(<ResultsTable rows={[]} />);
+    expect(
+      screen.queryByRole("group", { name: D.results_filter_label }),
+    ).not.toBeInTheDocument();
   });
 });

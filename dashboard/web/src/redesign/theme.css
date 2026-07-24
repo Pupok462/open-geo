@@ -19,6 +19,7 @@
   --c-coverage: #2563eb;
   --c-vis-src: #0ea5e9;
   --c-vis-cit: #059669;
+  --c-mention: #7c3aed;
   --c-pos-src: #d946ef;
   --c-pos-cit: #f59e0b;
   color-scheme: light;
@@ -43,6 +44,7 @@
   --c-coverage: #5b9dff;
   --c-vis-src: #38bdf8;
   --c-vis-cit: #34d399;
+  --c-mention: #a78bfa;
   --c-pos-src: #e879f9;
   --c-pos-cit: #fbbf24;
   color-scheme: dark;
