@@ -14,7 +14,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
-from pipeline.db import get_lens_sentiments
+from pipeline.db import get_latest_audit, get_lens_sentiments
+from pipeline.schema import normalize_domain
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -475,6 +476,35 @@ def competitors(
         "n_overviews": n_overviews,
         "run": run_payload,
         "domains": rows,
+    }
+
+
+@app.get("/api/audit")
+def audit(brand_id: int = Query(...), engine: Optional[str] = None) -> dict:
+    conn = _connect()
+    try:
+        brand = conn.execute(
+            "SELECT domain FROM brands WHERE id = ?", (brand_id,)
+        ).fetchone()
+        reg_domain = normalize_domain(brand["domain"]) if brand else ""
+        row = get_latest_audit(conn, reg_domain, engine) if reg_domain else None
+    finally:
+        conn.close()
+
+    result = None
+    if row is not None:
+        parsed = _loads(row["result_json"], None)
+        if isinstance(parsed, dict):
+            parsed.setdefault("checked_at", row["checked_at"])
+            parsed.setdefault("verdict", row["verdict"])
+            parsed.setdefault("score", row["score"])
+            result = parsed
+
+    return {
+        "brand_id": brand_id,
+        "engine": engine,
+        "domain": reg_domain,
+        "audit": result,
     }
 
 

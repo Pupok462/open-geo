@@ -9,6 +9,7 @@ from pipeline.db import (
     create_run,
     get_conn,
     get_or_create_brand,
+    insert_audit,
     update_run_counts,
 )
 
@@ -1469,3 +1470,137 @@ def test_competitors_no_500_when_table_absent_all(make_client, seeded_db_path):
     )
     assert resp.status_code == 200
     assert resp.json()["domains"] == []
+
+
+def _default_checks():
+    from audit.schema import CheckResult
+
+    return [
+        CheckResult(
+            id="A1",
+            category="A",
+            title="HTTPS reachable",
+            severity="blocker",
+            status="pass",
+            detail="200 over HTTPS",
+        ),
+        CheckResult(
+            id="B1",
+            category="B",
+            title="Structured data present",
+            severity="recommended",
+            status="warn",
+            detail="No JSON-LD found",
+            remediation="Add Organization JSON-LD",
+        ),
+    ]
+
+
+def _insert_demo_audit(db_path, target, domain, engine, checks=None):
+    from audit.schema import AuditResult
+
+    result = AuditResult(
+        target=target,
+        domain=domain,
+        engine=engine,
+        checked_at="2026-06-18T09:00:00Z",
+        checks=_default_checks() if checks is None else checks,
+    )
+    conn = get_conn(db_path)
+    try:
+        insert_audit(
+            conn,
+            target,
+            domain,
+            engine,
+            result.checked_at.isoformat(),
+            result.verdict,
+            result.score,
+            not result.passed,
+            result.model_dump_json(),
+        )
+    finally:
+        conn.close()
+    return result
+
+
+def _drop_audits(db_path: str) -> None:
+    conn = get_conn(db_path)
+    try:
+        conn.execute("DROP TABLE IF EXISTS audits")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_audit_returns_latest_for_brand(make_client, seeded_db_path):
+    expected = _insert_demo_audit(seeded_db_path, "example.com", "example.com", ENGINE)
+    client = make_client(seeded_db_path)
+    body = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE}).json()
+    assert body["brand_id"] == 1
+    assert body["engine"] == ENGINE
+    assert body["domain"] == "example.com"
+    audit = body["audit"]
+    assert audit is not None
+    assert audit["verdict"] == expected.verdict == "ready_with_warnings"
+    assert audit["score"] == expected.score
+    assert audit["domain"] == "example.com"
+    assert [c["id"] for c in audit["checks"]] == ["A1", "B1"]
+    assert audit["checks"][1]["remediation"] == "Add Organization JSON-LD"
+
+
+def test_audit_empty_when_no_audit(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE}).json()
+    assert body["domain"] == "example.com"
+    assert body["audit"] is None
+
+
+def test_audit_url_prefix_resolves_to_registrable_domain(make_client, seeded_db_path):
+    conn = get_conn(seeded_db_path)
+    try:
+        brand_id = get_or_create_brand(conn, "Repo", "github.com/user/repo")
+    finally:
+        conn.close()
+    _insert_demo_audit(seeded_db_path, "github.com/user/repo", "github.com", ENGINE)
+
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/audit", params={"brand_id": brand_id, "engine": ENGINE}
+    ).json()
+    assert body["domain"] == "github.com"
+    assert body["audit"] is not None
+    assert body["audit"]["target"] == "github.com/user/repo"
+
+
+def test_audit_engine_none_row_is_returned_as_fallback(make_client, seeded_db_path):
+    _insert_demo_audit(seeded_db_path, "example.com", "example.com", None)
+    client = make_client(seeded_db_path)
+    body = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE}).json()
+    assert body["audit"] is not None
+    assert body["audit"]["engine"] is None
+
+
+def test_audit_no_engine_param(make_client, seeded_db_path):
+    _insert_demo_audit(seeded_db_path, "example.com", "example.com", None)
+    client = make_client(seeded_db_path)
+    body = client.get("/api/audit", params={"brand_id": 1}).json()
+    assert body["engine"] is None
+    assert body["audit"] is not None
+
+
+def test_audit_unknown_brand_is_empty(make_client, seeded_db_path):
+    client = make_client(seeded_db_path)
+    body = client.get(
+        "/api/audit", params={"brand_id": 987_654, "engine": ENGINE}
+    ).json()
+    assert body["domain"] == ""
+    assert body["audit"] is None
+
+
+def test_audit_no_500_when_table_absent(make_client, seeded_db_path):
+    _drop_audits(seeded_db_path)
+    client = make_client(seeded_db_path)
+    resp = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE})
+    assert resp.status_code == 200
+    assert resp.json()["audit"] is None

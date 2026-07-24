@@ -265,6 +265,19 @@ describe("api method request paths", () => {
     expect(fetchedUrl(fn)).toBe(u("/api/results?run_id=3&lens=branded"));
   });
 
+  it("audit(7, 'google') -> /api/audit?brand_id=7&engine=google", async () => {
+    const fn = stubFetch(okResponse({}));
+    await api.audit(7, "google");
+    expect(fetchedUrl(fn)).toBe(u("/api/audit?brand_id=7&engine=google"));
+  });
+
+  it("audit(7) -> /api/audit?brand_id=7 (engine omitted)", async () => {
+    const fn = stubFetch(okResponse({}));
+    await api.audit(7);
+    expect(fetchedUrl(fn)).toBe(u("/api/audit?brand_id=7"));
+    expect(fetchedUrl(fn)).not.toContain("engine");
+  });
+
   it("each method issues exactly one fetch", async () => {
     const fn = stubFetch(okResponse({}));
     await api.timeseries(1, "e", "all");

@@ -121,7 +121,11 @@
     "report_error": "خطأ في التقرير ({status})",
     "report_cli_label": "أمر CLI:",
     "report_not_ready": "وحدة report.generate غير جاهزة بعد. شغّل الأمر يدويًا بمجرد توفرها.",
-    "report_failed": "خرجت report.generate بخطأ"
+    "report_failed": "خرجت report.generate بخطأ",
+    "audit_panel_title": "تدقيق جاهزية GEO",
+    "audit_panel_info": "تدقيق تقني للنطاق قبل التشغيل — هل يمكن لمحركات الذكاء الاصطناعي قراءته (حواجب صارمة) وهل هو مُحسَّن للاقتباس (إرشادي). يعمل قبل الالتقاط؛ قد توقف الحواجب التشغيل.",
+    "audit_empty": "لا يوجد تدقيق لهذا النطاق بعد.",
+    "audit_checked_at": "تم التدقيق {datetime}"
   },
   "report": {
     "cover_eyebrow": "تقرير الظهور في الذكاء الاصطناعي",
@@ -175,6 +179,34 @@
     "sentiment_intro": "صياغات تمثيلية من إجابات الذكاء الاصطناعي عن العلامة التجارية — دون درجة رقمية، كما هي.",
     "sentiment_empty": "لا توجد علامات مشاعر نوعية في هذا التشغيل.",
     "sentiment_by_query": "للاستعلام: ",
-    "all_queries": "كل الاستعلامات"
+    "all_queries": "كل الاستعلامات",
+    "section_audit": "تدقيق جاهزية GEO",
+    "audit_intro": "تدقيق تقني للنطاق قبل التشغيل: فحوص الفئة A حواجب صارمة (هل يستطيع محرك الذكاء الاصطناعي قراءتك أصلًا)؛ والبقية إرشادية. قد توقف الحواجب التشغيل قبل الالتقاط.",
+    "audit_verdict_line": "الحكم: {verdict} · جاهزية GEO {score}/100",
+    "audit_empty": "لا يوجد تدقيق مسجّل لهذا النطاق.",
+    "audit_caption": "الفئة A = حواجب وصول الزحف؛ B/C/D = إرشادي. عناوين الفحوص محايدة تجاه المحرك؛ ومقتطفات الإصلاح في JSON التدقيق."
+  },
+  "audit": {
+    "verdict_ready": "جاهز",
+    "verdict_ready_with_warnings": "جاهز مع تحذيرات",
+    "verdict_blocked": "محظور",
+    "severity_blocker": "حاجب",
+    "severity_recommended": "موصى به",
+    "severity_nice_to_have": "مستحسن",
+    "status_pass": "ناجح",
+    "status_warn": "تحذير",
+    "status_fail": "فشل",
+    "status_skip": "تخطّي",
+    "score": "جاهزية GEO",
+    "blockers": "الحواجب",
+    "col_check": "الفحص",
+    "col_severity": "الخطورة",
+    "col_status": "الحالة",
+    "col_detail": "التفاصيل",
+    "col_fix": "كيفية الإصلاح",
+    "category_A": "وصول الزحف",
+    "category_B": "قابلية القراءة الآلية",
+    "category_C": "الكيان والثقة",
+    "category_D": "الحداثة"
   }
 }

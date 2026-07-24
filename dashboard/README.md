@@ -2,10 +2,11 @@
 
 FastAPI backend (read-only over `data/aeo.db`) + Vite/React/TypeScript/Tailwind/Recharts
 frontend. Shows AI-visibility metrics per brand/engine with retrospective charts,
-read-time deltas, lens breakdown, a **top-domains (competitor) leaderboard**, a per-query
-results table, and a PDF export. The
+read-time deltas, lens breakdown, a **GEO-readiness audit panel**, a **top-domains
+(competitor) leaderboard**, a per-query results table, and a PDF export. The
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
-(`/api/engines`), so every captured engine (five ship today; ROADMAP Feature 3 adds more)
+(`/api/engines`), so every captured engine (six live-validated today, plus Perplexity's
+authored playbook pending its first live run; ROADMAP Feature 3 adds more)
 surfaces automatically with no dashboard change (the Google-flavored metric *labels*
 in `i18n/` are the one thing Feature 3 may revisit). The
 React UI has light & dark themes (toggle, system-aware), a **language switcher** (EN/RU/ZH/AR,
@@ -72,6 +73,7 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/metrics?brand_id=&engine=&period=today\|all&lens=` | metrics + read-time deltas + per-lens `sentiment_summary` |
 | GET  | `/api/timeseries?brand_id=&engine=&lens=` | per-run points over time (retrospective) |
 | GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |
+| GET  | `/api/audit?brand_id=&engine=` | latest GEO-readiness audit for the brand's registrable domain (`audits`) |
 | GET  | `/api/results?run_id=&lens=` | per-query rows (JSON cols decoded, incl. sentiment) |
 | GET  | `/api/i18n` | the `i18n/locales.json` registry — `[{code, name}]`, drives the language switcher |
 | GET  | `/api/i18n/{code}` | that locale's string dict (`i18n/<code>.json`); `404` for an unknown code — the frontend then falls back to bundled English |
@@ -109,6 +111,21 @@ report carries the same as its top-domains section. Note: the leaderboard aggreg
 domain regardless of the `<domain>` argument — when the target is a URL prefix
 (`github.com/user/repo`), the "you" row highlights the **full target domain** (`github.com`), which
 is broader than the prefix; the funnel metrics (sources/citations) remain prefix-exact.
+
+`/api/audit` returns the **latest GEO-readiness audit** for the brand (the `audits` table,
+INTERFACES §7). The brand's `domain` (which may be a URL prefix) is reduced to its registrable
+domain via `normalize_domain`, then `get_latest_audit` returns the most recent stored
+`AuditResult` for that domain (preferring an `engine`-matched row, else any). The response is a
+wrapper `{brand_id, engine, domain, audit}` where `audit` is the full `AuditResult` JSON
+(`verdict`, `score`, `passed`, `blockers`, and the per-check list with `severity`/`status`/
+`detail`/`remediation`) or `null` when the brand has no audit yet. Like the audit itself, the
+check titles/details/remediation are **English data** — only the panel chrome (verdict, severity,
+status labels) is localized. As with sentiment and competitors, the read-only API never calls
+`init_db`, so a DB predating the `audits` table returns `audit: null` (catching `no such table`)
+instead of erroring. The web UI surfaces this as a **"GEO-readiness audit"** panel near the top (a
+readiness banner above the KPI cards): a verdict badge + `score`/100, any blockers, and a per-check
+table sorted fails/warns first with an inline "How to fix" for actionable rows; the PDF report
+carries the same as its audit section.
 
 The frontend shows the **Trend across runs** chart only in the `all` (whole-period) view; the
 `today` (latest-run) view is a pure snapshot — KPI cards with read-time deltas, no trend chart.
