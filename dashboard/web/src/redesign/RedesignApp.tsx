@@ -44,6 +44,7 @@ function Dashboard() {
   const [engine, setEngine] = useState<string>("");
   const [period, setPeriod] = useState<"today" | "all">("today");
   const [lens, setLens] = useState<string>("all");
+  const [bucket, setBucket] = useState<"run" | "week">("run");
 
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesResponse | null>(null);
@@ -98,7 +99,7 @@ function Dashboard() {
       const [r, m, ts, comp, aud] = await Promise.all([
         api.runs(brandId, engine),
         api.metrics(brandId, engine, period),
-        api.timeseries(brandId, engine, lens),
+        api.timeseries(brandId, engine, lens, bucket),
         api.competitors(brandId, engine, period, lens),
         api.audit(brandId, engine),
       ]);
@@ -120,7 +121,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [brandId, engine, period, lens]);
+  }, [brandId, engine, period, lens, bucket]);
 
   useEffect(() => {
     void loadAll();
@@ -142,7 +143,8 @@ function Dashboard() {
     setDownloading(true);
     setError(null);
     try {
-      const res = await fetch(api.reportUrl(brandId, engine, period, lang), {
+      const engineParam = engine === ALL_ENGINES ? "all" : engine;
+      const res = await fetch(api.reportUrl(brandId, engineParam, period, lang), {
         method: "POST",
       });
       if (!res.ok) {
@@ -159,7 +161,9 @@ function Dashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `open-geo_${(currentBrand?.domain ?? "report").replaceAll("/", "-")}_${period}.pdf`;
+      a.download = `open-geo_${(currentBrand?.domain ?? "report").replaceAll("/", "-")}_${
+        engine === ALL_ENGINES ? "all-engines_" : ""
+      }${period}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -188,7 +192,7 @@ function Dashboard() {
           <ThemeToggle />
           <button
             onClick={downloadPdf}
-            disabled={downloading || brandId === "" || !engine || engine === ALL_ENGINES}
+            disabled={downloading || brandId === "" || !engine}
             className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-[var(--accent-fg)] transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <DownloadIcon size={16} />{" "}
@@ -266,6 +270,12 @@ function Dashboard() {
         <div className="mb-4 text-sm text-[var(--muted)]">
           {period === "all" ? (
             t("dashboard.run_context_all", { n: metrics.n_runs ?? t("common.dash") })
+          ) : metrics.group && metrics.group.n_repeats > 1 && metrics.run ? (
+            t("dashboard.run_context_group", {
+              n: metrics.group.n_repeats,
+              id: metrics.run.run_id,
+              datetime: fmtDateTime(metrics.run.run_at),
+            })
           ) : metrics.run ? (
             <>
               {t("dashboard.run_context_run", {
@@ -308,6 +318,7 @@ function Dashboard() {
             loading={loading}
             lensRows={lensRows}
             activeLens={lens}
+            repeats={metrics?.group?.n_repeats}
           />
         ))}
       </div>
@@ -318,9 +329,20 @@ function Dashboard() {
           info={t("dashboard.chart_info")}
           className="mb-6"
           right={
-            <span className="text-xs text-[var(--muted)]">
-              {t("dashboard.chart_lens", { lens: t(`lens.${lens}`) })}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[var(--muted)]">
+                {t("dashboard.chart_lens", { lens: t(`lens.${lens}`) })}
+              </span>
+              <Segmented<"run" | "week">
+                label={t("dashboard.chart_bucket_label")}
+                value={bucket}
+                options={[
+                  { value: "run", label: t("dashboard.chart_bucket_run") },
+                  { value: "week", label: t("dashboard.chart_bucket_week") },
+                ]}
+                onChange={setBucket}
+              />
+            </div>
           }
         >
           <MetricsChart points={timeseries?.points ?? []} />

@@ -1071,11 +1071,82 @@ describe("RedesignApp — all-engines compare mode", () => {
     expect(screen.queryByText("Breakdown by lens")).not.toBeInTheDocument();
 
     const pdfButton = screen.getByRole("button", { name: /Download PDF/ });
-    expect(pdfButton).toBeDisabled();
+    expect(pdfButton).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "google" }));
     await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
     expect(screen.queryByText("Engines side by side")).not.toBeInTheDocument();
     expect(screen.getByText("Results by query")).toBeInTheDocument();
+  });
+});
+
+describe("RedesignApp — repeat groups & weekly trend", () => {
+  it("weekly toggle refetches the timeseries with bucket=week", async () => {
+    const user = userEvent.setup();
+    const { calls } = installFetch();
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Whole period" }));
+    await waitFor(() =>
+      expect(screen.getByText("Trend across runs")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: "By week" }));
+    await waitFor(() => {
+      const weekCalls = callsTo(calls, "/api/timeseries").filter((c) =>
+        new URL(c.url, "http://localhost").searchParams.get("bucket") === "week",
+      );
+      expect(weekCalls.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it("group response renders spread chips and the group context line", async () => {
+    installFetch({
+      metrics: (period) =>
+        jsonResponse({
+          ...makeMetrics({ period: period as "today" | "all" }),
+          prev_run: null,
+          group: { group_id: "grp_1", n_repeats: 3, run_ids: [40, 41, 42] },
+          metrics: [
+            metricRow("all", {
+              overview_coverage: 0.9,
+              overview_coverage_min: 0.8,
+              overview_coverage_max: 1.0,
+              overview_coverage_delta: null,
+            }),
+            metricRow("general"),
+            metricRow("branded"),
+            metricRow("comparative"),
+          ],
+        }),
+    });
+    render(<RedesignApp />);
+    await waitFor(() =>
+      expect(screen.getByText(/Repeat group ×3/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText("80.0–100.0%")).toBeInTheDocument();
+  });
+});
+
+describe("RedesignApp — combined multi-engine PDF", () => {
+  it("requests /api/report with engine=all from compare mode", async () => {
+    const user = userEvent.setup();
+    stubObjectURL();
+    const { calls } = installFetch();
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByLabelText("Engine"), "__all__");
+    await waitFor(() =>
+      expect(screen.getByText("Engines side by side")).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole("button", { name: /Download PDF/ }));
+    await waitFor(() => {
+      const reportCalls = callsTo(calls, "/api/report");
+      expect(reportCalls.length).toBe(1);
+      const url = new URL(reportCalls[0].url, "http://localhost");
+      expect(url.searchParams.get("engine")).toBe("all");
+      expect(reportCalls[0].method).toBe("POST");
+    });
   });
 });

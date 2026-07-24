@@ -23,6 +23,19 @@ export interface MetricDef {
   subRender?: (row: MetricRow, t: TFn) => string;
 }
 
+export function spreadOf(
+  def: MetricDef,
+  row: MetricRow,
+): { min: number; max: number } | null {
+  const r = row as unknown as Record<string, number | null | undefined>;
+  const min = r[`${def.key}_min`];
+  const max = r[`${def.key}_max`];
+  if (min === null || min === undefined || max === null || max === undefined) {
+    return null;
+  }
+  return { min, max };
+}
+
 export const METRICS: MetricDef[] = [
   {
     key: "overview_coverage",

@@ -1763,3 +1763,175 @@ def test_engine_matrix_unknown_brand_empty(make_client, dash_fixture_db_path):
         "/api/engine_matrix", params={"brand_id": 99999, "period": "today"}
     ).json()
     assert body["engines"] == []
+
+
+def _metrics_row_sql(run_id: int, brand_id: int, engine: str, lens: str,
+                     n_queries: int, n_overviews: int, n_in_sources: int,
+                     n_cited: int, src_pos, cit_pos, mentions: int) -> tuple:
+    return (
+        run_id, brand_id, engine, lens, n_queries, n_overviews,
+        (n_overviews / n_queries) if n_queries else None,
+        n_in_sources,
+        (n_in_sources / n_overviews) if n_overviews else None,
+        n_cited,
+        (n_cited / n_overviews) if n_overviews else None,
+        src_pos, cit_pos,
+        (n_cited / n_in_sources) if n_in_sources else None,
+        mentions,
+        (mentions / n_overviews) if n_overviews else None,
+        "2026-07-21T10:05:00+00:00",
+    )
+
+
+_METRICS_INSERT = (
+    "INSERT INTO metrics (run_id, brand_id, engine, lens, n_queries, n_overviews, "
+    "overview_coverage, n_in_sources, visibility_in_sources, n_cited, "
+    "visibility_in_citations, avg_source_position, avg_citation_position, "
+    "relative_citation, n_brand_mentions, brand_mention_rate, computed_at) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+)
+
+
+def _add_group_runs(db_path: str, engine: str = "google") -> int:
+    conn = get_conn(db_path)
+    try:
+        bid = int(
+            conn.execute("SELECT id FROM brands WHERE name = 'Example'").fetchone()["id"]
+        )
+        specs = [
+            ("2026-09-01T10:00:00+00:00", 10, 8, 4, 2, 2.0, 1.0, 6),
+            ("2026-09-01T12:00:00+00:00", 10, 10, 6, 4, 3.0, 2.0, 8),
+        ]
+        for run_at, nq, nov, nis, nc, sp, cp, nm in specs:
+            cur = conn.execute(
+                "INSERT INTO runs (brand_id, engine, run_at, status, n_queries, "
+                "n_ok, n_failed, group_id) VALUES (?, ?, ?, 'done', ?, ?, 0, 'grp_t')",
+                (bid, engine, run_at, nq, nq),
+            )
+            conn.execute(
+                _METRICS_INSERT,
+                _metrics_row_sql(int(cur.lastrowid), bid, engine, "all",
+                                 nq, nov, nis, nc, sp, cp, nm),
+            )
+        conn.commit()
+        return bid
+    finally:
+        conn.close()
+
+
+def test_metrics_group_mean_and_spread(make_client, dash_fixture_db_path):
+    brand_id = _add_group_runs(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/metrics", params={"brand_id": brand_id, "engine": ENGINE, "period": "today"}
+    ).json()
+    assert body["group"] is not None
+    assert body["group"]["group_id"] == "grp_t"
+    assert body["group"]["n_repeats"] == 2
+    all_row = next(r for r in body["metrics"] if r["lens"] == "all")
+    assert all_row["n_queries"] == 20
+    assert all_row["n_overviews"] == 18
+    assert all_row["overview_coverage"] == pytest.approx(18 / 20)
+    assert all_row["overview_coverage_min"] == pytest.approx(0.8)
+    assert all_row["overview_coverage_max"] == pytest.approx(1.0)
+    assert all_row["avg_source_position"] == pytest.approx((2.0 * 4 + 3.0 * 6) / 10)
+    assert all_row["avg_source_position_min"] == pytest.approx(2.0)
+    assert all_row["avg_source_position_max"] == pytest.approx(3.0)
+    assert all_row["brand_mention_rate"] == pytest.approx(14 / 18)
+    assert all_row["overview_coverage_delta"] is None
+    assert body["prev_run"] is None
+
+
+def test_metrics_single_run_group_behaves_like_standalone(make_client, dash_fixture_db_path):
+    conn = get_conn(dash_fixture_db_path)
+    try:
+        bid = int(
+            conn.execute("SELECT id FROM brands WHERE name = 'Example'").fetchone()["id"]
+        )
+        cur = conn.execute(
+            "INSERT INTO runs (brand_id, engine, run_at, status, n_queries, n_ok, "
+            "n_failed, group_id) VALUES (?, ?, '2026-09-05T10:00:00+00:00', 'done', "
+            "5, 5, 0, 'grp_solo')",
+            (bid, ENGINE),
+        )
+        conn.execute(
+            _METRICS_INSERT,
+            _metrics_row_sql(int(cur.lastrowid), bid, ENGINE, "all",
+                             5, 4, 2, 1, 2.0, 1.0, 3),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/metrics", params={"brand_id": bid, "engine": ENGINE, "period": "today"}
+    ).json()
+    assert body["group"] is None
+    all_row = next(r for r in body["metrics"] if r["lens"] == "all")
+    assert "overview_coverage_min" not in all_row
+
+
+def test_metrics_no_500_on_db_without_group_column(make_client, dash_fixture_db_path):
+    conn = get_conn(dash_fixture_db_path)
+    try:
+        conn.execute("ALTER TABLE runs DROP COLUMN group_id")
+        conn.commit()
+    finally:
+        conn.close()
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.get(
+        "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["group"] is None
+
+
+def test_timeseries_week_bucket_rolls_up_iso_weeks(make_client, dash_fixture_db_path):
+    _add_group_runs(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    run_points = client.get(
+        "/api/timeseries",
+        params={"brand_id": example, "engine": ENGINE, "lens": "all"},
+    ).json()["points"]
+    body = client.get(
+        "/api/timeseries",
+        params={"brand_id": example, "engine": ENGINE, "lens": "all", "bucket": "week"},
+    ).json()
+    assert body["bucket"] == "week"
+    weeks = body["points"]
+    assert 0 < len(weeks) < len(run_points)
+    for p in weeks:
+        assert p["run_id"] is None
+        assert p["week"] and p["week"].count("-W") == 1
+        assert p["n_runs"] >= 1
+    total_runs = sum(p["n_runs"] for p in weeks)
+    assert total_runs == len(run_points)
+    both = next(p for p in weeks if p["n_runs"] == 2)
+    assert both["n_queries"] == 20
+    assert both["overview_coverage"] == pytest.approx(18 / 20)
+    assert both["avg_source_position"] == pytest.approx((2.0 * 4 + 3.0 * 6) / 10)
+
+
+def test_timeseries_invalid_bucket_400(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    resp = client.get(
+        "/api/timeseries",
+        params={"brand_id": 1, "engine": ENGINE, "lens": "all", "bucket": "month"},
+    )
+    assert resp.status_code == 400
+
+
+def test_report_all_engines_returns_combined_pdf(make_client, dash_fixture_db_path):
+    _add_second_engine_run(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.post(
+        "/api/report",
+        params={"brand_id": example, "engine": "all", "period": "today", "lang": "en"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/pdf"
+    assert resp.content[:5] == b"%PDF-"
+    assert "all-engines" in resp.headers.get("content-disposition", "")

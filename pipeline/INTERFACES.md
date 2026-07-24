@@ -163,6 +163,7 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 | `n_queries` | INTEGER | default 0 |
 | `n_ok` | INTEGER | default 0 |
 | `n_failed` | INTEGER | default 0 |
+| `group_id` | TEXT \| NULL | repeat-run group tag (Feature 5). NULL = a standalone run (default, unchanged behavior). Runs of the **same brand+engine** sharing a `group_id` are **repeats of the same question set** captured deliberately R times; readers aggregate them as one logical measurement (mean + spread) at read-time. Assigned at creation (`--group-id`), never mutated. A DB created before this column **self-heals** on the next `init_db` (`ALTER TABLE … ADD COLUMN`; existing rows read NULL = standalone). |
 
 **`results`** (one row per captured query = one serialized `QueryCapture`)
 
@@ -319,7 +320,7 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - `get_conn(db_path="data/aeo.db") -> sqlite3.Connection`
 - `init_db(conn) -> None`
 - `get_or_create_brand(conn, name, domain) -> int` (normalizes `domain`)
-- `create_run(conn, brand_id, engine) -> int` (status `'running'`)
+- `create_run(conn, brand_id, engine, group_id=None) -> int` (status `'running'`; optional repeat-group tag, §2 `runs.group_id`)
 - `update_run_counts(conn, run_id, n_queries=?, n_ok=?, n_failed=?, status=?) -> None`
 - `upsert_lens_sentiment(conn, run_id, lens, summary) -> None` (replaces the row for that `run_id`+`lens`; `summary=None` clears it)
 - `get_lens_sentiments(conn, run_id) -> dict[str, str]` (lens → summary; rows with a `NULL` `summary` are omitted — a missing key already means "no synthesis"; returns `{}` if the `lens_sentiment` table is absent)
@@ -347,6 +348,19 @@ mid-run never loses already-captured work:
   captured (`get_captured_keys(run_id)`) and **re-dispatches only the missing
   `(query, lens)` rows** (CSV minus captured) into the **same** run, then finalizes
   (`status='done'`) once nothing is missing.
+- **Repeat-run groups (Feature 5)** — `--repeat R` (SKILL) captures the same
+  question set R times as R **ordinary runs** sharing one `runs.group_id` (§2);
+  each repeat keeps the full durability/resume story above (it IS a normal run).
+  Aggregation over the group is **read-time only** (dashboard API): per lens, the
+  seven §4 metrics are rolled up **weighted** across the group's completed runs
+  (same math as the whole-period rollup) and each metric additionally carries its
+  **min–max spread across repeats** — a *stability signal, not a precision claim*
+  (moat #3: single LLM measurements are noisy; the spread says when a number
+  cannot be trusted). Inside a group, previous-run **deltas are suppressed**
+  (comparing overlapping noise is exactly what the spread replaces). Nothing is
+  stored: no group rows in `metrics`, no composite index. `lens_sentiment` and
+  `domain_stats` stay **per-run** (prose and leaderboards are not averaged); the
+  dashboard shows them from the group's latest run.
 
 ---
 
@@ -358,10 +372,13 @@ mid-run never loses already-captured work:
 > `--db <path>` (default `data/aeo.db`, §2) selecting the SQLite file — used by
 > tests/fixtures; it changes no contract shape.
 
-### 3.1 `python -m pipeline.ingest --brand "<name>" --domain <domain-or-url-prefix> --engine <engine> --new-run`
+### 3.1 `python -m pipeline.ingest --brand "<name>" --domain <domain-or-url-prefix> --engine <engine> --new-run [--group-id <tag>]`
 
 - Ensures the brand exists (`get_or_create_brand`), creates a new run
   (`create_run`) for that brand+engine.
+- Optional `--group-id <tag>` stamps the new run's `runs.group_id` (§2 / §2.1
+  repeat-run groups); omitted → NULL (standalone run, default). `--group-id`
+  is only valid together with `--new-run`.
 - **STDOUT:** `{"run_id": <int>}`
 
 ### 3.2 `python -m pipeline.ingest --run-id <N>`  (JSON array of `QueryCapture` on STDIN)

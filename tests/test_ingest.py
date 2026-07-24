@@ -1033,3 +1033,31 @@ def test_main_subprocess_new_run_then_ingest_end_to_end(tmp_path):
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_new_run_with_group_id_stamps_runs_row(tmp_path, capsys):
+    db = str(tmp_path / "grp.db")
+    rc = main(
+        [
+            "--brand", "Example", "--domain", "example.com",
+            "--engine", "google", "--new-run", "--group-id", "grp_repeat_7",
+            "--db", db,
+        ]
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    conn = get_conn(db)
+    try:
+        row = conn.execute(
+            "SELECT group_id FROM runs WHERE id = ?", (out["run_id"],)
+        ).fetchone()
+        assert row["group_id"] == "grp_repeat_7"
+    finally:
+        conn.close()
+
+
+def test_group_id_without_new_run_is_rejected(tmp_path, capsys):
+    db = str(tmp_path / "grp2.db")
+    rc = main(["--run-id", "1", "--group-id", "grp_x", "--db", db])
+    capsys.readouterr()
+    assert rc == 2

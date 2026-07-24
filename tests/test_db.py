@@ -1002,3 +1002,46 @@ def test_init_db_migrates_legacy_metrics_adds_brand_mention_columns(tmp_path):
         assert row["brand_mention_rate"] is None
     finally:
         conn.close()
+
+
+def test_init_db_migrates_legacy_runs_adds_group_id(tmp_path):
+    conn = get_conn(str(tmp_path / "legacy_group.db"))
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE runs (
+                id        INTEGER PRIMARY KEY,
+                brand_id  INTEGER NOT NULL,
+                engine    TEXT NOT NULL,
+                run_at    TEXT NOT NULL,
+                status    TEXT NOT NULL DEFAULT 'running',
+                n_queries INTEGER NOT NULL DEFAULT 0,
+                n_ok      INTEGER NOT NULL DEFAULT 0,
+                n_failed  INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO runs (brand_id, engine, run_at) VALUES (1, 'google', ?)",
+            (_utcnow_iso(),),
+        )
+        conn.commit()
+        assert "group_id" not in _columns(conn, "runs")
+        init_db(conn)
+        assert "group_id" in _columns(conn, "runs")
+        row = conn.execute("SELECT group_id FROM runs").fetchone()
+        assert row["group_id"] is None
+    finally:
+        conn.close()
+
+
+def test_create_run_stores_group_id(empty_conn):
+    bid = get_or_create_brand(empty_conn, "Example", "example.com")
+    standalone = create_run(empty_conn, bid, "google")
+    grouped = create_run(empty_conn, bid, "google", group_id="grp_1")
+    rows = {
+        r["id"]: r["group_id"]
+        for r in empty_conn.execute("SELECT id, group_id FROM runs").fetchall()
+    }
+    assert rows[standalone] is None
+    assert rows[grouped] == "grp_1"

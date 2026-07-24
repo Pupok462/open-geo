@@ -81,10 +81,21 @@ logged-in browser and records whether your domain makes it into the **sources**,
   emerging ~10–15%-adoption convention, cheap to add but unproven.
 - **SQLite multi-brand time-series** — every run is stored in `data/aeo.db` (SQLite, WAL),
   so you accumulate history per brand + engine and get run-over-run deltas.
+- **Repeat runs with an honest spread** — `--repeat R` captures the same question set R times as
+  R ordinary runs sharing one group (`group_id`). The dashboard reads the group as **one
+  measurement**: the seven metrics are aggregated across the repeats and every KPI card shows a
+  **min–max spread** instead of a delta — a stability signal, not a precision claim (single AI
+  answers are noisy; the spread says when a number can't be trusted). The trend chart gains a
+  **"By run / By week"** toggle (ISO-week rollup).
 - **A dashboard with a four-language switcher** — English, Русский, 中文, العربية (RTL-aware) —
   FastAPI read-only API + a Vite/React frontend with light/dark themes and per-metric tooltips.
 - **A PDF report** — a self-contained themed A4 report (ReportLab + matplotlib), no headless
   Chrome and no system libraries required.
+- **Engines side by side, one document** — an **"All engines — compare"** option in the dashboard
+  shows every captured engine of the brand next to each other — engines are **never blended** into
+  a single cross-engine score (each has its own answer-gate semantics) — and
+  `report.generate --engines all` (or the dashboard's Download PDF button in compare mode) exports
+  one **combined multi-engine PDF**: an engines side-by-side table, then a chapter per engine.
 
 ## Quick start
 

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -80,6 +81,57 @@ def _has_mention_columns(conn: sqlite3.Connection) -> bool:
     except sqlite3.OperationalError:
         return False
     return "n_brand_mentions" in cols and "brand_mention_rate" in cols
+
+
+def _has_group_column(conn: sqlite3.Connection) -> bool:
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
+    except sqlite3.OperationalError:
+        return False
+    return "group_id" in cols
+
+
+_SPREAD_METRICS = (
+    "overview_coverage",
+    "visibility_in_sources",
+    "visibility_in_citations",
+    "relative_citation",
+    "brand_mention_rate",
+    "avg_source_position",
+    "avg_citation_position",
+)
+
+
+def _group_run_ids(
+    conn: sqlite3.Connection, brand_id: int, engine: str, group_id: str
+) -> list[int]:
+    rows = conn.execute(
+        "SELECT id FROM runs WHERE brand_id = ? AND engine = ? AND group_id = ? "
+        "AND status = 'done' ORDER BY run_at ASC, id ASC",
+        (brand_id, engine, group_id),
+    ).fetchall()
+    return [int(r["id"]) for r in rows]
+
+
+def _group_spread(
+    conn: sqlite3.Connection, run_ids: list[int]
+) -> dict[str, dict[str, tuple[float, float]]]:
+    marks = ",".join("?" * len(run_ids))
+    rows = conn.execute(
+        f"SELECT * FROM metrics WHERE run_id IN ({marks})", run_ids
+    ).fetchall()
+    acc: dict[str, dict[str, list[float]]] = {}
+    for r in rows:
+        d = dict(r)
+        lens_acc = acc.setdefault(d["lens"], {})
+        for m in _SPREAD_METRICS:
+            v = d.get(m)
+            if v is not None:
+                lens_acc.setdefault(m, []).append(float(v))
+    return {
+        lens: {m: (min(vs), max(vs)) for m, vs in per_metric.items()}
+        for lens, per_metric in acc.items()
+    }
 
 
 def _loads(raw: Optional[str], default: Any) -> Any:
@@ -207,13 +259,49 @@ def metrics(
         if run_id is None:
             return {
                 "brand_id": brand_id, "engine": engine, "period": period,
-                "run": None, "prev_run": None, "metrics": [],
+                "run": None, "prev_run": None, "group": None, "metrics": [],
             }
 
+        has_group = _has_group_column(conn)
+        group_select = ", group_id" if has_group else ""
         run = conn.execute(
-            "SELECT id AS run_id, run_at, status, n_queries FROM runs WHERE id = ?",
+            f"SELECT id AS run_id, run_at, status, n_queries{group_select} "
+            "FROM runs WHERE id = ?",
             (run_id,),
         ).fetchone()
+
+        group_id = run["group_id"] if has_group else None
+        if group_id:
+            grp_ids = _group_run_ids(conn, brand_id, engine, group_id)
+            if len(grp_ids) > 1:
+                out_rows = _aggregate_period(
+                    conn, brand_id, engine, lens, run_ids=grp_ids
+                )
+                spread = _group_spread(conn, grp_ids)
+                summaries = get_lens_sentiments(conn, run_id)
+                for payload in out_rows:
+                    sp = spread.get(payload["lens"], {})
+                    for m in _SPREAD_METRICS:
+                        mn_mx = sp.get(m)
+                        payload[f"{m}_min"] = mn_mx[0] if mn_mx else None
+                        payload[f"{m}_max"] = mn_mx[1] if mn_mx else None
+                    payload["sentiment_summary"] = summaries.get(payload["lens"])
+                out_rows.sort(key=lambda r: (order.get(r["lens"], 99), r["lens"]))
+                run_payload = dict(run)
+                run_payload.pop("group_id", None)
+                return {
+                    "brand_id": brand_id,
+                    "engine": engine,
+                    "period": period,
+                    "run": run_payload,
+                    "prev_run": None,
+                    "group": {
+                        "group_id": group_id,
+                        "n_repeats": len(grp_ids),
+                        "run_ids": grp_ids,
+                    },
+                    "metrics": out_rows,
+                }
 
         prev_id = _latest_run_id(
             conn, brand_id, engine,
@@ -250,12 +338,15 @@ def metrics(
             out_rows.append(payload)
 
         out_rows.sort(key=lambda r: (order.get(r["lens"], 99), r["lens"]))
+        run_payload = dict(run)
+        run_payload.pop("group_id", None)
         return {
             "brand_id": brand_id,
             "engine": engine,
             "period": period,
-            "run": dict(run),
+            "run": run_payload,
             "prev_run": prev_run,
+            "group": None,
             "metrics": out_rows,
         }
     finally:
@@ -263,7 +354,11 @@ def metrics(
 
 
 def _aggregate_period(
-    conn: sqlite3.Connection, brand_id: int, engine: str, lens: Optional[str]
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    lens: Optional[str],
+    run_ids: Optional[list[int]] = None,
 ) -> list[dict]:
     has_mentions = _has_mention_columns(conn)
     mention_select = (
@@ -290,6 +385,9 @@ def _aggregate_period(
         WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done'
     """
     params: list[Any] = [brand_id, engine]
+    if run_ids:
+        sql += f" AND m.run_id IN ({','.join('?' * len(run_ids))})"
+        params.extend(run_ids)
     if lens:
         sql += " AND m.lens = ?"
         params.append(lens)
@@ -331,12 +429,90 @@ def _aggregate_period(
     return rows
 
 
+def _weekly_rollup(points: list[dict]) -> list[dict]:
+    buckets: dict[tuple[int, int], dict[str, Any]] = {}
+    for p in points:
+        dt = datetime.fromisoformat(str(p["run_at"]).replace("Z", "+00:00"))
+        iso = dt.date().isocalendar()
+        key = (iso[0], iso[1])
+        b = buckets.setdefault(
+            key,
+            {
+                "monday": dt.date() - timedelta(days=dt.date().isoweekday() - 1),
+                "n_runs": 0,
+                "n_queries": 0,
+                "n_overviews": 0,
+                "n_in_sources": 0,
+                "n_cited": 0,
+                "sum_src": None,
+                "sum_cit": None,
+                "n_mentions": None,
+                "mention_nov": 0,
+            },
+        )
+        b["n_runs"] += 1
+        b["n_queries"] += int(p["n_queries"] or 0)
+        b["n_overviews"] += int(p["n_overviews"] or 0)
+        b["n_in_sources"] += int(p["n_in_sources"] or 0)
+        b["n_cited"] += int(p["n_cited"] or 0)
+        if p["avg_source_position"] is not None:
+            b["sum_src"] = (b["sum_src"] or 0.0) + p["avg_source_position"] * int(
+                p["n_in_sources"] or 0
+            )
+        if p["avg_citation_position"] is not None:
+            b["sum_cit"] = (b["sum_cit"] or 0.0) + p["avg_citation_position"] * int(
+                p["n_cited"] or 0
+            )
+        if p.get("n_brand_mentions") is not None:
+            b["n_mentions"] = (b["n_mentions"] or 0) + int(p["n_brand_mentions"])
+            b["mention_nov"] += int(p["n_overviews"] or 0)
+
+    out: list[dict] = []
+    for (year, week), b in sorted(buckets.items()):
+        nq, nov = b["n_queries"], b["n_overviews"]
+        nis, nc = b["n_in_sources"], b["n_cited"]
+        out.append(
+            {
+                "run_id": None,
+                "run_at": f"{b['monday'].isoformat()}T00:00:00+00:00",
+                "status": "done",
+                "week": f"{year}-W{week:02d}",
+                "n_runs": b["n_runs"],
+                "lens": points[0]["lens"] if points else "all",
+                "n_queries": nq,
+                "n_overviews": nov,
+                "overview_coverage": (nov / nq) if nq else None,
+                "n_in_sources": nis,
+                "visibility_in_sources": (nis / nov) if nov else None,
+                "n_cited": nc,
+                "visibility_in_citations": (nc / nov) if nov else None,
+                "avg_source_position": (
+                    b["sum_src"] / nis if nis and b["sum_src"] is not None else None
+                ),
+                "avg_citation_position": (
+                    b["sum_cit"] / nc if nc and b["sum_cit"] is not None else None
+                ),
+                "relative_citation": (nc / nis) if nis else None,
+                "n_brand_mentions": b["n_mentions"],
+                "brand_mention_rate": (
+                    b["n_mentions"] / b["mention_nov"]
+                    if b["n_mentions"] is not None and b["mention_nov"]
+                    else None
+                ),
+            }
+        )
+    return out
+
+
 @app.get("/api/timeseries")
 def timeseries(
     brand_id: int = Query(...),
     engine: str = Query(...),
     lens: str = Query("all"),
+    bucket: str = Query("run"),
 ) -> dict:
+    if bucket not in ("run", "week"):
+        raise HTTPException(status_code=400, detail="bucket must be 'run' or 'week'")
     conn = _connect()
     try:
         has_mentions = _has_mention_columns(conn)
@@ -365,10 +541,13 @@ def timeseries(
                 p["n_brand_mentions"] = None
                 p["brand_mention_rate"] = None
             points.append(p)
+        if bucket == "week":
+            points = _weekly_rollup(points)
         return {
             "brand_id": brand_id,
             "engine": engine,
             "lens": lens,
+            "bucket": bucket,
             "points": points,
         }
     finally:
@@ -672,9 +851,10 @@ def i18n_locale(code: str) -> Any:
 def _report_cli(
     brand: str, domain: str, engine: str, period: str, out: str, db: str, lang: str
 ) -> str:
+    engine_arg = "--engines all" if engine == "all" else f"--engine {engine}"
     return (
         f"{sys.executable} -m report.generate "
-        f"--brand {brand!r} --domain {domain} --engine {engine} "
+        f"--brand {brand!r} --domain {domain} {engine_arg} "
         f"--period {period} --lang {lang} --out {out} --db {db}"
     )
 
@@ -714,13 +894,16 @@ def report(
             },
         )
 
+    engine_args = (
+        ["--engines", "all"] if engine == "all" else ["--engine", engine]
+    )
     try:
         proc = subprocess.run(
             [
                 sys.executable, "-m", "report.generate",
                 "--brand", brand["name"],
                 "--domain", brand["domain"],
-                "--engine", engine,
+                *engine_args,
                 "--period", period,
                 "--lang", lang,
                 "--out", out_path,
@@ -748,7 +931,8 @@ def report(
             },
         )
 
-    filename = f"open-geo_{brand['domain'].replace('/', '-')}_{engine}_{period}.pdf"
+    engine_slug = "all-engines" if engine == "all" else engine
+    filename = f"open-geo_{brand['domain'].replace('/', '-')}_{engine_slug}_{period}.pdf"
     return FileResponse(
         out_path,
         media_type="application/pdf",

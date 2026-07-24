@@ -58,6 +58,7 @@ function renderCard(props: {
   loading?: boolean;
   lensRows?: MetricRow[];
   activeLens?: string;
+  repeats?: number;
 }) {
   return render(<MetricCard {...props} />, { wrapper: Providers });
 }
@@ -457,5 +458,50 @@ describe("MetricCard — per-lens distribution strip", () => {
     });
     const list = screen.getByRole("list", { name: "By query type" });
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+  });
+});
+
+describe("MetricCard — repeat-group spread chip", () => {
+  it("shows the min–max spread instead of the delta when repeats > 1", () => {
+    renderCard({
+      def: COVERAGE,
+      row: makeRow({
+        overview_coverage: 0.9,
+        overview_coverage_min: 0.8,
+        overview_coverage_max: 1.0,
+        overview_coverage_delta: 0.5,
+      }),
+      repeats: 3,
+    });
+    expect(screen.getByText("80.0–100.0%")).toBeInTheDocument();
+    expect(getBadge()).toBeNull();
+  });
+
+  it("formats position spread as plain numbers", () => {
+    renderCard({
+      def: AVG_SRC_POS,
+      row: makeRow({
+        avg_source_position: 2.5,
+        avg_source_position_min: 2.0,
+        avg_source_position_max: 3.0,
+      }),
+      repeats: 2,
+    });
+    expect(screen.getByText("2.00–3.00")).toBeInTheDocument();
+  });
+
+  it("falls back to the delta badge when repeats is 1 or spread fields absent", () => {
+    renderCard({
+      def: COVERAGE,
+      row: makeRow({ overview_coverage_delta: 0.1 }),
+      repeats: 1,
+    });
+    expect(getBadge()).not.toBeNull();
+    renderCard({
+      def: COVERAGE,
+      row: makeRow({ overview_coverage_delta: 0.1 }),
+      repeats: 3,
+    });
+    expect(getBadge()).not.toBeNull();
   });
 });

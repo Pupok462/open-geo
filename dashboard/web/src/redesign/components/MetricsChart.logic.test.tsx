@@ -295,3 +295,15 @@ describe("MetricsChart (data mapping & formatter)", () => {
     expect((captured.lineChart?.data as unknown[]).length).toBe(1);
   });
 });
+
+describe("weekly bucket points", () => {
+  it("labels a point by its ISO week when the week field is present", () => {
+    renderChart([
+      fullPoint({ run_id: null, week: "2026-W28" }),
+      fullPoint({ run_id: 2, week: null }),
+    ]);
+    const data = captured.lineChart?.data as Array<Record<string, unknown>>;
+    expect(data[0].label).toBe("2026-W28");
+    expect(data[1].label).not.toBe("2026-W28");
+  });
+});

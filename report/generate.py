@@ -6,7 +6,7 @@ import json
 import os
 import sqlite3
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Optional
 
@@ -1297,8 +1297,12 @@ def _truncate_to_width(s: str, font: str, size: float, max_w: float) -> str:
 def render_audit(doc: Doc, t: Translator, data: ReportData) -> None:
     _section_header(doc, "06", t.t("report.section_audit"))
 
-    doc.text(t.t("report.audit_intro"), 9, INK_DIM, FONT)
-    doc.move(12)
+    intro_max_w = PAGE_W - 2 * MARGIN
+    for ln_txt in _wrap_text(doc.c, t.t("report.audit_intro"), FONT, 9, intro_max_w):
+        doc.ensure(12)
+        doc.text(ln_txt, 9, INK_DIM, FONT)
+        doc.move(11)
+    doc.move(3)
 
     audit = data.audit
     if audit is None:
@@ -1498,6 +1502,191 @@ def generate_report(
     return data
 
 
+def render_engine_chapter(doc: Doc, t: Translator, engine: str) -> None:
+    doc.ensure(60)
+    doc.move(18)
+    top = doc.y
+    doc.accent_bar(MARGIN, top + 12, 22, ACCENT_2, w=4)
+    doc.text(
+        t.t("report.engine_chapter", engine=engine),
+        18,
+        INK,
+        FONT_BOLD,
+        x=MARGIN + 12,
+        dy=-2,
+    )
+    doc.move(16)
+    doc.hline(STROKE, 1.0)
+    doc.move(16)
+
+
+def render_engine_matrix(doc: Doc, t: Translator, datas: list[ReportData]) -> None:
+    _section_header(doc, "00", t.t("report.section_engines"))
+
+    lang = t.lang
+    avail = PAGE_W - 2 * MARGIN
+    col_engine_w = 40 * mm
+    metric_cols = [
+        t.t("report.lenses_table_col_coverage"),
+        t.t("report.lenses_table_col_visibility_sources"),
+        t.t("report.lenses_table_col_visibility_citations"),
+        t.t("report.matrix_col_mention"),
+        t.t("report.matrix_col_conv"),
+        t.t("report.matrix_col_pos_src"),
+        t.t("report.matrix_col_pos_cit"),
+    ]
+    metric_w = (avail - col_engine_w) / len(metric_cols)
+
+    row_h = 9 * mm
+    header_h = 8 * mm
+    table_h = header_h + row_h * len(datas)
+    doc.ensure(table_h + 6)
+
+    top = doc.y
+    _table_header(
+        doc,
+        top,
+        header_h,
+        avail,
+        t.t("report.matrix_col_engine"),
+        col_engine_w,
+        metric_cols,
+        metric_w,
+    )
+
+    row_top = top - header_h
+    for idx, data in enumerate(datas):
+        m = data.metrics.get("all")
+        bg = PANEL if idx % 2 == 0 else BG
+        doc.c.setFillColor(bg)
+        doc.c.rect(MARGIN, row_top - row_h, avail, row_h, stroke=0, fill=1)
+
+        doc.c.setFillColor(INK)
+        doc.c.setFont(FONT_BOLD, 9.5)
+        doc.c.drawString(MARGIN + 6, row_top - row_h / 2 - 3, data.engine)
+
+        values = [
+            _pct(m.overview_coverage if m else None, lang),
+            _pct(m.visibility_in_sources if m else None, lang),
+            _pct(m.visibility_in_citations if m else None, lang),
+            _pct(m.brand_mention_rate if m else None, lang),
+            _pct(m.relative_citation if m else None, lang),
+            _num(m.avg_source_position if m else None, 1, lang),
+            _num(m.avg_citation_position if m else None, 1, lang),
+        ]
+        doc.c.setFont(FONT, 9.5)
+        for i, val in enumerate(values):
+            cx_right = MARGIN + col_engine_w + metric_w * (i + 1) - 6
+            doc.c.setFillColor(INK)
+            doc.c.drawRightString(cx_right, row_top - row_h / 2 - 3, val)
+
+        row_top -= row_h
+
+    _table_border_and_caption(doc, top, avail, table_h, t.t("report.engines_caption"))
+
+
+def build_combined_pdf(
+    datas: list[ReportData],
+    out_path: str,
+    generated_at: Optional[datetime] = None,
+    lang: str = DEFAULT_LANG,
+) -> None:
+    register_fonts(lang)
+    rtl = is_rtl(lang)
+    generated_at = generated_at or datetime.now()
+    t = Translator(lang)
+
+    parent = os.path.dirname(os.path.abspath(out_path))
+    if parent and not os.path.isdir(parent):
+        os.makedirs(parent, exist_ok=True)
+
+    c = canvas.Canvas(out_path, pagesize=A4)
+    if rtl:
+        _install_rtl_shaping(c, lang)
+
+    engines_label = ", ".join(d.engine for d in datas)
+    shim = replace(datas[0], engine=engines_label)
+    c.setTitle(f"{t.t('report.cover_subtitle')} — {shim.brand_name}")
+    c.setAuthor(t.t("common.app_title"))
+    c.setSubject(t.t("report.cover_subtitle"))
+
+    doc = Doc(c, rtl=rtl)
+
+    render_cover(doc, t, shim, generated_at)
+    doc.new_page()
+
+    _install_footer_hook(doc, t, shim)
+
+    render_engine_matrix(doc, t, datas)
+    render_audit(doc, t, datas[0])
+
+    for data in datas:
+        doc.new_page()
+        render_engine_chapter(doc, t, data.engine)
+        render_kpi_cards(doc, t, data)
+        render_lenses(doc, t, data)
+        render_funnel(doc, t, data)
+        if data.period == "all":
+            render_history(doc, t, data)
+        render_competitors(doc, t, data)
+        render_sentiment(doc, t, data)
+
+    render_footer(doc, t, shim)
+    c.showPage()
+    c.save()
+
+
+def resolve_engines(
+    conn: sqlite3.Connection, brand: str, domain: str, engines_arg: str
+) -> list[str]:
+    if engines_arg.strip().lower() == "all":
+        brand_id = _resolve_brand_id(conn, brand, domain)
+        if brand_id is None:
+            raise ValueError(f"brand not found: name={brand!r} domain={domain!r}")
+        rows = conn.execute(
+            "SELECT DISTINCT engine FROM runs WHERE brand_id = ? AND status = 'done' "
+            "ORDER BY engine",
+            (brand_id,),
+        ).fetchall()
+        engines = [r["engine"] for r in rows]
+    else:
+        engines = [e.strip() for e in engines_arg.split(",") if e.strip()]
+    if not engines:
+        raise ValueError("no engines to combine (no completed runs for this brand)")
+    return engines
+
+
+def generate_combined_report(
+    db_path: str,
+    brand: str,
+    domain: str,
+    engines_arg: str,
+    period: str,
+    out_path: str,
+    lang: str = DEFAULT_LANG,
+) -> tuple[list[ReportData], list[tuple[str, str]]]:
+    conn = get_conn(db_path)
+    try:
+        init_db(conn)
+        engines = resolve_engines(conn, brand, domain, engines_arg)
+        datas: list[ReportData] = []
+        skipped: list[tuple[str, str]] = []
+        for eng in engines:
+            try:
+                datas.append(load_report_data(conn, brand, domain, eng, period))
+            except ValueError as exc:
+                skipped.append((eng, str(exc)))
+    finally:
+        conn.close()
+    if not datas:
+        raise ValueError(
+            "no engine has completed runs with metrics for this brand: "
+            + "; ".join(f"{e}: {msg}" for e, msg in skipped)
+        )
+    build_combined_pdf(datas, out_path, lang=lang)
+    return datas, skipped
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="report.generate",
@@ -1505,7 +1694,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--brand", required=True, help="Brand name (as stored in the DB).")
     parser.add_argument("--domain", required=True, help="Target domain of the brand.")
-    parser.add_argument("--engine", required=True, help="Engine identifier, e.g. google.")
+    parser.add_argument("--engine", help="Engine identifier, e.g. google (single-engine report).")
+    parser.add_argument(
+        "--engines",
+        help=(
+            "Combined multi-engine report: comma-separated engine ids, or 'all' for "
+            "every engine with completed runs for this brand. Mutually exclusive "
+            "with --engine."
+        ),
+    )
     parser.add_argument(
         "--period",
         required=True,
@@ -1524,6 +1721,37 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--db", default="data/aeo.db", help="SQLite DB path (default: data/aeo.db).")
     args = parser.parse_args(argv)
+
+    if bool(args.engine) == bool(args.engines):
+        print(
+            "report.generate: choose exactly one mode: --engine <id> OR --engines <a,b|all>",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.engines:
+        try:
+            datas, skipped = generate_combined_report(
+                db_path=args.db,
+                brand=args.brand,
+                domain=args.domain,
+                engines_arg=args.engines,
+                period=args.period,
+                out_path=args.out,
+                lang=args.lang,
+            )
+        except ValueError as exc:
+            print(f"report.generate: {exc}", file=sys.stderr)
+            return 1
+        for eng, msg in skipped:
+            print(f"report.generate: skipped engine {eng}: {msg}", file=sys.stderr)
+        print(
+            f"report.generate: OK -> {args.out} "
+            f"(brand={datas[0].brand_name!r}, combined engines="
+            f"{[d.engine for d in datas]}, period={args.period})",
+            file=sys.stderr,
+        )
+        return 0
 
     try:
         data = generate_report(

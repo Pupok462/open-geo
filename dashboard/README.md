@@ -72,7 +72,7 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/engines?brand_id=` | distinct engines for a brand |
 | GET  | `/api/runs?brand_id=&engine=` | runs newest-first |
 | GET  | `/api/metrics?brand_id=&engine=&period=today\|all&lens=` | metrics + read-time deltas + per-lens `sentiment_summary` |
-| GET  | `/api/timeseries?brand_id=&engine=&lens=` | per-run points over time (retrospective) |
+| GET  | `/api/timeseries?brand_id=&engine=&lens=&bucket=run\|week` | per-run points over time; `bucket=week` rolls completed runs up per ISO week (weighted) |
 | GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |
 | GET  | `/api/audit?brand_id=&engine=` | latest GEO-readiness audit for the brand's registrable domain (`audits`) |
 | GET  | `/api/engine_matrix?brand_id=&period=today\|all&lens=` | side-by-side per-engine matrix: one metrics row per engine of the brand |
@@ -92,6 +92,29 @@ tables): pick "Branded" and the cards show the branded row with its per-lens del
 also carries a **per-lens distribution strip** (Gen / Brand / Comp values, the active lens
 highlighted) so the blended `all` number is never read alone — different query types have
 different expected brand presence, which makes a blended average misleading on its own.
+
+**Repeat-run groups (Feature 5).** When the latest completed run carries a `runs.group_id`
+shared with other completed runs (SKILL `--repeat R`), `period=today` returns the **group as
+one measurement**: the seven metrics weighted-aggregated across the repeats (same math as the
+whole-period rollup), plus per-metric **`*_min`/`*_max`** (min–max across repeats) and a
+`group: {group_id, n_repeats, run_ids}` payload; `prev_run` is `null` and deltas are
+suppressed (inside a group the spread replaces the delta — comparing overlapping noise is
+what the spread exists to prevent). The KPI cards render the spread as a chip titled as a
+*stability* signal. A single-run group behaves exactly like a standalone run. A DB without
+the `group_id` column degrades gracefully (`group: null`). `lens_sentiment`/`domain_stats`
+stay per-run (latest run of the group).
+
+`/api/timeseries?bucket=week` groups completed runs by **ISO week** (computed in Python, not
+SQLite, for exact ISO semantics) and recomputes the §4 ratios from summed numerators per
+week — positions weighted by `n_in_sources`/`n_cited`, mention rate with the honest
+denominator. Week points carry `run_id: null`, `week: "2026-W28"`, `n_runs`, and
+`run_at` = that week's Monday; the chart labels by `week` and the panel has a
+"By run / By week" toggle.
+
+`/api/report` also accepts **`engine=all`** — it shells out to
+`report.generate --engines all` and streams the **combined multi-engine PDF** (an engines
+side-by-side table, then a chapter per engine; engines are never blended). The dashboard's
+Download PDF button stays enabled in compare mode and uses exactly this.
 
 `/api/engine_matrix` powers the **"All engines — compare"** option in the engine selector: one
 row per engine of the brand, carrying all seven §4 metrics for the requested `lens` (plus

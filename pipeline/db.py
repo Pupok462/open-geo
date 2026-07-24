@@ -58,6 +58,8 @@ _METRICS_MIGRATION_COLUMNS = {
     "brand_mention_rate": "REAL",
 }
 
+_RUNS_MIGRATION_COLUMNS = {"group_id": "TEXT"}
+
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(
@@ -78,7 +80,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             status    TEXT NOT NULL DEFAULT 'running',
             n_queries INTEGER NOT NULL DEFAULT 0,
             n_ok      INTEGER NOT NULL DEFAULT 0,
-            n_failed  INTEGER NOT NULL DEFAULT 0
+            n_failed  INTEGER NOT NULL DEFAULT 0,
+            group_id  TEXT
         );
 
         CREATE TABLE IF NOT EXISTS results (
@@ -167,6 +170,7 @@ def init_db(conn: sqlite3.Connection) -> None:
         """
     )
     _ensure_columns(conn, "metrics", _METRICS_MIGRATION_COLUMNS)
+    _ensure_columns(conn, "runs", _RUNS_MIGRATION_COLUMNS)
     _ensure_results_unique_index(conn)
     conn.commit()
 
@@ -191,10 +195,16 @@ def get_or_create_brand(conn: sqlite3.Connection, name: str, domain: str) -> int
     return int(cur.lastrowid)
 
 
-def create_run(conn: sqlite3.Connection, brand_id: int, engine: str) -> int:
+def create_run(
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    group_id: Optional[str] = None,
+) -> int:
     cur = conn.execute(
-        "INSERT INTO runs (brand_id, engine, run_at, status) VALUES (?, ?, ?, 'running')",
-        (brand_id, engine, _utcnow_iso()),
+        "INSERT INTO runs (brand_id, engine, run_at, status, group_id) "
+        "VALUES (?, ?, ?, 'running', ?)",
+        (brand_id, engine, _utcnow_iso(), group_id),
     )
     conn.commit()
     return int(cur.lastrowid)

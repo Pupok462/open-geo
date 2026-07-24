@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { MetricDef } from "../lib/metrics";
+import { spreadOf, type MetricDef } from "../lib/metrics";
 import type { MetricRow } from "../lib/api";
 import { delta as fmtDelta, num, pct } from "../lib/format";
 import { useT } from "../lib/i18n";
@@ -14,12 +14,14 @@ export function MetricCard({
   loading,
   lensRows,
   activeLens,
+  repeats,
 }: {
   def: MetricDef;
   row: MetricRow | null;
   loading?: boolean;
   lensRows?: MetricRow[];
   activeLens?: string;
+  repeats?: number;
 }) {
   const t = useT();
   const dash = t("common.dash");
@@ -33,7 +35,22 @@ export function MetricCard({
     : " ";
 
   let badge: ReactNode = null;
-  if (d !== null && d !== undefined) {
+  const spread = row && repeats && repeats > 1 ? spreadOf(def, row) : null;
+  if (spread) {
+    const fmtOne = (v: number) =>
+      def.asPct ? `${(v * 100).toFixed(1)}` : v.toFixed(2);
+    const spreadStr = def.asPct
+      ? `${fmtOne(spread.min)}–${fmtOne(spread.max)}%`
+      : `${fmtOne(spread.min)}–${fmtOne(spread.max)}`;
+    badge = (
+      <span
+        className="inline-flex items-center gap-0.5 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--muted)]"
+        title={t("dashboard.spread_title", { n: repeats ?? 0 })}
+      >
+        {spreadStr}
+      </span>
+    );
+  } else if (d !== null && d !== undefined) {
     const flat = Math.abs(d) < 1e-9;
     const improved = def.higherIsBetter ? d > 0 : d < 0;
     const color = flat

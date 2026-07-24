@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import os
 import warnings
+from pathlib import Path
 
 import pytest
 from reportlab.lib.pagesizes import A4
@@ -27,6 +28,7 @@ from report.generate import (
     _section_header,
     _style_axes,
     _wrap_text,
+    build_combined_pdf,
     build_pdf,
     chart_funnel,
     chart_history,
@@ -35,6 +37,8 @@ from report.generate import (
     lens_label,
     register_fonts,
     render_cover,
+    render_engine_chapter,
+    render_engine_matrix,
     render_footer,
     render_funnel,
     render_history,
@@ -959,3 +963,69 @@ def test_resolve_brand_id_finds_prefix_brand_in_any_writing(tmp_path):
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_build_combined_pdf_two_engines_writes_pdf(tmp_path):
+    out = str(tmp_path / "combined.pdf")
+    datas = [
+        _report_data(engine="google"),
+        _report_data(engine="chatgpt_search", run_id=9, prev_run_id=None, prev_run_at=None),
+    ]
+    build_combined_pdf(datas, out, lang="en")
+    raw = Path(out).read_bytes()
+    assert raw[:5] == b"%PDF-"
+    assert len(raw) > 10_000
+
+
+def test_build_combined_pdf_single_engine_still_valid(tmp_path):
+    out = str(tmp_path / "combined_one.pdf")
+    build_combined_pdf([_report_data(engine="google")], out, lang="en")
+    assert Path(out).read_bytes()[:5] == b"%PDF-"
+
+
+def test_render_engine_matrix_handles_missing_all_row():
+    doc = _doc()
+    data = _report_data(engine="google")
+    data.metrics.pop("all")
+    render_engine_matrix(doc, _en(), [data])
+
+
+def test_render_engine_chapter_moves_cursor_down():
+    doc = _doc()
+    y0 = doc.y
+    render_engine_chapter(doc, _en(), "google")
+    assert doc.y < y0
+
+
+def test_main_engines_all_builds_combined_pdf(dash_fixture_db_path, tmp_path, capsys):
+    out = str(tmp_path / "combined_cli.pdf")
+    rc = G.main(
+        [
+            "--brand", "Example", "--domain", "example.com",
+            "--engines", "all", "--period", "today",
+            "--out", out, "--db", dash_fixture_db_path,
+        ]
+    )
+    capsys.readouterr()
+    assert rc == 0
+    assert Path(out).read_bytes()[:5] == b"%PDF-"
+
+
+def test_main_engine_and_engines_are_mutually_exclusive(tmp_path, capsys):
+    rc = G.main(
+        [
+            "--brand", "X", "--domain", "x.com", "--engine", "google",
+            "--engines", "all", "--period", "today",
+            "--out", str(tmp_path / "x.pdf"),
+        ]
+    )
+    capsys.readouterr()
+    assert rc == 2
+    rc2 = G.main(
+        [
+            "--brand", "X", "--domain", "x.com", "--period", "today",
+            "--out", str(tmp_path / "y.pdf"),
+        ]
+    )
+    capsys.readouterr()
+    assert rc2 == 2

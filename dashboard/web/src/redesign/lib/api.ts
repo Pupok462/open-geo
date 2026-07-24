@@ -31,6 +31,20 @@ export type MetricRow = {
   n_brand_mentions?: number | null;
   brand_mention_rate?: Num;
   sentiment_summary?: string | null;
+  overview_coverage_min?: Num;
+  overview_coverage_max?: Num;
+  visibility_in_sources_min?: Num;
+  visibility_in_sources_max?: Num;
+  visibility_in_citations_min?: Num;
+  visibility_in_citations_max?: Num;
+  relative_citation_min?: Num;
+  relative_citation_max?: Num;
+  brand_mention_rate_min?: Num;
+  brand_mention_rate_max?: Num;
+  avg_source_position_min?: Num;
+  avg_source_position_max?: Num;
+  avg_citation_position_min?: Num;
+  avg_citation_position_max?: Num;
   overview_coverage_delta?: Num;
   visibility_in_sources_delta?: Num;
   visibility_in_citations_delta?: Num;
@@ -40,20 +54,29 @@ export type MetricRow = {
   brand_mention_rate_delta?: Num;
 };
 
+export type RunGroup = {
+  group_id: string;
+  n_repeats: number;
+  run_ids: number[];
+};
+
 export type MetricsResponse = {
   brand_id: number;
   engine: string;
   period: "today" | "all";
   run: { run_id: number; run_at: string; status: string; n_queries?: number } | null;
   prev_run: { run_id: number; run_at: string; status: string } | null;
+  group?: RunGroup | null;
   n_runs?: number;
   metrics: MetricRow[];
 };
 
 export type TimeseriesPoint = {
-  run_id: number;
+  run_id: number | null;
   run_at: string;
   status: string;
+  week?: string | null;
+  n_runs?: number;
   lens: string;
   n_queries: number;
   n_overviews: number;
@@ -201,8 +224,10 @@ export const api = {
     getJSON<Run[]>(`/api/runs${qs({ brand_id: brandId, engine })}`),
   metrics: (brandId: number, engine: string, period: "today" | "all", lens?: string) =>
     getJSON<MetricsResponse>(`/api/metrics${qs({ brand_id: brandId, engine, period, lens })}`),
-  timeseries: (brandId: number, engine: string, lens: string) =>
-    getJSON<TimeseriesResponse>(`/api/timeseries${qs({ brand_id: brandId, engine, lens })}`),
+  timeseries: (brandId: number, engine: string, lens: string, bucket: "run" | "week" = "run") =>
+    getJSON<TimeseriesResponse>(
+      `/api/timeseries${qs({ brand_id: brandId, engine, lens, bucket })}`,
+    ),
   results: (runId: number, lens?: string) =>
     getJSON<ResultsResponse>(`/api/results${qs({ run_id: runId, lens })}`),
   competitors: (

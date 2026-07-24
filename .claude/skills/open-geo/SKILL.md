@@ -1,7 +1,7 @@
 ---
 name: open-geo
 description: Run a list of queries through a chosen AI engine, measure the target domain's visibility/citation in the AI answers, and produce a dashboard or PDF report. Use when the user runs /open-geo or asks to measure a brand's GEO / AI-search visibility (citations in Google AI Overview, etc.).
-argument-hint: "<questions.csv> <engine> <domain> --brand <name> --n-worker <N> [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] [--force]"
+argument-hint: "<questions.csv> <engine> <domain> --brand <name> --n-worker <N> [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]"
 disable-model-invocation: true
 allowed-tools: Read, Write, Bash(.venv/bin/python:*), Bash(npm:*), Bash(uvicorn:*), Bash(mktemp:*), Task, AskUserQuestion
 # Orchestrator-only tools. STEP A uses AskUserQuestion for the parameter wizard; Task spawns the
@@ -57,6 +57,7 @@ ambiguous — the shapes there win over this prose.
 | `--period today\|all` | no | `all` | Reporting window passed to the dashboard/report: `today` = just this run's date, `all` = full history for this brand+engine (adds the PDF trend chart / the dashboard's whole-period view). Previous-run deltas (INTERFACES §4.1) render whenever an earlier completed run exists — in the PDF for either period, and in the dashboard's latest-run view. |
 | `--lang en\|ru\|zh\|ar` | no | `en` | UI language for the deliverables: it is passed to the report (`report.generate --lang`) and is the dashboard's **default** language (the switcher can still change it in the browser). Extensible to any code registered in `i18n/locales.json`. It also sets the language of the **final summary** you print in step 7. |
 | `--force` | no | off | Override the **GEO-audit gate** (STEP 0): proceed with the run even when the audit verdict is `blocked` (a category-A blocker — the domain is unreadable by the engine's search bot / unreachable / JS-only). Without it, a `blocked` verdict hard-stops before any run and prints the remediation. Advisory (`ready_with_warnings`) verdicts never need `--force`. |
+| `--repeat R` | no | `1` | **Repeat-run group** (INTERFACES §2.1, Feature 5): capture the SAME question set R times as R ordinary runs sharing one `group_id`. Costs R× capture — a deliberate operator choice to separate signal from LLM noise. The dashboard then reads the group as one measurement: weighted mean of the seven metrics + a min–max spread chip per card (deltas are suppressed inside a group). `R=1` = today's behavior, no group. See "Repeats" note under STEP 1. |
 
 If a required argument is missing, go to **STEP A** (the parameter wizard) to collect it
 interactively. Only hard-stop — a short error (in `--lang`), no empty run — if a required value
@@ -284,6 +285,22 @@ print(json.dumps({'run_id': find_unfinished_run(conn, bid, '<engine>')}))
   every later step. Human/log noise goes to STDERR — only the JSON object is on STDOUT.
 - If creation errors or stdout is not parseable JSON with a `run_id`, stop and report it
   (in `--lang`). Nothing downstream can proceed without `run_id`.
+
+### Repeats (`--repeat R`, R > 1)
+
+The whole point is R **independent** captures of the same CSV, grouped so readers can see
+mean + spread instead of trusting one noisy run (INTERFACES §2.1). Flow:
+
+1. Mint one group tag for the whole invocation — `grp_<YYYYMMDD-HHMM>_<engine>` is fine.
+2. For each repeat `i = 1..R` **sequentially**: create its run with
+   `python -m pipeline.ingest --brand … --domain … --engine … --new-run --group-id <tag>`,
+   then execute STEPS 2–5b for that run exactly as for a single run (full CSV each time —
+   do NOT dedupe across repeats; a repeat IS the same question asked again).
+3. Resume semantics are **per repeat**: a crashed repeat is found by `find_unfinished_run`
+   and finished into its own run; already-`done` repeats of the group are never re-captured.
+4. Deliverables (STEP 6) run **once, after the last repeat**. The dashboard detects the
+   group automatically (latest run carries the `group_id`) and shows the mean + min–max
+   spread; nothing extra to pass.
 
 ---
 
@@ -538,6 +555,10 @@ VITE_API_BASE=http://127.0.0.1:<PORT> npm --prefix <REPO>/dashboard/web run dev
   default `en`) so the report renders in that language.
 - Use `<date>` = today (`YYYY-MM-DD`). Create `reports/` if missing. **Print the resulting
   file path.** If the command fails, say so (in `--lang`) and skip gracefully.
+- **Combined multi-engine document (Feature 7):** when the operator asks for one document
+  across every engine the brand has runs on, swap `--engine <engine>` for
+  `--engines all` (or an explicit comma list) — one PDF: engines side-by-side table, then
+  a chapter per engine. Numbers are never blended across engines.
 
 ### `--output both`
 

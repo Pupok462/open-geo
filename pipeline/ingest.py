@@ -136,6 +136,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Existing run id to ingest a STDIN JSON array of QueryCapture into.",
     )
     parser.add_argument(
+        "--group-id",
+        help="Repeat-run group tag stamped on the new run (with --new-run only).",
+    )
+    parser.add_argument(
         "--db",
         default="data/aeo.db",
         help="SQLite DB path (default: data/aeo.db).",
@@ -144,6 +148,9 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.new_run == bool(args.run_id is not None):
         _err("ingest: choose exactly one mode: --new-run OR --run-id <N>")
+        return 2
+    if args.group_id and not args.new_run:
+        _err("ingest: --group-id is only valid with --new-run")
         return 2
 
     conn = get_conn(args.db)
@@ -155,7 +162,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 _err("ingest: --new-run requires --brand, --domain and --engine")
                 return 2
             brand_id = get_or_create_brand(conn, args.brand, args.domain)
-            run_id = create_run(conn, brand_id, args.engine)
+            run_id = create_run(conn, brand_id, args.engine, group_id=args.group_id)
             _err(f"ingest: created run {run_id} for brand {brand_id} ({args.engine})")
             print(json.dumps({"run_id": run_id}, ensure_ascii=False))
             return 0

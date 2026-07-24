@@ -89,7 +89,7 @@ export function MetricsChart({ points }: { points: TimeseriesPoint[] }) {
   }
 
   const data: Row[] = points.map((p) => ({
-    label: fmtDateShort(p.run_at),
+    label: p.week ?? fmtDateShort(p.run_at),
     overview_coverage: toPct(p.overview_coverage),
     visibility_in_sources: toPct(p.visibility_in_sources),
     visibility_in_citations: toPct(p.visibility_in_citations),

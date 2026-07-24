@@ -167,7 +167,7 @@ describe("qs querystring builder (via api methods)", () => {
     await api.timeseries(7, "google", "branded");
 
     expect(fetchedUrl(fn)).toBe(
-      u("/api/timeseries?brand_id=7&engine=google&lens=branded"),
+      u("/api/timeseries?brand_id=7&engine=google&lens=branded&bucket=run"),
     );
   });
 
@@ -246,10 +246,10 @@ describe("api method request paths", () => {
     );
   });
 
-  it("timeseries(7, 'e', 'all') -> /api/timeseries?brand_id=7&engine=e&lens=all", async () => {
+  it("timeseries(7, 'e', 'all') -> /api/timeseries?brand_id=7&engine=e&lens=all&bucket=run", async () => {
     const fn = stubFetch(okResponse({}));
     await api.timeseries(7, "e", "all");
-    expect(fetchedUrl(fn)).toBe(u("/api/timeseries?brand_id=7&engine=e&lens=all"));
+    expect(fetchedUrl(fn)).toBe(u("/api/timeseries?brand_id=7&engine=e&lens=all&bucket=run"));
   });
 
   it("results(3) -> /api/results?run_id=3 (no lens)", async () => {
