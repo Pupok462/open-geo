@@ -548,6 +548,58 @@ def audit(brand_id: int = Query(...), engine: Optional[str] = None) -> dict:
     }
 
 
+@app.get("/api/engine_matrix")
+def engine_matrix(
+    brand_id: int = Query(...),
+    period: str = Query("today"),
+    lens: str = Query("all"),
+) -> dict:
+    if period not in ("today", "all"):
+        raise HTTPException(status_code=400, detail="period must be 'today' or 'all'")
+
+    conn = _connect()
+    try:
+        engine_rows = conn.execute(
+            "SELECT DISTINCT engine FROM runs WHERE brand_id = ? ORDER BY engine",
+            (brand_id,),
+        ).fetchall()
+        out: list[dict] = []
+        for er in engine_rows:
+            eng = er["engine"]
+            entry: dict[str, Any] = {"engine": eng, "run": None, "n_runs": 0}
+            for col in _METRIC_COLS:
+                entry[col] = None
+            entry["n_runs"] = int(
+                conn.execute(
+                    "SELECT COUNT(*) AS c FROM runs "
+                    "WHERE brand_id = ? AND engine = ? AND status = 'done'",
+                    (brand_id, eng),
+                ).fetchone()["c"]
+            )
+            if period == "all":
+                rows = _aggregate_period(conn, brand_id, eng, lens)
+                row = next((r for r in rows if r["lens"] == lens), None)
+                if row is not None:
+                    for col in _METRIC_COLS:
+                        entry[col] = row.get(col)
+            else:
+                run_id = _latest_run_id(conn, brand_id, eng, only_done=True)
+                if run_id is not None:
+                    rr = conn.execute(
+                        "SELECT id AS run_id, run_at, status FROM runs WHERE id = ?",
+                        (run_id,),
+                    ).fetchone()
+                    entry["run"] = dict(rr) if rr else None
+                    row = _metrics_by_lens(conn, run_id).get(lens)
+                    if row is not None:
+                        for col in _METRIC_COLS:
+                            entry[col] = row.get(col)
+            out.append(entry)
+        return {"brand_id": brand_id, "period": period, "lens": lens, "engines": out}
+    finally:
+        conn.close()
+
+
 @app.get("/api/results")
 def results(run_id: int = Query(...), lens: Optional[str] = None) -> dict:
     conn = _connect()

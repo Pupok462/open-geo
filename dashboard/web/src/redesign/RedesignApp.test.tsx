@@ -317,6 +317,51 @@ function installFetch(overrides: RouterOverrides = {}) {
       if (overrides.results) return overrides.results(runId, lens);
       return jsonResponse(makeResults());
     }
+    if (path === "/api/engine_matrix") {
+      const period = (params.get("period") ?? "today") as "today" | "all";
+      const lens = params.get("lens") ?? "all";
+      return jsonResponse({
+        brand_id: Number(params.get("brand_id")),
+        period,
+        lens,
+        engines: [
+          {
+            engine: "chatgpt_search",
+            run: { run_id: 7, run_at: "2026-06-20T10:00:00Z", status: "done" },
+            n_runs: 1,
+            n_queries: 10,
+            n_overviews: 10,
+            overview_coverage: 1.0,
+            n_in_sources: 5,
+            visibility_in_sources: 0.5,
+            n_cited: 3,
+            visibility_in_citations: 0.3,
+            avg_source_position: 2.0,
+            avg_citation_position: 1.3,
+            relative_citation: 0.6,
+            n_brand_mentions: 7,
+            brand_mention_rate: 0.7,
+          },
+          {
+            engine: "google",
+            run: { run_id: 42, run_at: "2026-06-18T12:00:00Z", status: "done" },
+            n_runs: 3,
+            n_queries: 20,
+            n_overviews: 12,
+            overview_coverage: 0.6,
+            n_in_sources: 6,
+            visibility_in_sources: 0.5,
+            n_cited: 3,
+            visibility_in_citations: 0.25,
+            avg_source_position: 2.5,
+            avg_citation_position: 4.0,
+            relative_citation: 0.45,
+            n_brand_mentions: 9,
+            brand_mention_rate: 0.75,
+          },
+        ],
+      });
+    }
 
     throw new Error(`unhandled fetch path in test: ${path}`);
   });
@@ -968,5 +1013,69 @@ describe("RedesignApp — PDF export", () => {
       expect(screen.getByRole("button", { name: /Download PDF/i })).toBeEnabled(),
     );
     clickSpy.mockRestore();
+  });
+});
+
+describe("RedesignApp — per-lens KPI cards", () => {
+  it("each KPI card carries the per-lens distribution strip", async () => {
+    installFetch();
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+    expect(screen.getAllByRole("list", { name: "By query type" })).toHaveLength(7);
+  });
+
+  it("KPI cards follow the selected lens", async () => {
+    const user = userEvent.setup();
+    installFetch({
+      metrics: (period) =>
+        jsonResponse(
+          makeMetrics({
+            period: period as "today" | "all",
+            metrics: [
+              metricRow("all"),
+              metricRow("general", { overview_coverage: 0.9 }),
+              metricRow("branded"),
+              metricRow("comparative"),
+            ],
+          }),
+        ),
+    });
+    const { container } = render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+    const grid = container.querySelector(".xl\\:grid-cols-4") as HTMLElement;
+    expect(within(grid).getByText("60.0%")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Lens"), "general");
+    await waitFor(() =>
+      expect(within(grid).getByText("90.0%")).toBeInTheDocument(),
+    );
+  });
+});
+
+describe("RedesignApp — all-engines compare mode", () => {
+  it("loads the matrix, hides single-engine panels, and drills back into an engine", async () => {
+    const user = userEvent.setup();
+    const { calls } = installFetch();
+    render(<RedesignApp />);
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+
+    await user.selectOptions(screen.getByLabelText("Engine"), "__all__");
+    await waitFor(() =>
+      expect(screen.getByText("Engines side by side")).toBeInTheDocument(),
+    );
+    expect(callsTo(calls, "/api/engine_matrix").length).toBeGreaterThanOrEqual(1);
+
+    expect(screen.getByRole("button", { name: "chatgpt_search" })).toBeInTheDocument();
+    expect(screen.queryByText("GEO-readiness audit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Results by query")).not.toBeInTheDocument();
+    expect(screen.queryByText("Breakdown by lens")).not.toBeInTheDocument();
+
+    const pdfButton = screen.getByRole("button", { name: /Download PDF/ });
+    expect(pdfButton).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "google" }));
+    await waitFor(() => expect(screen.getByText(/Run #42/)).toBeInTheDocument());
+    expect(screen.queryByText("Engines side by side")).not.toBeInTheDocument();
+    expect(screen.getByText("Results by query")).toBeInTheDocument();
   });
 });

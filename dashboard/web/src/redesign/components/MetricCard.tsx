@@ -6,18 +6,25 @@ import { useT } from "../lib/i18n";
 import { InfoTip, Skeleton } from "./primitives";
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from "./icons";
 
+const STRIP_LENSES = ["general", "branded", "comparative"] as const;
+
 export function MetricCard({
   def,
   row,
   loading,
+  lensRows,
+  activeLens,
 }: {
   def: MetricDef;
   row: MetricRow | null;
   loading?: boolean;
+  lensRows?: MetricRow[];
+  activeLens?: string;
 }) {
   const t = useT();
+  const dash = t("common.dash");
   const raw = row ? def.value(row) : null;
-  const valueStr = def.asPct ? pct(raw, t("common.dash")) : num(raw, 2, t("common.dash"));
+  const valueStr = def.asPct ? pct(raw, dash) : num(raw, 2, dash);
   const d = row ? def.delta(row) : null;
   const sub = row
     ? def.subRender
@@ -45,6 +52,10 @@ export function MetricCard({
     );
   }
 
+  const strip = (lensRows ?? []).filter((r) =>
+    (STRIP_LENSES as readonly string[]).includes(String(r.lens)),
+  );
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-strong)]">
       <div className="flex items-start justify-between gap-2">
@@ -64,6 +75,33 @@ export function MetricCard({
         </div>
       )}
       <span className="text-[11px] text-[var(--faint)]">{sub}</span>
+      {strip.length > 1 && (
+        <div
+          role="list"
+          aria-label={t("dashboard.card_lens_strip_label")}
+          className="flex flex-wrap gap-x-3 gap-y-0.5 border-t border-[var(--border)] pt-1.5 text-[11px] tabular-nums"
+        >
+          {strip.map((r) => {
+            const v = def.value(r);
+            const s = def.asPct ? pct(v, dash) : num(v, 1, dash);
+            const active = r.lens === activeLens;
+            return (
+              <span
+                role="listitem"
+                key={r.lens}
+                title={t(`lens.${r.lens}`)}
+                className={
+                  active
+                    ? "font-medium text-[var(--fg)]"
+                    : "text-[var(--faint)]"
+                }
+              >
+                {t(`lens.short_${r.lens}`)} {s}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

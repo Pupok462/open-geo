@@ -147,6 +147,31 @@ export type AuditResponse = {
   audit: AuditResult | null;
 };
 
+export type EngineMatrixRow = {
+  engine: string;
+  run: { run_id: number; run_at: string; status: string } | null;
+  n_runs: number;
+  n_queries: number | null;
+  n_overviews: number | null;
+  overview_coverage: Num;
+  n_in_sources: number | null;
+  visibility_in_sources: Num;
+  n_cited: number | null;
+  visibility_in_citations: Num;
+  avg_source_position: Num;
+  avg_citation_position: Num;
+  relative_citation: Num;
+  n_brand_mentions?: number | null;
+  brand_mention_rate?: Num;
+};
+
+export type EngineMatrixResponse = {
+  brand_id: number;
+  period: "today" | "all";
+  lens: string;
+  engines: EngineMatrixRow[];
+};
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
@@ -192,6 +217,10 @@ export const api = {
     ),
   audit: (brandId: number, engine?: string) =>
     getJSON<AuditResponse>(`/api/audit${qs({ brand_id: brandId, engine })}`),
+  engineMatrix: (brandId: number, period: "today" | "all", lens?: string) =>
+    getJSON<EngineMatrixResponse>(
+      `/api/engine_matrix${qs({ brand_id: brandId, period, lens })}`,
+    ),
   reportUrl: (brandId: number, engine: string, period: "today" | "all", lang?: string) =>
     `${API_BASE}/api/report${qs({ brand_id: brandId, engine, period, lang })}`,
 };

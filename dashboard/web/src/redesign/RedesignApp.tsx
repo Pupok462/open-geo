@@ -4,6 +4,7 @@ import {
   type AuditResponse,
   type Brand,
   type CompetitorsResponse,
+  type EngineMatrixResponse,
   type MetricRow,
   type MetricsResponse,
   type ResultsResponse,
@@ -22,6 +23,7 @@ import {
   ThemeToggle,
 } from "./components/primitives";
 import { MetricsChart } from "./components/MetricsChart";
+import { EngineMatrix } from "./components/EngineMatrix";
 import { LensBreakdown } from "./components/LensBreakdown";
 import { LensSentiment } from "./components/LensSentiment";
 import { CompetitorsPanel } from "./components/CompetitorsPanel";
@@ -30,6 +32,8 @@ import { ResultsTable } from "./components/ResultsTable";
 import { ChevronDownIcon, DownloadIcon } from "./components/icons";
 
 const LENSES = ["all", "general", "branded", "comparative"] as const;
+
+export const ALL_ENGINES = "__all__";
 
 function Dashboard() {
   const { t, lang } = useI18n();
@@ -46,6 +50,7 @@ function Dashboard() {
   const [competitors, setCompetitors] = useState<CompetitorsResponse | null>(null);
   const [audit, setAudit] = useState<AuditResponse | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
+  const [matrix, setMatrix] = useState<EngineMatrixResponse | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,6 +84,17 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
+      if (engine === ALL_ENGINES) {
+        const mx = await api.engineMatrix(brandId, period, lens);
+        setMatrix(mx);
+        setMetrics(null);
+        setTimeseries(null);
+        setCompetitors(null);
+        setAudit(null);
+        setResults(null);
+        return;
+      }
+      setMatrix(null);
       const [r, m, ts, comp, aud] = await Promise.all([
         api.runs(brandId, engine),
         api.metrics(brandId, engine, period),
@@ -110,8 +126,12 @@ function Dashboard() {
     void loadAll();
   }, [loadAll]);
 
-  const allRow: MetricRow | null = useMemo(
-    () => metrics?.metrics.find((m) => m.lens === "all") ?? null,
+  const selectedLensRow: MetricRow | null = useMemo(
+    () => metrics?.metrics.find((m) => m.lens === lens) ?? null,
+    [metrics, lens],
+  );
+  const lensRows: MetricRow[] = useMemo(
+    () => metrics?.metrics.filter((m) => m.lens !== "all") ?? [],
     [metrics],
   );
 
@@ -168,7 +188,7 @@ function Dashboard() {
           <ThemeToggle />
           <button
             onClick={downloadPdf}
-            disabled={downloading || brandId === "" || !engine}
+            disabled={downloading || brandId === "" || !engine || engine === ALL_ENGINES}
             className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-sm font-medium text-[var(--accent-fg)] transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <DownloadIcon size={16} />{" "}
@@ -187,7 +207,12 @@ function Dashboard() {
         <FieldSelect
           label={t("dashboard.control_engine")}
           value={engine}
-          options={engines.map((e) => ({ value: e, label: e }))}
+          options={[
+            ...engines.map((e) => ({ value: e, label: e })),
+            ...(engines.length > 0
+              ? [{ value: ALL_ENGINES, label: t("dashboard.engine_all_option") }]
+              : []),
+          ]}
           onChange={setEngine}
           disabled={engines.length === 0}
         />
@@ -217,7 +242,27 @@ function Dashboard() {
         </div>
       )}
 
-      {metrics && (
+      {engine === ALL_ENGINES && (
+        <Panel
+          title={t("dashboard.matrix_panel_title")}
+          info={t("dashboard.matrix_panel_info")}
+          className="mb-6"
+          right={
+            matrix ? (
+              <span className="text-xs text-[var(--muted)]">
+                {t("dashboard.matrix_meta", {
+                  n: matrix.engines.length,
+                  lens: t(`lens.${matrix.lens}`),
+                })}
+              </span>
+            ) : undefined
+          }
+        >
+          <EngineMatrix rows={matrix?.engines ?? []} onSelect={setEngine} />
+        </Panel>
+      )}
+
+      {engine !== ALL_ENGINES && metrics && (
         <div className="mb-4 text-sm text-[var(--muted)]">
           {period === "all" ? (
             t("dashboard.run_context_all", { n: metrics.n_runs ?? t("common.dash") })
@@ -244,6 +289,8 @@ function Dashboard() {
         </div>
       )}
 
+      {engine !== ALL_ENGINES && (
+      <>
       <Panel
         title={t("dashboard.audit_panel_title")}
         info={t("dashboard.audit_panel_info")}
@@ -254,7 +301,14 @@ function Dashboard() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         {METRICS.map((def) => (
-          <MetricCard key={def.key} def={def} row={allRow} loading={loading} />
+          <MetricCard
+            key={def.key}
+            def={def}
+            row={selectedLensRow}
+            loading={loading}
+            lensRows={lensRows}
+            activeLens={lens}
+          />
         ))}
       </div>
 
@@ -351,6 +405,8 @@ function Dashboard() {
           )}
         </div>
       </Panel>
+      </>
+      )}
 
       <footer className="mt-8 text-xs text-[var(--faint)]">
         {loading ? t("common.loading") : t("dashboard.footer")}

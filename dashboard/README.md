@@ -75,6 +75,7 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/timeseries?brand_id=&engine=&lens=` | per-run points over time (retrospective) |
 | GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |
 | GET  | `/api/audit?brand_id=&engine=` | latest GEO-readiness audit for the brand's registrable domain (`audits`) |
+| GET  | `/api/engine_matrix?brand_id=&period=today\|all&lens=` | side-by-side per-engine matrix: one metrics row per engine of the brand |
 | GET  | `/api/results?run_id=&lens=` | per-query rows (JSON cols decoded, incl. sentiment) |
 | GET  | `/api/i18n` | the `i18n/locales.json` registry — `[{code, name}]`, drives the language switcher |
 | GET  | `/api/i18n/{code}` | that locale's string dict (`i18n/<code>.json`); `404` for an unknown code — the frontend then falls back to bundled English |
@@ -85,6 +86,20 @@ line up without `VITE_API_BASE`.
   `*_delta` vs the previous completed run (INTERFACES §4.1, matched per lens).
 - `all` → whole-period view aggregated across **all** completed runs (the §4 ratios
   recomputed from summed numerators/denominators); no per-run delta in this mode.
+
+**KPI cards follow the selected lens.** The lens selector drives the KPI cards (not just the
+tables): pick "Branded" and the cards show the branded row with its per-lens deltas. Every card
+also carries a **per-lens distribution strip** (Gen / Brand / Comp values, the active lens
+highlighted) so the blended `all` number is never read alone — different query types have
+different expected brand presence, which makes a blended average misleading on its own.
+
+`/api/engine_matrix` powers the **"All engines — compare"** option in the engine selector: one
+row per engine of the brand, carrying all seven §4 metrics for the requested `lens` (plus
+`run`/`n_runs`; `period=today` reads each engine's latest completed run, `period=all` rolls each
+engine up like `/api/metrics`). Engines are shown **side by side and never blended** into one
+cross-engine number — each engine has its own grounded-answer gate semantics, so a blended
+average would be dishonest. In compare mode the single-engine panels are hidden and the PDF
+button is disabled; clicking an engine row drills into that engine's full view.
 
 Each metrics row carries all **seven** §4 metrics, including
 **`n_brand_mentions`/`brand_mention_rate`** (share of grounded answers whose prose mentions

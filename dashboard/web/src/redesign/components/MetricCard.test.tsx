@@ -56,6 +56,8 @@ function renderCard(props: {
   def: MetricDef;
   row: MetricRow | null;
   loading?: boolean;
+  lensRows?: MetricRow[];
+  activeLens?: string;
 }) {
   return render(<MetricCard {...props} />, { wrapper: Providers });
 }
@@ -379,5 +381,81 @@ describe("MetricCard — value + badge live together", () => {
     expect(screen.getByText("75.0%")).toBeInTheDocument();
     const badge = getBadge()!;
     expect(within(badge).getByText(/\+5\.0 pp/)).toBeInTheDocument();
+  });
+});
+
+describe("MetricCard — per-lens distribution strip", () => {
+  const stripRows = [
+    makeRow({ lens: "general", overview_coverage: 0.9 }),
+    makeRow({ lens: "branded", overview_coverage: 0.5 }),
+    makeRow({ lens: "comparative", overview_coverage: null }),
+  ];
+
+  it("renders one item per lens with formatted values (dash for null)", () => {
+    renderCard({
+      def: COVERAGE,
+      row: makeRow(),
+      lensRows: stripRows,
+      activeLens: "all",
+    });
+    const list = screen.getByRole("list", { name: "By query type" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items.map((i) => i.textContent)).toEqual([
+      "Gen 90.0%",
+      "Brand 50.0%",
+      "Comp —",
+    ]);
+  });
+
+  it("highlights the active lens item only", () => {
+    renderCard({
+      def: COVERAGE,
+      row: makeRow(),
+      lensRows: stripRows,
+      activeLens: "branded",
+    });
+    const list = screen.getByRole("list", { name: "By query type" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items[1]).toHaveClass("font-medium");
+    expect(items[0]).not.toHaveClass("font-medium");
+    expect(items[2]).not.toHaveClass("font-medium");
+  });
+
+  it("formats position metrics as plain numbers in the strip", () => {
+    renderCard({
+      def: AVG_SRC_POS,
+      row: makeRow(),
+      lensRows: [
+        makeRow({ lens: "general", avg_source_position: 2.25 }),
+        makeRow({ lens: "branded", avg_source_position: null }),
+      ],
+      activeLens: "all",
+    });
+    const list = screen.getByRole("list", { name: "By query type" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items.map((i) => i.textContent)).toEqual(["Gen 2.3", "Brand —"]);
+  });
+
+  it("renders no strip without lensRows or with a single lens row", () => {
+    renderCard({ def: COVERAGE, row: makeRow() });
+    expect(screen.queryByRole("list", { name: "By query type" })).not.toBeInTheDocument();
+    renderCard({
+      def: COVERAGE,
+      row: makeRow(),
+      lensRows: [makeRow({ lens: "general" })],
+      activeLens: "all",
+    });
+    expect(screen.queryByRole("list", { name: "By query type" })).not.toBeInTheDocument();
+  });
+
+  it("ignores non-strip lenses such as the all row", () => {
+    renderCard({
+      def: COVERAGE,
+      row: makeRow(),
+      lensRows: [makeRow({ lens: "all" }), ...stripRows],
+      activeLens: "all",
+    });
+    const list = screen.getByRole("list", { name: "By query type" });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(3);
   });
 });

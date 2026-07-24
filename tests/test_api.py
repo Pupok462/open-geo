@@ -1681,3 +1681,85 @@ def test_timeseries_no_500_on_db_without_mention_columns(make_client, dash_fixtu
     assert resp.status_code == 200
     for p in resp.json()["points"]:
         assert p["brand_mention_rate"] is None
+
+
+def _add_second_engine_run(db_path: str, engine: str = "chatgpt_search") -> int:
+    conn = get_conn(db_path)
+    try:
+        bid = int(
+            conn.execute("SELECT id FROM brands WHERE name = 'Example'").fetchone()["id"]
+        )
+        cur = conn.execute(
+            "INSERT INTO runs (brand_id, engine, run_at, status, n_queries, n_ok, n_failed) "
+            "VALUES (?, ?, ?, 'done', 4, 4, 0)",
+            (bid, engine, "2026-07-20T10:00:00+00:00"),
+        )
+        run_id = int(cur.lastrowid)
+        conn.execute(
+            "INSERT INTO metrics (run_id, brand_id, engine, lens, n_queries, n_overviews, "
+            "overview_coverage, n_in_sources, visibility_in_sources, n_cited, "
+            "visibility_in_citations, avg_source_position, avg_citation_position, "
+            "relative_citation, n_brand_mentions, brand_mention_rate, computed_at) "
+            "VALUES (?, ?, ?, 'all', 4, 4, 1.0, 2, 0.5, 1, 0.25, 1.5, 1.0, 0.5, 3, 0.75, "
+            "'2026-07-20T10:05:00+00:00')",
+            (run_id, bid, engine),
+        )
+        conn.commit()
+        return bid
+    finally:
+        conn.close()
+
+
+def test_engine_matrix_today_lists_every_engine(make_client, dash_fixture_db_path):
+    brand_id = _add_second_engine_run(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/engine_matrix", params={"brand_id": brand_id, "period": "today"}
+    ).json()
+    engines = [e["engine"] for e in body["engines"]]
+    assert engines == sorted(engines)
+    assert set(engines) == {"chatgpt_search", ENGINE}
+    by_engine = {e["engine"]: e for e in body["engines"]}
+    assert by_engine[ENGINE]["run"] is not None
+    assert by_engine[ENGINE]["overview_coverage"] is not None
+    assert by_engine["chatgpt_search"]["brand_mention_rate"] == pytest.approx(0.75)
+    assert by_engine["chatgpt_search"]["overview_coverage"] == pytest.approx(1.0)
+
+
+def test_engine_matrix_period_all_rolls_up(make_client, dash_fixture_db_path):
+    brand_id = _add_second_engine_run(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/engine_matrix", params={"brand_id": brand_id, "period": "all"}
+    ).json()
+    by_engine = {e["engine"]: e for e in body["engines"]}
+    assert by_engine[ENGINE]["n_runs"] >= 2
+    assert by_engine[ENGINE]["overview_coverage"] is not None
+    assert by_engine["chatgpt_search"]["n_runs"] == 1
+    assert by_engine["chatgpt_search"]["relative_citation"] == pytest.approx(0.5)
+
+
+def test_engine_matrix_lens_missing_returns_nulls(make_client, dash_fixture_db_path):
+    brand_id = _add_second_engine_run(dash_fixture_db_path)
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/engine_matrix",
+        params={"brand_id": brand_id, "period": "today", "lens": "branded"},
+    ).json()
+    by_engine = {e["engine"]: e for e in body["engines"]}
+    assert by_engine["chatgpt_search"]["overview_coverage"] is None
+    assert by_engine[ENGINE]["overview_coverage"] is not None
+
+
+def test_engine_matrix_invalid_period_400(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    resp = client.get("/api/engine_matrix", params={"brand_id": 1, "period": "week"})
+    assert resp.status_code == 400
+
+
+def test_engine_matrix_unknown_brand_empty(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    body = client.get(
+        "/api/engine_matrix", params={"brand_id": 99999, "period": "today"}
+    ).json()
+    assert body["engines"] == []
