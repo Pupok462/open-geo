@@ -6,12 +6,19 @@
 
 # open-geo — GEO Visibility Tracker for Claude Code
 
-**open-geo measures how visible your brand is _inside_ AI answers — across every major engine.**
-Search is shifting from "ten blue links" to a generated answer: ChatGPT, Perplexity, Gemini,
-Claude, Google AI Overview, Yandex, DeepSeek. Each answer leans on a handful of sources — and
-being one of them **is** visibility in AI. open-geo runs your queries through an engine in a real,
-logged-in browser and records whether your domain makes it into the **sources**, into the
-**citations**, into the **text** — and how the brand is spoken about when it does.
+**open-geo is a GEO (generative engine optimization) visibility tracker: it measures whether your
+brand shows up in AI answers by reading the _rendered_ answer a logged-in user actually sees.**
+Capture runs through an agent in a real, logged-in browser — not the engine's API and not a
+headless scrape, because those don't match the answer a person is shown. It covers **Google AI
+Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek**, and reports an honest funnel
+(queries → answers → sources → citations) that says when a run can't be trusted instead of
+guessing. It runs as a **Claude Code skill**: point `/open-geo` at a question set and a domain,
+get a dashboard and a PDF.
+
+Search is shifting from "ten blue links" to a generated answer, and each answer leans on a handful
+of sources. Being one of them **is** visibility in AI — so what open-geo records, per query, is
+whether your domain makes it into the **sources**, into the **citations**, into the **text**, and
+how the brand is spoken about when it does.
 
 [![CI](https://github.com/Pupok462/open-geo/actions/workflows/ci.yml/badge.svg)](https://github.com/Pupok462/open-geo/actions/workflows/ci.yml)
 [![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-7C5CFF)](https://claude.ai/code)
@@ -22,6 +29,19 @@ logged-in browser and records whether your domain makes it into the **sources**,
   <img src="assets/demo.gif" alt="open-geo dashboard tour — six KPI cards with run-over-run deltas, breakdown by lens, top-domains leaderboard and the language switcher" width="100%">
 </p>
 <p align="center"><sub>The dashboard on the seeded demo brand — KPI funnel, per-lens breakdown, top-domains leaderboard.</sub></p>
+
+### At a glance
+
+| | |
+|---|---|
+| **What it is** | A GEO / AI-visibility tracker for a brand or a URL, packaged as a **Claude Code skill** |
+| **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in browser (Claude-in-Chrome) |
+| **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek — Perplexity playbook written, awaiting live validation |
+| **What it reports** | A funnel — answer coverage → visibility in sources → visibility in citations — plus positions, source→citation conversion, brand-mention rate, qualitative sentiment, and a top-domains leaderboard |
+| **Deliverables** | A local dashboard (FastAPI + React, 4 languages) and a themed PDF, from a local SQLite history |
+| **Operating model** | An **on-demand audit you run yourself**, not a 24/7 hosted monitor |
+| **Requirements** | Claude Code, the Claude-in-Chrome extension, a browser logged in to the engine. No data API, no paid keys |
+| **License** | MIT |
 
 ### Why open-geo
 
@@ -52,6 +72,27 @@ logged-in browser and records whether your domain makes it into the **sources**,
   does your API/scraping pipeline correlate with what the rendered answer actually shows?
 - **Founders & devs already in Claude Code** — it's just a skill: point `/open-geo` at a CSV and a
   domain, get a dashboard. No SaaS, no upload, no account.
+
+## How open-geo compares
+
+Three different shapes solve "am I visible in AI answers?", and they are not interchangeable. This
+table is about **what each shape is built for**, so you can pick the right one:
+
+| | **open-geo** | **Hosted AI-visibility monitoring** | **A DIY API / scraping script** |
+|---|---|---|---|
+| **What it reads** | The **rendered** answer inside a real, logged-in browser session | A vendor-operated capture pipeline | Whatever the engine's API or the fetched HTML returns |
+| **Engine coverage** | Six engines today, including **Yandex Alice** and **DeepSeek**; adding one is a markdown playbook, not a parser | Set by the vendor's roadmap | Whatever you build and keep building |
+| **When the UI changes** | The agent follows a natural-language playbook (`engines/<engine>.md`), so a structural change is a few words in a file | Handled for you, on the vendor's schedule | Yours to fix when the markup moves |
+| **Operating model** | An **on-demand audit** you trigger and supervise | **Continuous** monitoring over large prompt sets | Whatever you schedule |
+| **Scale** | Tens to low hundreds of queries per run; costs inference and attention | Thousands of prompts, hands-off | Bounded by your budget and rate limits |
+| **Where results live** | Local SQLite history, local dashboard and PDF | The vendor's cloud | Wherever you put them |
+| **When the data is shaky** | A grounded-answer gate and a nested funnel; a run is **flagged**, never guessed | Vendor-defined | Yours to design |
+
+**The trade-off is deliberate: fidelity over volume.** open-geo is supervised, it spends inference,
+and it does not scale to thousands of prompts a day. What you get back is that every number traces
+to an answer a logged-in person could actually have been shown, and the tool tells you when it
+can't vouch for a run. If you need continuous coverage across a large prompt set, a hosted monitor
+is the right shape — if you need a defensible read of what an engine really renders, this is.
 
 ## What you get
 
@@ -301,6 +342,55 @@ the domain never reached sources, so the three source/citation metrics are all `
 
 ## FAQ
 
+### What is GEO (generative engine optimization)?
+GEO is the practice of getting a brand surfaced and **cited inside AI-generated answers**, rather
+than ranked in a list of links. It is also called AEO (answer engine optimization). The measurement
+problem is different from SEO's: there is no rank position to read, so what you track is whether an
+answer **retrieved** you, whether it **cited** you, and where in the answer you landed.
+
+### Is there a GEO / AI-visibility tracker for Claude Code?
+Yes — open-geo is one. It installs as a Claude Code skill and runs as a single command,
+`/open-geo <questions.csv> <engine> <domain>`, driving your logged-in Chrome through the
+Claude-in-Chrome extension. You can also add it as a plugin with
+`/plugin marketplace add Pupok462/open-geo`.
+
+### Which AI engines can open-geo track?
+Six today: **Google AI Overview, ChatGPT (web search), Claude (web search), Google Gemini, Yandex
+Alice / Нейро, and DeepSeek (web search)**. A Perplexity playbook is written and awaiting its first
+live validation run. Each engine is a natural-language playbook in
+[`engines/`](engines/README.md), so adding one is writing a markdown file, not a parser.
+
+### Can I track brand visibility in Yandex Alice or DeepSeek?
+Yes, both are supported engines — `yandex_neuro` and `deepseek`. They matter because Russian- and
+Chinese-market answer engines are commonly left out of Western tooling, and each has its own quirks
+the playbook handles (Yandex mixes paid "Промо" cards in with sources, which open-geo deliberately
+keeps out of `sources` and `citations`; DeepSeek numbers its retrieved set like Perplexity does).
+
+### Does open-geo use the engine's API or the real UI?
+The real UI. An agent drives a **visible, logged-in Chrome** and reads the answer as it was
+rendered to a person — the sources panel, the inline citation chips, the answer text. This is the
+core design choice: API and headless reads do not match what a logged-in user is actually shown, so
+they measure a surface nobody sees.
+
+### Is open-geo an audit or 24/7 monitoring?
+An **audit** you run on demand. A run is supervised, spends inference, and measures the questions
+you chose — so it is built for a point-in-time read you can defend, not for continuous coverage of
+a large prompt set. If you want it repeated, wrap the command in Claude Code's `/loop` (e.g. weekly)
+or use `--repeat R` to capture the same set several times and read the min–max spread.
+
+### How is open-geo different from a hosted AI-visibility monitoring service?
+Different shape, on purpose: open-geo trades **volume for fidelity**. It reads the rendered answer
+in your own logged-in browser, keeps the history locally, and flags a run it can't vouch for
+instead of guessing — at the cost of scale and of being hands-on. A hosted monitor is the better
+fit when you need thousands of prompts tracked continuously without supervision. See
+[How open-geo compares](#how-open-geo-compares).
+
+### Can I track a GitHub repo or a URL prefix instead of a whole domain?
+Yes. The target accepts a domain (`example.com`) **or a URL prefix**
+(`github.com/user/repo`), so you can measure a single repo, a docs section or a subfolder. Prefix
+matching is conservative: a link that only names the domain is not counted as a match when your
+target has a path.
+
 ### What input do I need?
 **Your own list of questions** — a **CSV with two columns, `query,lens`**, where `lens ∈ general |
 branded | comparative` (`general` = neutral query with no brand named; `branded` = brand explicitly
@@ -345,6 +435,10 @@ roughly 6–10 tool calls, so wall-clock time scales with how many queries each 
 sequence — raise `--n-worker` to shorten a large run (within reason, to stay under the engine's
 "unusual traffic" radar).
 
+### Is open-geo free and open source?
+Yes — MIT-licensed, and there is no data API or paid key in the loop. Running it does spend your own
+Claude Code inference, and it needs a browser already logged in to the engine you want to measure.
+
 ## License
 
-MIT.
+MIT. Release notes are in [CHANGELOG.md](CHANGELOG.md).

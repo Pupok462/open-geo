@@ -1,0 +1,5 @@
+Contact: https://github.com/Pupok462/open-geo/issues
+Expires: 2027-08-02T00:00:00.000Z
+Preferred-Languages: en, ru
+Canonical: https://pupok462.github.io/open-geo/.well-known/security.txt
+Policy: https://github.com/Pupok462/open-geo/blob/main/README.md

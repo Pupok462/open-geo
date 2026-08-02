@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>open-geo releases</title>
+  <subtitle>Release notes for the open-geo GEO visibility tracker</subtitle>
+  <link href="https://pupok462.github.io/open-geo/feed.xml" rel="self"/>
+  <link href="https://pupok462.github.io/open-geo/"/>
+  <id>https://pupok462.github.io/open-geo/</id>
+  <updated>2026-08-02T00:00:00Z</updated>
+  <author><name>open-geo contributors</name></author>
+
+  <entry>
+    <title>0.3.0 — repeat runs, weekly trend, combined multi-engine PDF</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#030--2026-07-25"/>
+    <id>tag:github.com,2026:open-geo/0.3.0</id>
+    <updated>2026-07-25T00:00:00Z</updated>
+    <summary>Repeat runs with a min-max spread instead of a delta, an ISO-week rollup on the trend chart, a combined multi-engine PDF, and per-lens KPI cards.</summary>
+  </entry>
+
+  <entry>
+    <title>0.2.0 — brand mention rate and engine-neutral labels</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#020--2026-07-24"/>
+    <id>tag:github.com,2026:open-geo/0.2.0</id>
+    <updated>2026-07-24T00:00:00Z</updated>
+    <summary>A seventh metric for the share of answers naming the brand, a results-table gap filter, and engine-neutral metric labels.</summary>
+  </entry>
+
+  <entry>
+    <title>0.1.6 — GEO audit gate, DeepSeek and Perplexity playbooks</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#016--2026-07-10"/>
+    <id>tag:github.com,2026:open-geo/0.1.6</id>
+    <updated>2026-07-10T00:00:00Z</updated>
+    <summary>A deterministic pre-run check of whether an AI engine can read the target domain, plus capture playbooks for DeepSeek and Perplexity.</summary>
+  </entry>
+
+  <entry>
+    <title>0.1.0 — first public release</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#010--2026-07-03"/>
+    <id>tag:github.com,2026:open-geo/0.1.0</id>
+    <updated>2026-07-03T00:00:00Z</updated>
+    <summary>The /open-geo command, capture playbooks for five engines, seven metrics over a nested funnel, question harvesting, and a four-language dashboard and PDF.</summary>
+  </entry>
+
+</feed>
