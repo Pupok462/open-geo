@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-03
+
 ### Added
 - A comparison section in the README explaining what open-geo, a hosted monitoring service and a
   DIY API/scraping script are each built for, and an "At a glance" fact table.
@@ -20,6 +22,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - The README opens with a direct definition of what open-geo is and how it measures, in all four
   languages (English, Русский, 中文, العربية).
+
+### Fixed
+- The plugin manifests pointed `homepage` at a domain that does not resolve; they now point at the
+  repository.
 
 ## [0.3.0] — 2026-07-25
 
@@ -104,6 +110,7 @@ First public release.
 - Targets as a domain **or a URL prefix**, so a single repo or docs section can be measured.
 - A four-language dashboard and PDF (English, Русский, 中文, العربية, RTL-aware).
 
-[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/Pupok462/open-geo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Pupok462/open-geo/compare/v0.1.0...v0.3.0
 [0.1.0]: https://github.com/Pupok462/open-geo/releases/tag/v0.1.0

@@ -1,11 +1,11 @@
 {
   "name": "open-geo",
   "description": "GEO (Generative Engine Optimization) visibility tracker: run queries through an AI engine, measure a target domain's visibility and citation in the answers, and emit a dashboard or PDF report.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "open-geo contributors"
   },
-  "homepage": "https://opengeo.pro",
+  "homepage": "https://github.com/Pupok462/open-geo",
   "repository": "https://github.com/Pupok462/open-geo",
   "license": "MIT",
   "keywords": [
