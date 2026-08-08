@@ -83,6 +83,13 @@ def _has_mention_columns(conn: sqlite3.Connection) -> bool:
     return "n_brand_mentions" in cols and "brand_mention_rate" in cols
 
 
+def _metrics_columns(conn: sqlite3.Connection) -> set[str]:
+    try:
+        return {row[1] for row in conn.execute("PRAGMA table_info(metrics)")}
+    except sqlite3.OperationalError:
+        return set()
+
+
 def _has_group_column(conn: sqlite3.Connection) -> bool:
     try:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
@@ -515,17 +522,22 @@ def timeseries(
         raise HTTPException(status_code=400, detail="bucket must be 'run' or 'week'")
     conn = _connect()
     try:
-        has_mentions = _has_mention_columns(conn)
-        mention_select = (
-            ", m.n_brand_mentions, m.brand_mention_rate" if has_mentions else ""
+        available = _metrics_columns(conn)
+        optional = (
+            "relative_citation",
+            "n_brand_mentions",
+            "brand_mention_rate",
         )
+        present = [name for name in optional if name in available]
+        missing = [name for name in optional if name not in available]
+        optional_select = "".join(f", m.{name}" for name in present)
         rows = conn.execute(
             f"""
             SELECT r.id AS run_id, r.run_at, r.status,
                    m.lens, m.n_queries, m.n_overviews, m.overview_coverage,
                    m.n_in_sources, m.visibility_in_sources, m.n_cited,
                    m.visibility_in_citations, m.avg_source_position,
-                   m.avg_citation_position, m.relative_citation{mention_select}
+                   m.avg_citation_position{optional_select}
             FROM runs r
             JOIN metrics m ON m.run_id = r.id
             WHERE r.brand_id = ? AND r.engine = ? AND m.lens = ?
@@ -537,9 +549,8 @@ def timeseries(
         points = []
         for r in rows:
             p = dict(r)
-            if not has_mentions:
-                p["n_brand_mentions"] = None
-                p["brand_mention_rate"] = None
+            for name in missing:
+                p[name] = None
             points.append(p)
         if bucket == "week":
             points = _weekly_rollup(points)

@@ -175,21 +175,59 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def get_or_create_brand(conn: sqlite3.Connection, name: str, domain: str) -> int:
+def normalize_brand_name(name: str) -> str:
+    return " ".join(name.split())
+
+
+def _brand_match_key(name: str) -> str:
+    return normalize_brand_name(name).casefold()
+
+
+def find_brand_id(
+    conn: sqlite3.Connection, name: str, domain: str
+) -> Optional[int]:
     from pipeline.schema import normalize_target
 
     norm_domain = normalize_target(domain)
+    rows = conn.execute(
+        "SELECT id, name FROM brands WHERE domain = ? ORDER BY id ASC",
+        (norm_domain,),
+    ).fetchall()
+    if not rows:
+        return None
 
-    row = conn.execute(
-        "SELECT id FROM brands WHERE name = ? AND domain = ?",
-        (name, norm_domain),
-    ).fetchone()
-    if row is not None:
-        return int(row["id"])
+    display = normalize_brand_name(name)
+    for row in rows:
+        if str(row["name"]) == display:
+            return int(row["id"])
+
+    key = _brand_match_key(name)
+    for row in rows:
+        if _brand_match_key(str(row["name"])) == key:
+            return int(row["id"])
+    return None
+
+
+def find_brand_domains(conn: sqlite3.Connection, name: str) -> list[str]:
+    key = _brand_match_key(name)
+    rows = conn.execute("SELECT name, domain FROM brands ORDER BY domain").fetchall()
+    return [
+        str(row["domain"])
+        for row in rows
+        if _brand_match_key(str(row["name"])) == key
+    ]
+
+
+def get_or_create_brand(conn: sqlite3.Connection, name: str, domain: str) -> int:
+    from pipeline.schema import normalize_target
+
+    existing = find_brand_id(conn, name, domain)
+    if existing is not None:
+        return existing
 
     cur = conn.execute(
         "INSERT INTO brands (name, domain, created_at) VALUES (?, ?, ?)",
-        (name, norm_domain, _utcnow_iso()),
+        (normalize_brand_name(name), normalize_target(domain), _utcnow_iso()),
     )
     conn.commit()
     return int(cur.lastrowid)
@@ -361,8 +399,7 @@ def get_latest_audit(
                 "ORDER BY checked_at DESC, id DESC LIMIT 1",
                 (domain, engine),
             ).fetchone()
-            if row is not None:
-                return dict(row)
+            return dict(row) if row is not None else None
         row = conn.execute(
             f"SELECT {cols} FROM audits WHERE domain = ? "
             "ORDER BY checked_at DESC, id DESC LIMIT 1",

@@ -182,7 +182,8 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
-          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar]
+          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] \
+          [--force] [--repeat R]
 ```
 
 | 参数 | 含义 |
@@ -195,6 +196,8 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 | `--output` | `dashboard`（默认）\| `pdf` \| `both`。 |
 | `--period` | `all`（默认——完整的品牌+引擎历史，含趋势图）\| `today`（仅本次运行）。 |
 | `--lang` | 交付物的 UI 语言——`en`（默认）\| `ru` \| `zh` \| `ar`。 |
+| `--force` | 即使运行前的 GEO 审计闸门返回 `blocked` 也继续（改为大声警告，而不是中止）。 |
+| `--repeat R` | 将同一问题集独立运行 **R** 次并归入同一个分组标记；仪表板随后显示均值与 min–max 区间，而不是逐次运行的增量。默认 `1`。 |
 
 它端到端做了什么：创建一次运行 → 把查询分摊到**并行**的捕获 worker（
 每个 worker 在你已登录的 Chrome 里驱动引擎，并为每个查询返回一条经过校验的记录）→

@@ -63,3 +63,14 @@ def test_training_bots_are_not_gating_uas():
     assert "Google-Extended" not in gating
     assert "GPTBot" not in gating
     assert "ClaudeBot" not in gating
+
+
+def test_is_engine_mapped_true_for_known_engines_and_none():
+    for engine in bots.ENGINE_GATING_UA:
+        assert bots.is_engine_mapped(engine) is True
+    assert bots.is_engine_mapped(None) is True
+
+
+def test_is_engine_mapped_false_for_engines_without_a_published_search_bot():
+    assert bots.is_engine_mapped("deepseek") is False
+    assert bots.is_engine_mapped("something_else") is False

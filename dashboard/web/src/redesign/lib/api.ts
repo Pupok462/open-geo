@@ -236,9 +236,10 @@ export const api = {
     period: "today" | "all",
     lens?: string,
     limit = 15,
+    sort: "sources" | "citations" = "sources",
   ) =>
     getJSON<CompetitorsResponse>(
-      `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit })}`,
+      `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit, sort })}`,
     ),
   audit: (brandId: number, engine?: string) =>
     getJSON<AuditResponse>(`/api/audit${qs({ brand_id: brandId, engine })}`),

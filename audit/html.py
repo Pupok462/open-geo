@@ -124,9 +124,9 @@ def _detect_framework(html: str) -> Optional[str]:
         return "Angular"
     if "data-v-" in head or 'id="app"' in head:
         return "Vue"
-    if "gatsby" in head:
+    if "gatsby-" in head or "/page-data/" in head:
         return "Gatsby"
-    if "astro" in head or "_astro/" in head:
+    if "_astro/" in head or "astro-island" in head:
         return "Astro"
     return None
 

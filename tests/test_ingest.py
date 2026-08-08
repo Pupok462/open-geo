@@ -127,6 +127,7 @@ def test_insert_capture_persists_full_row_and_returns_lastrowid(tmp_path):
                 "sources": [
                     {"rank": 1, "url": "https://sf.org/x", "domain": "sf.org"},
                     {"rank": 2, "url": "https://example.com/a", "domain": "example.com"},
+                    {"rank": 3, "url": "https://techradar.com/y", "domain": "techradar.com"},
                     {"rank": 4, "url": "https://example.com/b", "domain": "example.com"},
                 ],
                 "citations": [
@@ -170,6 +171,7 @@ def test_insert_capture_persists_full_row_and_returns_lastrowid(tmp_path):
         assert sources == [
             {"rank": 1, "url": "https://sf.org/x", "domain": "sf.org"},
             {"rank": 2, "url": "https://example.com/a", "domain": "example.com"},
+            {"rank": 3, "url": "https://techradar.com/y", "domain": "techradar.com"},
             {"rank": 4, "url": "https://example.com/b", "domain": "example.com"},
         ]
         assert citations == [

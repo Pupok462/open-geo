@@ -64,8 +64,18 @@ engine's** citations, so A3 is **engine-aware**:
 | `yandex_neuro` | `YandexBot` | |
 | `perplexity` | `PerplexityBot` | ⚠ `Perplexity-User` documentedly ignores robots.txt (+ reported stealth UAs), so a "block" is not a guarantee — report as blocker but note the caveat. |
 
-Unknown/omitted engine → `DEFAULT_GATING_UA = "Googlebot"` (broadest reach); other search
-bots become advisory.
+**Engine with no published search-bot UA → A3 is `skip`, never `fail`.** `deepseek` is the live
+case: it is a fully implemented capture engine, but its retrieval crawler has no documented,
+verifiable user-agent, so there is nothing to grade `robots.txt` against. Grading it against
+`Googlebot` anyway would hard-stop a run over a bot that has nothing to do with the engine —
+a false stop on a readable site, which costs more trust than a missed warning (same reasoning
+as A5 warning on thin-but-server-rendered HTML). `audit.bots.is_engine_mapped` decides this;
+`skip` is excluded from `score` and can never enter `blockers`. **Do not invent a UA to fill
+this row** — a fabricated mapping produces confidently wrong verdicts. When an operator
+publishes one, add it to `ENGINE_GATING_UA` (plus its `Bot` entry) and A3 starts grading it.
+
+`--engine` omitted entirely (generic audit) → `DEFAULT_GATING_UA = "Googlebot"` (broadest
+reach), and A3 does grade it; other search bots stay advisory via A3b.
 
 Source of the registry: official operator docs + the community `ai-robots-txt/ai.robots.txt`
 (MIT). Curated here because "which UA gates which engine" is a product decision, not raw data.

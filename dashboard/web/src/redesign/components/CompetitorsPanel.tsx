@@ -12,6 +12,13 @@ type SortKey =
 
 type Dir = "asc" | "desc";
 
+const SERVER_SORT: Partial<Record<SortKey, "sources" | "citations">> = {
+  appearances_sources: "sources",
+  avg_source_position: "sources",
+  appearances_citations: "citations",
+  avg_citation_position: "citations",
+};
+
 const DEFAULT_DIR: Record<SortKey, Dir> = {
   domain: "asc",
   appearances_sources: "desc",
@@ -32,7 +39,13 @@ function compare(a: CompetitorRow, b: CompetitorRow, key: SortKey): number {
   return (av as number) - (bv as number);
 }
 
-export function CompetitorsPanel({ rows }: { rows: CompetitorRow[] }) {
+export function CompetitorsPanel({
+  rows,
+  onServerSortChange,
+}: {
+  rows: CompetitorRow[];
+  onServerSortChange?: (sort: "sources" | "citations") => void;
+}) {
   const t = useT();
   const dash = t("common.dash");
   const [sortKey, setSortKey] = useState<SortKey>("appearances_sources");
@@ -66,6 +79,8 @@ export function CompetitorsPanel({ rows }: { rows: CompetitorRow[] }) {
     } else {
       setSortKey(key);
       setDir(DEFAULT_DIR[key]);
+      const serverSort = SERVER_SORT[key];
+      if (serverSort) onServerSortChange?.(serverSort);
     }
   }
 

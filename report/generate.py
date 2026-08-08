@@ -23,6 +23,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from pipeline.db import (
+    find_brand_domains,
+    find_brand_id,
     get_conn,
     get_domain_stats,
     get_latest_audit,
@@ -204,17 +206,13 @@ def _load_metrics_for_run(conn: sqlite3.Connection, run_id: int) -> dict[str, Le
 
 def _resolve_brand_id(conn: sqlite3.Connection, name: str, domain: str) -> Optional[int]:
     norm = normalize_target(domain)
-    row = conn.execute(
-        "SELECT id FROM brands WHERE name = ? AND domain = ?", (name, norm)
-    ).fetchone()
-    if row is not None:
-        return int(row["id"])
+    brand_id = find_brand_id(conn, name, domain)
+    if brand_id is not None:
+        return brand_id
 
-    same_name = conn.execute(
-        "SELECT domain FROM brands WHERE name = ? ORDER BY domain", (name,)
-    ).fetchall()
+    same_name = find_brand_domains(conn, name)
     if same_name:
-        domains = ", ".join(r["domain"] for r in same_name)
+        domains = ", ".join(same_name)
         raise ValueError(
             f"brand name {name!r} exists but not for domain {norm!r}; "
             f"known domain(s) for this name: {domains}. "

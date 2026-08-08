@@ -8,12 +8,17 @@ import pytest
 from pipeline.db import (
     _utcnow_iso,
     create_run,
+    find_brand_domains,
+    find_brand_id,
     find_unfinished_run,
     get_captured_keys,
     get_conn,
+    get_latest_audit,
     get_lens_sentiments,
     get_or_create_brand,
     init_db,
+    insert_audit,
+    normalize_brand_name,
     update_run_counts,
     upsert_lens_sentiment,
 )
@@ -223,6 +228,92 @@ def test_get_or_create_brand_same_name_different_domain_is_distinct(empty_conn):
         "SELECT COUNT(*) FROM brands WHERE name = ?", ("Example",)
     ).fetchone()[0]
     assert total == 2
+
+
+def test_get_or_create_brand_folds_case_on_same_domain(empty_conn):
+    first = get_or_create_brand(empty_conn, "RentalBikes", "rentalbikes.ru")
+    second = get_or_create_brand(empty_conn, "rentalbikes", "https://rentalbikes.ru/")
+    assert first == second
+    total = empty_conn.execute(
+        "SELECT COUNT(*) FROM brands WHERE domain = ?", ("rentalbikes.ru",)
+    ).fetchone()[0]
+    assert total == 1
+
+
+def test_get_or_create_brand_folds_case_for_non_ascii_names(empty_conn):
+    first = get_or_create_brand(empty_conn, "Аскона", "askona.ru")
+    second = get_or_create_brand(empty_conn, "аскона", "askona.ru")
+    assert first == second
+
+
+def test_get_or_create_brand_normalizes_surrounding_whitespace(empty_conn):
+    first = get_or_create_brand(empty_conn, "  Example  Brand ", "example.com")
+    second = get_or_create_brand(empty_conn, "Example Brand", "example.com")
+    assert first == second
+    stored = empty_conn.execute(
+        "SELECT name FROM brands WHERE id = ?", (first,)
+    ).fetchone()["name"]
+    assert stored == "Example Brand"
+
+
+def test_find_brand_id_prefers_exact_name_over_case_variant(empty_conn):
+    empty_conn.execute(
+        "INSERT INTO brands (name, domain, created_at) VALUES "
+        "('rentalbikes', 'rentalbikes.ru', '2026-01-01T00:00:00+00:00')"
+    )
+    exact = get_or_create_brand(empty_conn, "RentalBikes", "rentalbikes.ru")
+    empty_conn.execute(
+        "INSERT INTO brands (name, domain, created_at) VALUES "
+        "('RENTALBIKES', 'rentalbikes.ru', '2026-01-01T00:00:00+00:00')"
+    )
+    assert find_brand_id(empty_conn, "RentalBikes", "rentalbikes.ru") == exact
+
+
+def test_find_brand_id_returns_none_for_unknown_brand(empty_conn):
+    get_or_create_brand(empty_conn, "Example", "example.com")
+    assert find_brand_id(empty_conn, "Example", "other.example") is None
+    assert find_brand_id(empty_conn, "Nobody", "example.com") is None
+
+
+def test_find_brand_domains_is_case_insensitive(empty_conn):
+    get_or_create_brand(empty_conn, "Example", "example.com")
+    get_or_create_brand(empty_conn, "Example", "example.io")
+    assert find_brand_domains(empty_conn, "eXaMpLe") == ["example.com", "example.io"]
+    assert find_brand_domains(empty_conn, "Missing") == []
+
+
+def test_normalize_brand_name_collapses_inner_whitespace():
+    assert normalize_brand_name("  Example   Brand \n") == "Example Brand"
+
+
+def _insert_audit_row(conn, engine, verdict="ready", checked_at="2026-08-01T00:00:00+00:00"):
+    insert_audit(
+        conn, "example.com", "example.com", engine, checked_at,
+        verdict, 90, verdict == "blocked", '{"engine": %s}' % (
+            'null' if engine is None else f'"{engine}"'
+        ),
+    )
+
+
+def test_get_latest_audit_never_returns_another_engines_audit(empty_conn):
+    _insert_audit_row(empty_conn, "google")
+    assert get_latest_audit(empty_conn, "example.com", "google") is not None
+    assert get_latest_audit(empty_conn, "example.com", "chatgpt_search") is None
+
+
+def test_get_latest_audit_without_engine_returns_the_newest_row(empty_conn):
+    _insert_audit_row(empty_conn, "google", checked_at="2026-08-01T00:00:00+00:00")
+    _insert_audit_row(empty_conn, "chatgpt_search", checked_at="2026-08-02T00:00:00+00:00")
+    row = get_latest_audit(empty_conn, "example.com")
+    assert row is not None and row["engine"] == "chatgpt_search"
+
+
+def test_get_latest_audit_picks_the_newest_row_for_the_requested_engine(empty_conn):
+    _insert_audit_row(empty_conn, "google", verdict="blocked", checked_at="2026-08-01T00:00:00+00:00")
+    _insert_audit_row(empty_conn, "google", verdict="ready", checked_at="2026-08-03T00:00:00+00:00")
+    _insert_audit_row(empty_conn, "chatgpt_search", checked_at="2026-08-04T00:00:00+00:00")
+    row = get_latest_audit(empty_conn, "example.com", "google")
+    assert row is not None and row["verdict"] == "ready"
 
 
 def test_create_run_inserts_running_with_defaults(empty_conn):

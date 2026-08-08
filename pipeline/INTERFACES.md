@@ -328,7 +328,7 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - `get_captured_keys(conn, run_id) -> set[tuple[str, str]]` (the `(query, lens)` pairs already in `results` for the run — the resume diff source)
 - `find_unfinished_run(conn, brand_id, engine) -> int | None` (most recent `status='running'` run for that brand+engine — the crashed run to resume, or `None`)
 - `insert_audit(conn, target, domain, engine, checked_at, verdict, score, blocked, result_json) -> int` (appends one `audits` row, §7; returns its id)
-- `get_latest_audit(conn, domain, engine=None) -> dict | None` (most recent audit for the registrable `domain`, preferring an `engine`-matched row then any; returns `None` if the `audits` table is absent — read-only-API safe)
+- `get_latest_audit(conn, domain, engine=None) -> dict | None` (most recent audit for the registrable `domain`. **`engine` matches strictly**: given an engine, only that engine's row is returned — never another engine's, because A3 is engine-aware and one engine's crawl verdict does not transfer to another. `engine=None` returns the most recent row for the domain whatever its engine. Returns `None` if the `audits` table is absent — read-only-API safe)
 
 ### 2.1 Run lifecycle, incremental ingest & resume
 
@@ -762,7 +762,7 @@ they appear in `model_dump()` / STDOUT but are recomputed on read.
 |---|---|---|
 | `target` | string | the audited target, `normalize_target` (registrable domain or URL prefix). |
 | `domain` | string | registrable domain (`normalize_domain` of the target host) — the storage / report join key. |
-| `engine` | string \| null | the engine the audit ran for; makes **A3 engine-aware** (`audit.bots.gating_ua`). `null` = generic (`Googlebot`). |
+| `engine` | string \| null | the engine the audit ran for; makes **A3 engine-aware** (`audit.bots.gating_ua`). `null` = generic (`Googlebot`). An engine with **no published search-bot UA** (`audit.bots.is_engine_mapped` false, e.g. `deepseek`) makes A3 `skip`, never `fail` — see §7.2. |
 | `checked_at` | string (ISO-8601) | when the audit ran. |
 | `checks` | array of `CheckResult` | every check evaluated. |
 | `blockers` | array of string | *(computed)* ids of `blocker` checks that `fail`. |
@@ -775,7 +775,7 @@ they appear in `model_dump()` / STDOUT but are recomputed on read.
 | flag | default | meaning |
 |---|---|---|
 | `--domain <d>` | — (required) | target: registrable domain (`example.com`) or URL prefix (`github.com/user/repo`). |
-| `--engine <e>` | *(none)* | engine context → **A3 blocker is that engine's search bot** (`google`→`Googlebot`, `chatgpt_search`→`OAI-SearchBot`, …; `CHECKS.md §2`). Omitted → generic (`Googlebot`). |
+| `--engine <e>` | *(none)* | engine context → **A3 blocker is that engine's search bot** (`google`→`Googlebot`, `chatgpt_search`→`OAI-SearchBot`, …; `CHECKS.md §2`). Omitted → generic (`Googlebot`). An engine **absent from `ENGINE_GATING_UA`** (no published search-bot UA — `deepseek` today) does **not** silently fall back to `Googlebot` for grading: A3 returns `skip` (excluded from `score`, never a blocker) and A3b reports every blocked search bot instead. |
 | `--no-cache` | off | force a fresh audit even if a recent one exists. |
 | `--max-age <s>` | `86400` | cache TTL: reuse the latest stored audit for this `domain` if newer than this. |
 | `--db <path>` | `data/aeo.db` | SQLite DB (the `audits` table doubles as history + cache). |
@@ -804,6 +804,10 @@ they appear in `model_dump()` / STDOUT but are recomputed on read.
   HTTPS/reachability, `A2` homepage 200, `A3` the engine's search bot not blocked in
   `robots.txt`, `A5` content in raw HTML (not JS-only). All of B/C/D is advisory. Authority for
   the exact criteria and remediation: `audit/CHECKS.md`.
+- A blocker whose **premise is unknown does not block**: when the engine has no published
+  search-bot UA, A3 grades nothing rather than grading the wrong bot. A false hard-stop on a
+  readable site costs more trust than a missed warning (same principle as A5 warning on
+  thin-but-server-rendered HTML).
 - The friendly human write-up is the **skill's** job (it is already an LLM), not the gate's — the
   gate stays deterministic and only emits structured JSON (same division as `lens_sentiment`
   prose vs `aggregate` math).

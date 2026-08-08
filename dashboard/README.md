@@ -121,8 +121,9 @@ row per engine of the brand, carrying all seven §4 metrics for the requested `l
 `run`/`n_runs`; `period=today` reads each engine's latest completed run, `period=all` rolls each
 engine up like `/api/metrics`). Engines are shown **side by side and never blended** into one
 cross-engine number — each engine has its own grounded-answer gate semantics, so a blended
-average would be dishonest. In compare mode the single-engine panels are hidden and the PDF
-button is disabled; clicking an engine row drills into that engine's full view.
+average would be dishonest. In compare mode the single-engine panels are hidden while the PDF
+button stays enabled and downloads the combined multi-engine document (`engine=all`, above);
+clicking an engine row drills into that engine's full view.
 
 Each metrics row carries all **seven** §4 metrics, including
 **`n_brand_mentions`/`brand_mention_rate`** (share of grounded answers whose prose mentions
@@ -161,7 +162,10 @@ is broader than the prefix; the funnel metrics (sources/citations) remain prefix
 `/api/audit` returns the **latest GEO-readiness audit** for the brand (the `audits` table,
 INTERFACES §7). The brand's `domain` (which may be a URL prefix) is reduced to its registrable
 domain via `normalize_domain`, then `get_latest_audit` returns the most recent stored
-`AuditResult` for that domain (preferring an `engine`-matched row, else any). The response is a
+`AuditResult` for that domain. When `engine` is given the match is **strict** — only that
+engine's audit, never another engine's, because A3 (crawl access) is graded per engine and one
+engine's verdict says nothing about another's; with no audit for that engine the panel shows
+"no audit" rather than a misleading one. The response is a
 wrapper `{brand_id, engine, domain, audit}` where `audit` is the full `AuditResult` JSON
 (`verdict`, `score`, `passed`, `blockers`, and the per-check list with `severity`/`status`/
 `detail`/`remediation`) or `null` when the brand has no audit yet. Like the audit itself, the

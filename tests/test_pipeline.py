@@ -180,14 +180,18 @@ def _cap(
     source_ranks: list[int],
     citation_ranks: list[int],
 ) -> QueryCapture:
-    sources = [
-        {"rank": r, "url": f"https://example.com/{r}", "domain": "example.com"}
-        for r in source_ranks
-    ]
-    citations = [
-        {"rank": r, "url": f"https://example.com/c{r}", "domain": "example.com"}
-        for r in citation_ranks
-    ]
+    def _fill(ranks: list[int], path: str) -> list[dict]:
+        depth = max(ranks) if ranks else 0
+        target = set(ranks)
+        return [
+            {"rank": r, "url": f"https://example.com/{path}{r}", "domain": "example.com"}
+            if r in target
+            else {"rank": r, "url": f"https://filler{r}.org/x", "domain": f"filler{r}.org"}
+            for r in range(1, depth + 1)
+        ]
+
+    sources = _fill(source_ranks, "")
+    citations = _fill(citation_ranks, "c")
     return QueryCapture.model_validate(
         {
             "query": f"{lens}-q{next(_CAP_SEQ)}",

@@ -22,6 +22,7 @@ class RobotsAnalysis(BaseModel):
     malformed: bool
     sitemaps: list[str]
     policies: list[BotPolicy]
+    unreadable: bool = False
 
 
 _SITEMAP_RE = re.compile(r"^\s*sitemap\s*:\s*(\S+)", re.IGNORECASE)
@@ -60,6 +61,7 @@ def analyze_robots(text: Optional[str], status: Optional[int]) -> RobotsAnalysis
             malformed=False,
             sitemaps=[],
             policies=_all_allowed(),
+            unreadable=status is None or status >= 500,
         )
     try:
         rp = Protego.parse(body)

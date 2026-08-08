@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 Lens = Literal["general", "branded", "comparative"]
+
+Rank = Annotated[int, Field(gt=0)]
 
 
 class Link(BaseModel):
 
-    rank: int
+    rank: Rank
     url: str
     domain: str
 
@@ -26,8 +28,8 @@ class QueryCapture(BaseModel):
     overview_present: bool
     sources: list[Link] = []
     citations: list[Link] = []
-    target_source_ranks: list[int] = []
-    target_citation_ranks: list[int] = []
+    target_source_ranks: list[Rank] = []
+    target_citation_ranks: list[Rank] = []
     brand_in_answer_text: bool
     sentiment: Optional[str] = None
 
@@ -47,6 +49,16 @@ class QueryCapture(BaseModel):
                 "target_citation_ranks non-empty requires non-empty "
                 "target_source_ranks (a cited target is also a source)"
             )
+        for field, ranks, links in (
+            ("target_source_ranks", self.target_source_ranks, self.sources),
+            ("target_citation_ranks", self.target_citation_ranks, self.citations),
+        ):
+            over = [r for r in ranks if r > len(links)]
+            if over:
+                raise ValueError(
+                    f"{field} points past the end of the array it indexes: "
+                    f"{sorted(over)} with only {len(links)} entries"
+                )
         return self
 
 

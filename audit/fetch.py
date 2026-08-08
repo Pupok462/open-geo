@@ -93,7 +93,7 @@ def gather(
         )
         target_page: Optional[Fetched] = None
         if norm != domain:
-            target_page = fetch(client, f"https://{norm}/", timeout=timeout)
+            target_page = fetch(client, f"https://{norm}", timeout=timeout)
     finally:
         if owned:
             client.close()

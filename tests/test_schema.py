@@ -217,9 +217,13 @@ def test_link_rank_non_integer_string_raises():
     assert err["loc"] == ("rank",)
 
 
-def test_link_rank_negative_is_accepted():
-    link = Link(rank=-3, url="u", domain="d")
-    assert link.rank == -3
+@pytest.mark.parametrize("bad", [0, -3])
+def test_link_rank_must_be_one_based(bad):
+    with pytest.raises(ValidationError) as exc:
+        Link(rank=bad, url="u", domain="d")
+    err = exc.value.errors()[0]
+    assert err["loc"] == ("rank",)
+    assert err["type"] == "greater_than"
 
 
 @pytest.mark.parametrize("missing", ["rank", "url", "domain"])
@@ -578,11 +582,20 @@ def test_link_rank_non_numeric_string_raises_parsing():
 
 def test_link_rank_bool_true_coerces_to_one():
     assert Link(rank=True, url="u", domain="d").rank == 1
-    assert Link(rank=False, url="u", domain="d").rank == 0
+    with pytest.raises(ValidationError):
+        Link(rank=False, url="u", domain="d")
 
 
-def test_link_rank_zero_accepted():
-    assert Link(rank=0, url="u", domain="d").rank == 0
+def test_target_ranks_may_not_point_past_the_arrays_they_index():
+    with pytest.raises(ValidationError) as exc:
+        QueryCapture.model_validate(
+            {
+                **_min_capture(),
+                "sources": [{"rank": 1, "url": "u", "domain": "a.com"}],
+                "target_source_ranks": [1, 7],
+            }
+        )
+    assert "points past the end" in str(exc.value)
 
 
 def test_link_str_fields_do_not_coerce_from_int():
@@ -632,8 +645,17 @@ def test_query_capture_bool_out_of_range_raises(bad):
 
 
 def test_query_capture_rank_lists_coerce_strings_to_int():
+    sources = [
+        {"rank": n, "url": f"https://x{n}.com/", "domain": f"x{n}.com"} for n in (1, 2, 3)
+    ]
     cap = QueryCapture.model_validate(
-        {**_min_capture(), "target_source_ranks": ["1", "2"], "target_citation_ranks": [3.0]}
+        {
+            **_min_capture(),
+            "sources": sources,
+            "citations": sources,
+            "target_source_ranks": ["1", "2"],
+            "target_citation_ranks": [3.0],
+        }
     )
     assert cap.target_source_ranks == [1, 2]
     assert all(isinstance(x, int) for x in cap.target_source_ranks)

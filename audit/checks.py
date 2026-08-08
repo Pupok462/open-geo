@@ -124,10 +124,26 @@ def _check_a2(artifacts: SiteArtifacts) -> CheckResult:
 
 
 def _check_a3(robots: RobotsAnalysis, engine: Optional[str]) -> CheckResult:
+    label = engine or "generic"
+    if robots.unreadable:
+        return _c(
+            "A3", "A", "robots.txt allows the engine's search bot", "blocker", "skip",
+            "robots.txt could not be read (server error or timeout), so crawl access "
+            "was not verified. Crawlers treat an unreadable robots.txt as a full "
+            "disallow, so re-check once it serves 200 or 404.",
+            "Serve /robots.txt with HTTP 200 (or 404 if you have none).",
+        )
+    if not bots.is_engine_mapped(engine):
+        return _c(
+            "A3", "A", "robots.txt allows the engine's search bot", "blocker", "skip",
+            f"No published search-bot user-agent is mapped for '{label}', so robots.txt "
+            f"cannot be graded as a citation blocker for this engine. Other search bots "
+            f"are still reported by A3b.",
+            ROBOTS_ALLOW,
+        )
     gua = bots.gating_ua(engine)
     pol = next((p for p in robots.policies if p.ua == gua), None)
     allowed = pol.allowed if pol is not None else True
-    label = engine or "generic"
     if not allowed:
         return _c(
             "A3", "A", "robots.txt allows the engine's search bot", "blocker", "fail",
@@ -141,7 +157,7 @@ def _check_a3(robots: RobotsAnalysis, engine: Optional[str]) -> CheckResult:
 
 
 def _check_a3b(robots: RobotsAnalysis, engine: Optional[str]) -> CheckResult:
-    gua = bots.gating_ua(engine)
+    gua = bots.gating_ua(engine) if bots.is_engine_mapped(engine) else None
     other = [
         p.ua for p in robots.policies
         if p.tier == "search" and not p.allowed and p.ua != gua
@@ -151,6 +167,11 @@ def _check_a3b(robots: RobotsAnalysis, engine: Optional[str]) -> CheckResult:
         f" Training bots blocked (a policy choice, not a citation block): {', '.join(training)}."
         if training else ""
     )
+    if robots.unreadable:
+        return _c("A3b", "A", "robots.txt hygiene", "recommended", "warn",
+                  "robots.txt could not be read (server error or timeout) — crawl "
+                  "access is unverified, not confirmed.",
+                  "Serve /robots.txt with HTTP 200 (or 404 if you have none).")
     if not robots.present:
         return _c("A3b", "A", "robots.txt hygiene", "recommended", "skip",
                   "No robots.txt — everything is allowed." + tnote)

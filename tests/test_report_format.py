@@ -454,6 +454,25 @@ def test_resolve_brand_id_unknown_name_is_none(seeded_db_path):
         conn.close()
 
 
+def test_resolve_brand_id_is_case_insensitive(seeded_db_path):
+    conn = get_conn(seeded_db_path)
+    try:
+        assert _resolve_brand_id(conn, "eXaMpLe", "example.com") == 1
+    finally:
+        conn.close()
+
+
+def test_resolve_brand_id_wrong_domain_message_matches_case_insensitively(
+    seeded_db_path,
+):
+    conn = get_conn(seeded_db_path)
+    try:
+        with pytest.raises(ValueError, match="example.com"):
+            _resolve_brand_id(conn, "EXAMPLE", "totally-different.example")
+    finally:
+        conn.close()
+
+
 def test_resolve_brand_id_same_name_different_domain_no_arbitrary_pick(empty_db_path):
     conn = get_conn(empty_db_path)
     try:

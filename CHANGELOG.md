@@ -8,6 +8,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-08-08
+
+A correctness and stability pass. Every item below could previously produce either a false
+hard-stop before a run, or a number that looked right and was not.
+
+### Fixed
+- Brand names now resolve case- and whitespace-insensitively within a domain, so `--brand
+  "Acme"` and `--brand "acme"` no longer split one brand's history into two.
+- The pre-run audit no longer grades an engine against an unrelated crawler. An engine with no
+  published search-bot user agent (DeepSeek today) makes the robots.txt blocker `skip` instead
+  of silently falling back to Googlebot and hard-stopping the run.
+- A robots.txt that could not be read (server error or timeout) is now reported as unverified
+  rather than as "no robots.txt, everything is allowed".
+- An audit is never served for a different engine than the one asked for — including as the
+  gate's own cache, where a Google audit could answer a ChatGPT check.
+- Framework detection no longer matches ordinary words ("gastronomy" was read as Astro), which
+  could turn a server-rendered page into a JS-only hard block.
+- A URL-prefix target is fetched as given instead of with a forced trailing slash, so a file
+  target no longer 404s and blocks the run.
+- Link ranks are validated as 1-based, so a zero-based mistake can no longer report an average
+  position better than first place.
+- `/api/timeseries` no longer errors on a database created before the `relative_citation`
+  column existed.
+- The top-domains leaderboard asks the server to re-rank when you sort by citations, instead of
+  re-sorting only the top 15 rows it already had.
+- An interrupted run is only resumed when it holds a subset of the current question set;
+  otherwise a fresh run is created and the abandoned one is named.
+
+### Changed
+- The command reference in all four READMEs now documents `--force` and `--repeat`, which
+  existed but were missing from the signature and the argument table.
+
 ## [0.3.1] — 2026-08-03
 
 ### Added

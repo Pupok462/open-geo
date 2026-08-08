@@ -197,7 +197,8 @@ Python: Claude orchestrates capture → metrics → deliverables and hands you a
 
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
-          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar]
+          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] \
+          [--force] [--repeat R]
 ```
 
 | argument | meaning |
@@ -210,6 +211,8 @@ Python: Claude orchestrates capture → metrics → deliverables and hands you a
 | `--output` | `dashboard` (default) \| `pdf` \| `both`. |
 | `--period` | `all` (default — full brand+engine history, with the trend chart) \| `today` (this run only). |
 | `--lang` | UI language of the deliverables — `en` (default) \| `ru` \| `zh` \| `ar`. |
+| `--force` | continue even when the pre-run GEO-audit gate returns `blocked` (it warns loudly instead of stopping). |
+| `--repeat R` | run the same question set **R** independent times under one group tag; the dashboard then shows the mean with a min–max spread instead of run-over-run deltas. Default `1`. |
 
 What it does, end to end: creates a run → splits the queries across **parallel** capture workers
 (each drives the engine in your logged-in Chrome and returns one validated record per query) →

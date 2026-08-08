@@ -143,8 +143,17 @@ def test_gather_path_target_adds_target_page():
     assert arts.target == "github.com/user/repo"
     assert isinstance(arts.target_page, Fetched)
     assert arts.target_page.ok is True
-    assert "https://github.com/user/repo/" in requested
+    assert "https://github.com/user/repo" in requested
+    assert "https://github.com/user/repo/" not in requested
     assert len(requested) == 7
+
+
+def test_gather_file_like_target_is_fetched_without_a_trailing_slash():
+    requested = []
+    with _client(_capturing_handler(requested)) as client:
+        arts = gather("github.com/user/repo/blob/main/readme.md", client=client)
+    assert arts.target == "github.com/user/repo/blob/main/readme.md"
+    assert "https://github.com/user/repo/blob/main/readme.md" in requested
 
 
 def test_gather_creates_client_when_none(monkeypatch):

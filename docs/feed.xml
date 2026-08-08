@@ -5,8 +5,24 @@
   <link href="https://pupok462.github.io/open-geo/feed.xml" rel="self"/>
   <link href="https://pupok462.github.io/open-geo/"/>
   <id>https://pupok462.github.io/open-geo/</id>
-  <updated>2026-08-02T00:00:00Z</updated>
+  <updated>2026-08-08T00:00:00Z</updated>
   <author><name>open-geo contributors</name></author>
+
+  <entry>
+    <title>0.3.2 — correctness and stability pass</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#032--2026-08-08"/>
+    <id>tag:github.com,2026:open-geo/0.3.2</id>
+    <updated>2026-08-08T00:00:00Z</updated>
+    <summary>Ten fixes to cases that could stop a run that should have proceeded, or report a number that looked right and was not: engine-aware audit gating, unreadable robots.txt, framework false positives, brand-name splitting, 1-based rank validation, and a leaderboard that now ranks server-side.</summary>
+  </entry>
+
+  <entry>
+    <title>0.3.1 — README rework, project page, structured data</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#031--2026-08-03"/>
+    <id>tag:github.com,2026:open-geo/0.3.1</id>
+    <updated>2026-08-03T00:00:00Z</updated>
+    <summary>A README that opens with a direct definition in four languages, a comparison section and expanded FAQ, and a GitHub Pages project page carrying SoftwareApplication and FAQPage structured data.</summary>
+  </entry>
 
   <entry>
     <title>0.3.0 — repeat runs, weekly trend, combined multi-engine PDF</title>

@@ -11,7 +11,7 @@
       "name": "open-geo",
       "source": "./",
       "description": "GEO visibility tracker: run queries through an AI engine, measure a target domain's visibility/citation in the answers, and emit a dashboard or PDF report.",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "license": "MIT",
       "homepage": "https://github.com/Pupok462/open-geo",
       "keywords": [

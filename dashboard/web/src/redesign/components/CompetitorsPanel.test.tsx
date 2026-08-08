@@ -150,4 +150,34 @@ describe("CompetitorsPanel — sorting", () => {
     fireEvent.click(screen.getByText("In citations"));
     expect(topDomain()).toContain("a.com");
   });
+
+  it("asks the server to re-rank when the sorted axis changes", () => {
+    const onServerSortChange = vi.fn();
+    renderWithProviders(
+      <CompetitorsPanel rows={rows} onServerSortChange={onServerSortChange} />,
+    );
+
+    fireEvent.click(screen.getByText("In citations"));
+    expect(onServerSortChange).toHaveBeenCalledWith("citations");
+
+    fireEvent.click(screen.getByText("In sources"));
+    expect(onServerSortChange).toHaveBeenLastCalledWith("sources");
+  });
+
+  it("does not re-query the server for a client-only column or a direction toggle", () => {
+    const onServerSortChange = vi.fn();
+    renderWithProviders(
+      <CompetitorsPanel rows={rows} onServerSortChange={onServerSortChange} />,
+    );
+
+    fireEvent.click(screen.getByText("Domain"));
+    fireEvent.click(screen.getByText("Domain"));
+    expect(onServerSortChange).not.toHaveBeenCalled();
+  });
+
+  it("works without the callback", () => {
+    renderWithProviders(<CompetitorsPanel rows={rows} />);
+    fireEvent.click(screen.getByText("In citations"));
+    expect(topDomain()).toContain("a.com");
+  });
 });

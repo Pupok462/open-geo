@@ -45,6 +45,9 @@ function Dashboard() {
   const [period, setPeriod] = useState<"today" | "all">("today");
   const [lens, setLens] = useState<string>("all");
   const [bucket, setBucket] = useState<"run" | "week">("run");
+  const [competitorSort, setCompetitorSort] = useState<"sources" | "citations">(
+    "sources",
+  );
 
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesResponse | null>(null);
@@ -100,7 +103,7 @@ function Dashboard() {
         api.runs(brandId, engine),
         api.metrics(brandId, engine, period),
         api.timeseries(brandId, engine, lens, bucket),
-        api.competitors(brandId, engine, period, lens),
+        api.competitors(brandId, engine, period, lens, 15, competitorSort),
         api.audit(brandId, engine),
       ]);
       setMetrics(m);
@@ -121,7 +124,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [brandId, engine, period, lens, bucket]);
+  }, [brandId, engine, period, lens, bucket, competitorSort]);
 
   useEffect(() => {
     void loadAll();
@@ -372,7 +375,10 @@ function Dashboard() {
           ) : undefined
         }
       >
-        <CompetitorsPanel rows={competitors?.domains ?? []} />
+        <CompetitorsPanel
+          rows={competitors?.domains ?? []}
+          onServerSortChange={setCompetitorSort}
+        />
       </Panel>
 
       <Panel

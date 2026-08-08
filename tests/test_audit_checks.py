@@ -194,6 +194,55 @@ def test_a3b_pass_clean():
     assert _build()["A3b"].status == "pass"
 
 
+def test_a3_skips_when_robots_is_unreadable_instead_of_asserting_access():
+    from audit.robots import analyze_robots
+
+    for status in (500, 503, None):
+        robots = analyze_robots(None, status)
+        assert robots.unreadable is True
+        checks = _build(robots=robots, engine="google")
+        assert checks["A3"].status == "skip"
+        assert checks["A3b"].status == "warn"
+        assert "unverified" in checks["A3b"].detail or "not verified" in checks["A3"].detail
+
+
+def test_a3_still_passes_when_robots_is_absent_404():
+    from audit.robots import analyze_robots
+
+    robots = analyze_robots(None, 404)
+    assert robots.unreadable is False
+    checks = _build(robots=robots, engine="google")
+    assert checks["A3"].status == "pass"
+    assert checks["A3b"].status == "skip"
+
+
+def test_a3_skips_for_engine_without_a_published_search_bot():
+    checks = _build(robots=_robots(blocked={"Googlebot"}), engine="deepseek")
+    assert checks["A3"].status == "skip"
+    assert checks["A3"].severity == "blocker"
+    assert "deepseek" in checks["A3"].detail
+
+
+def test_unmapped_engine_never_produces_a_blocker_from_robots():
+    blocking_robots = "User-agent: Googlebot\nDisallow: /"
+    blocked = run_audit(
+        "example.com", engine="google", client=_client(robots=blocking_robots)
+    )
+    assert "A3" in blocked.blockers
+
+    unmapped = run_audit(
+        "example.com", engine="deepseek", client=_client(robots=blocking_robots)
+    )
+    assert "A3" not in unmapped.blockers
+    assert unmapped.verdict != "blocked"
+
+
+def test_a3b_reports_the_gating_bot_when_the_engine_is_unmapped():
+    checks = _build(robots=_robots(blocked={"Googlebot"}), engine="deepseek")
+    assert checks["A3b"].status == "warn"
+    assert "Googlebot" in checks["A3b"].detail
+
+
 # ---- A4 ----
 
 def test_a4_pass_valid_and_referenced():

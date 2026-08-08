@@ -36,7 +36,8 @@ ambiguous — the shapes there win over this prose.
 
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
-          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] [--force]
+          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] \
+          [--force] [--repeat R]
 ```
 
 ### Positional arguments
@@ -100,7 +101,9 @@ Before STEP A, probe the current working directory with `Read`:
 Run this after the STEP R guard, before STEP 0. Goal: end up with every required parameter resolved.
 
 **Required:** `questions.csv`, `engine`, `domain`, `--brand`, `--n-worker`.
-**Optional (defaults):** `--output` (`dashboard`), `--period` (`all`), `--lang` (`en`).
+**Optional (defaults):** `--output` (`dashboard`), `--period` (`all`), `--lang` (`en`),
+`--force` (off — overrides a `blocked` audit-gate verdict, STEP 0), `--repeat` (`1` — R
+independent captures of the same CSV under one group tag, STEP 1).
 
 1. **Parse the invocation** — gather values from positional args, flags, AND anything the user
    expressed in free text (e.g. "measure example.com on google, 5 workers, pdf").
@@ -261,18 +264,34 @@ left `status='running'` by a crash (INTERFACES §2.1). Look before creating anyt
 
 ```bash
 .venv/bin/python -c "
-import json
-from pipeline.db import get_conn, init_db, get_or_create_brand, find_unfinished_run
+import csv, json
+from pipeline.db import (get_conn, init_db, get_or_create_brand,
+                         find_unfinished_run, get_captured_keys)
 conn = get_conn('data/aeo.db'); init_db(conn)
 bid = get_or_create_brand(conn, '<name>', '<domain>')
-print(json.dumps({'run_id': find_unfinished_run(conn, bid, '<engine>')}))
+rid = find_unfinished_run(conn, bid, '<engine>')
+out = {'run_id': rid, 'resumable': False, 'run_at': None, 'n_captured': 0}
+if rid is not None:
+    row = conn.execute('SELECT run_at FROM runs WHERE id = ?', (rid,)).fetchone()
+    with open('<questions.csv>', newline='', encoding='utf-8') as fh:
+        wanted = {(r['query'].strip(), r['lens'].strip()) for r in csv.DictReader(fh)}
+    captured = get_captured_keys(conn, rid)
+    out.update(run_at=row['run_at'], n_captured=len(captured),
+               resumable=captured <= wanted, n_missing=len(wanted - captured))
+print(json.dumps(out))
 "
 ```
 
-- **`run_id` non-null → an unfinished run exists.** Offer to **resume** it (reuse that
-  `run_id`; STEP 2 captures only the rows it is still missing) vs. start fresh. On the
-  **fast path** (loops/headless, all args supplied) **resume automatically** — unattended
-  recovery is the whole point. Keep the chosen `<run_id>` and skip the `--new-run` call.
+- **`run_id` non-null and `resumable` true → the unfinished run holds a subset of THIS
+  question set.** Offer to **resume** it (reuse that `run_id`; STEP 2 captures only the rows
+  it is still missing) vs. start fresh. On the **fast path** (loops/headless, all args
+  supplied) **resume automatically** — unattended recovery is the whole point. Keep the
+  chosen `<run_id>` and skip the `--new-run` call.
+- **`run_id` non-null but `resumable` false → do NOT resume, create a fresh run.** The
+  unfinished run was captured from a *different* question set; appending this CSV to it
+  would blend two question sets under one `run_id` and score them as one measurement.
+  Say plainly which run was left behind (`run_id`, `run_at`, `n_captured`) so the user can
+  finish or drop it later, then continue as if `run_id` were null.
 - **`run_id` null (or the user chose fresh) → create a fresh run** and capture its
   `run_id` from JSON stdout:
 

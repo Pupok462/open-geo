@@ -71,6 +71,10 @@ def bots_by_tier(tier: Tier) -> list[Bot]:
     return [b for b in AI_CRAWLERS if b.tier == tier]
 
 
+def is_engine_mapped(engine: Optional[str]) -> bool:
+    return engine is None or engine in ENGINE_GATING_UA
+
+
 def gating_ua(engine: Optional[str]) -> str:
     if engine and engine in ENGINE_GATING_UA:
         return ENGINE_GATING_UA[engine]
@@ -89,4 +93,5 @@ __all__ = [
     "bot",
     "bots_by_tier",
     "gating_ua",
+    "is_engine_mapped",
 ]

@@ -1305,6 +1305,49 @@ def _drop_lens_sentiment(db_path: str) -> None:
         conn.close()
 
 
+def _drop_metrics_columns(db_path: str, drop: tuple[str, ...]) -> None:
+    conn = get_conn(db_path)
+    try:
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(metrics)")]
+        keep = [c for c in cols if c not in drop]
+        conn.execute(
+            "CREATE TABLE metrics_legacy AS SELECT %s FROM metrics" % ", ".join(keep)
+        )
+        conn.execute("DROP TABLE metrics")
+        conn.execute("ALTER TABLE metrics_legacy RENAME TO metrics")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_timeseries_no_500_when_optional_metric_columns_absent(
+    make_client, dash_fixture_db_path
+):
+    _drop_metrics_columns(
+        dash_fixture_db_path,
+        ("relative_citation", "n_brand_mentions", "brand_mention_rate"),
+    )
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    for bucket in ("run", "week"):
+        resp = client.get(
+            "/api/timeseries",
+            params={"brand_id": example, "engine": ENGINE, "bucket": bucket},
+        )
+        assert resp.status_code == 200, resp.text
+        points = resp.json()["points"]
+        assert points
+        for point in points:
+            assert point["brand_mention_rate"] is None
+            assert point["n_brand_mentions"] is None
+
+    run_points = client.get(
+        "/api/timeseries",
+        params={"brand_id": example, "engine": ENGINE, "bucket": "run"},
+    ).json()["points"]
+    assert all(p["relative_citation"] is None for p in run_points)
+
+
 def test_metrics_today_no_500_when_lens_sentiment_table_absent(make_client, dash_fixture_db_path):
     _drop_lens_sentiment(dash_fixture_db_path)
     client = make_client(dash_fixture_db_path)
@@ -1574,12 +1617,24 @@ def test_audit_url_prefix_resolves_to_registrable_domain(make_client, seeded_db_
     assert body["audit"]["target"] == "github.com/user/repo"
 
 
-def test_audit_engine_none_row_is_returned_as_fallback(make_client, seeded_db_path):
+def test_audit_generic_row_is_not_served_for_a_specific_engine(
+    make_client, seeded_db_path
+):
     _insert_demo_audit(seeded_db_path, "example.com", "example.com", None)
     client = make_client(seeded_db_path)
     body = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE}).json()
-    assert body["audit"] is not None
-    assert body["audit"]["engine"] is None
+    assert body["audit"] is None
+
+
+def test_audit_never_serves_another_engines_row(make_client, seeded_db_path):
+    _insert_demo_audit(seeded_db_path, "example.com", "example.com", "chatgpt_search")
+    client = make_client(seeded_db_path)
+    body = client.get("/api/audit", params={"brand_id": 1, "engine": ENGINE}).json()
+    assert body["audit"] is None
+    other = client.get(
+        "/api/audit", params={"brand_id": 1, "engine": "chatgpt_search"}
+    ).json()
+    assert other["audit"] is not None
 
 
 def test_audit_no_engine_param(make_client, seeded_db_path):
