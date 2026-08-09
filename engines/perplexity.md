@@ -1,7 +1,7 @@
 # Capture Playbook — Perplexity (grounded answers)
 
 > **What this is.** A prompt for a Claude Code agent driving a **real, logged-in
-> Chrome** via the Claude-in-Chrome browser tools (`mcp__Claude_in_Chrome__*`).
+> Chrome** via the Claude-in-Chrome browser tools (`mcp__claude-in-chrome__*`).
 > You capture **ONE `(query, lens)`** into **exactly one `QueryCapture` JSON
 > object**. The orchestrator runs you once per query and collects the objects
 > into a batch array — **you do not emit the array, only your single object.**
