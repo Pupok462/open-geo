@@ -14,8 +14,8 @@ Key facts:
 - Capture method: an agent drives a visible, logged-in Chrome via the Claude-in-Chrome extension and
   reads the rendered answer, including the sources panel and the inline citation chips.
 - Engines supported: `google` (Google AI Overview), `chatgpt_search`, `claude_search`, `gemini`,
-  `yandex_neuro` (Yandex Alice), `deepseek`. A `perplexity` playbook is written and awaiting its
-  first live validation run.
+  `yandex_neuro` (Yandex Alice), `deepseek`, `perplexity` — seven engines, each live-validated
+  against the real interface.
 - Metrics: answer coverage, visibility in sources, visibility in citations, average source position,
   average citation position, relative citation (source-to-citation conversion), brand mention rate,
   plus a qualitative sentiment note and a top-domains leaderboard. There is deliberately no

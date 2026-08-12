@@ -34,7 +34,7 @@
 |---|---|
 | **这是什么** | 面向品牌或 URL 的 GEO / AI 可见度追踪器，以 **Claude Code 技能**的形式打包 |
 | **如何衡量** | 由代理在真实、已登录的浏览器里读取**渲染后**的 AI 回答（Claude-in-Chrome） |
-| **覆盖的引擎** | Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice（Нейро）、DeepSeek——Perplexity 剧本已写好，等待实机验证 |
+| **覆盖的引擎** | Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice（Нейро）、DeepSeek、Perplexity——七个均已完成实机验证 |
 | **报告什么** | 一条漏斗——回答覆盖率 → 来源可见度 → 引用可见度——外加位置、来源→引用转化率、品牌提及率、定性情感，以及热门域名排行榜 |
 | **交付物** | 本地仪表盘（FastAPI + React，四种语言）和主题化 PDF，数据来自本地 SQLite 历史 |
 | **运作模式** | **由你自己触发的按需审计**，而不是 7×24 的托管监控 |
@@ -77,7 +77,7 @@
 | | **open-geo** | **托管式 AI 可见度监控** | **自建 API / 抓取脚本** |
 |---|---|---|---|
 | **读取什么** | 真实已登录浏览器会话中**渲染后**的回答 | 由厂商运营的捕获流水线 | 引擎 API 或抓取到的 HTML 所返回的内容 |
-| **引擎覆盖** | 目前六个，含 **Yandex Alice** 与 **DeepSeek**；新增一个引擎写的是 markdown 剧本，而非解析器 | 由厂商路线图决定 | 你自己写、并且要一直维护 |
+| **引擎覆盖** | 目前七个，含 **Yandex Alice** 与 **DeepSeek**；新增一个引擎写的是 markdown 剧本，而非解析器 | 由厂商路线图决定 | 你自己写、并且要一直维护 |
 | **界面改版时** | 代理遵循自然语言剧本（`engines/<engine>.md`），结构变化只是改文件里的几个词 | 由厂商按其排期处理 | 标记一动就得你来修 |
 | **运作模式** | 由你触发并监督的**按需审计** | 面向大规模提示集的**持续**监控 | 取决于你怎么排程 |
 | **规模** | 每次运行几十到上百条查询；消耗推理与注意力 | 数千条提示，无需人工照看 | 受预算与速率限制约束 |
@@ -335,9 +335,9 @@ AEO（答案引擎优化）。它的衡量问题与 SEO 不同：没有排名位
 也可以作为插件安装：`/plugin marketplace add Pupok462/open-geo`。
 
 ### open-geo 能追踪哪些 AI 引擎？
-目前六个：**Google AI Overview、ChatGPT（联网搜索）、Claude（联网搜索）、Google Gemini、
-Yandex Alice / Нейро，以及 DeepSeek（联网搜索）**。Perplexity 的剧本已经写好，正等待首次实机
-验证运行。每个引擎都是 [`engines/`](engines/README.md) 下的一份自然语言剧本，因此新增引擎写的是
+目前七个：**Google AI Overview、ChatGPT（联网搜索）、Claude（联网搜索）、Google Gemini、
+Yandex Alice / Нейро、DeepSeek（联网搜索），以及 Perplexity**——七个均已在真实界面上完成实机
+验证。每个引擎都是 [`engines/`](engines/README.md) 下的一份自然语言剧本，因此新增引擎写的是
 markdown 文件，而不是解析器。
 
 ### 能追踪品牌在 Yandex Alice 或 DeepSeek 里的可见度吗？

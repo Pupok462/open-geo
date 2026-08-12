@@ -77,6 +77,14 @@ publishes one, add it to `ENGINE_GATING_UA` (plus its `Bot` entry) and A3 starts
 `--engine` omitted entirely (generic audit) → `DEFAULT_GATING_UA = "Googlebot"` (broadest
 reach), and A3 does grade it; other search bots stay advisory via A3b.
 
+**robots.txt we could not read → A3 is `skip`, never `pass`.** Same rule, other direction: a
+`404` is a real answer ("no robots.txt, everything is allowed") and stays a `pass`, but a
+**timeout, a 5xx, or a `429`** is not an answer. RFC 9309 tells crawlers to treat those as a
+full disallow, so we are not entitled to report access we never verified — the analysis flags
+`RobotsAnalysis.unreadable`, A3 goes `skip` (out of `score`, never a blocker) and A3b `warn`s
+that access is *unverified, not confirmed*. Other 4xx (`401`/`403`/`410`) follow the RFC's
+client-error rule and are treated like `404`.
+
 Source of the registry: official operator docs + the community `ai-robots-txt/ai.robots.txt`
 (MIT). Curated here because "which UA gates which engine" is a product decision, not raw data.
 
@@ -92,8 +100,8 @@ Severity 🔴 blocker · 🟡 recommended · ⚪ nice-to-have. Only 🔴 fails b
 |---|---|---|---|
 | **A1** | Domain resolves, HTTPS valid, HTTP→HTTPS redirect | 🔴 | **pass**: `https://<domain>/` returns a response over valid TLS. **warn**: https OK but `http://` does not redirect to https. **fail**: no response / DNS / TLS error (unreachable). |
 | **A2** | Homepage returns 200 (no 4xx/5xx, no long redirect chain) | 🔴 | **pass**: final status 200. **warn**: 200 but reached via >2 redirects. **fail**: 4xx/5xx or no final 200. |
-| **A3** | robots.txt does not block the engine's **search** bot | 🔴 | **pass**: the engine's gating search UA may fetch `/`. **fail**: it is disallowed (🔴 hard-block). Sub-signals folded into detail: other `search` bots blocked → the check is still `pass` for the engine but the detail lists them; they surface as **A3b** (🟡). |
-| **A3b** | Other search bots / robots hygiene | 🟡 | **pass**: no other `search`-tier bot blocked. **warn**: another `search` bot blocked, or robots.txt malformed. **skip**: no robots.txt (everything allowed). Training-tier blocks are reported as **informational only** (policy), never warn/fail. |
+| **A3** | robots.txt does not block the engine's **search** bot | 🔴 | **pass**: the engine's gating search UA may fetch `/`. **fail**: it is disallowed (🔴 hard-block). **skip**: the engine has no mapped search UA (see above), or robots.txt was **unreadable** (see below). Sub-signals folded into detail: other `search` bots blocked → the check is still `pass` for the engine but the detail lists them; they surface as **A3b** (🟡). |
+| **A3b** | Other search bots / robots hygiene | 🟡 | **pass**: no other `search`-tier bot blocked. **warn**: another `search` bot blocked, robots.txt malformed, or robots.txt unreadable (access unverified). **skip**: no robots.txt (everything allowed). Training-tier blocks are reported as **informational only** (policy), never warn/fail. |
 | **A4** | sitemap.xml present, valid XML, referenced in robots.txt | 🟡 | **pass**: `/sitemap.xml` 200 + well-formed XML + a `Sitemap:` line in robots.txt. **warn**: present but not referenced / not well-formed. **fail**: absent. |
 | **A5** | Primary content in raw HTML (SSR), not JS-only | 🔴 | **pass**: content is accessible without JS (see §4). **fail** (hard-block): JS-dependent **with SPA evidence** — an empty mount-root (`<div id="root">`…) or a framework marker. **warn** (advisory, does NOT block): JS-dependent by **thin text alone** with no SPA marker — the page is readable, just sparse (e.g. a landing/link page), so it is flagged not stopped. Precision matters: a hard-block on a readable-but-short page is a false stop (moat #3). |
 
@@ -224,8 +232,14 @@ def fetch(client: httpx.Client, url: str, *, timeout: float = 10.0) -> Fetched: 
 def gather(target: str, *, client: Optional[httpx.Client] = None,
            timeout: float = 10.0) -> SiteArtifacts: ...
 ```
-`fetch` never raises on network/HTTP error — it records `error` and leaves `status=None`.
-Tests inject an `httpx.Client(transport=httpx.MockTransport(...))`; no live network in tests.
+`fetch` **never raises** — any failure is recorded in `error` with `status=None`. "Any" is
+literal and load-bearing: not just `httpx.HTTPError`, but also the URL-level failures a
+user-supplied `--domain` can produce before a socket is ever opened (`httpx.InvalidURL` on a
+control character, `UnicodeError` on an over-long IDNA label). Those are not `HTTPError`
+subclasses, so catching only that class let them escape `gather` and abort the whole gate with
+a traceback instead of grading A1 `fail` — a bad domain must degrade into a readable verdict,
+never into a crash. Tests inject an `httpx.Client(transport=httpx.MockTransport(...))`; no live
+network in tests.
 
 ### `audit/robots.py`
 ```python
@@ -241,6 +255,7 @@ class RobotsAnalysis(BaseModel):
     malformed: bool                 # parse produced nothing usable
     sitemaps: list[str]             # Sitemap: directives
     policies: list[BotPolicy]       # one per bot in audit.bots.AI_CRAWLERS
+    unreadable: bool                # no answer at all: timeout / 5xx / 429 (see A3)
 
 def analyze_robots(text: Optional[str], status: Optional[int]) -> RobotsAnalysis: ...
 ```
@@ -249,6 +264,13 @@ Use `protego` (`Protego.parse(text)`, `.can_fetch("/", ua)`); absent robots (sta
 empty body) ⟹ everything allowed (`present=False`, `fetched = status==200`, all
 `allowed=True`). Extract `Sitemap:` lines (protego exposes them, else parse lines). One
 `BotPolicy` per `AI_CRAWLERS` bot, carrying its tier from `audit.bots`.
+
+`unreadable` is the narrower question "did we get an answer at all?", and only it drives the
+A3 `skip`: `status is None` (timeout / network error), `status >= 500`, or `status == 429` —
+the last two are what RFC 9309 calls *unavailable* and tells crawlers to read as a full
+disallow, and a request that never completed tells us even less than those do. It
+is deliberately **not** the same as `not present`: a `404` is an answer, so it stays readable
+and A3 passes.
 
 ### `audit/html.py`
 ```python

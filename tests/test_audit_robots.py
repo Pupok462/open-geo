@@ -169,3 +169,15 @@ def test_sitemaps_fallback_parses_lines_when_protego_raises():
 
 def test_sitemaps_from_text_ignores_non_sitemap_lines():
     assert robots._sitemaps_from_text("User-agent: *\nDisallow: /") == []
+
+
+@pytest.mark.parametrize("status", [429, 500, 503, None])
+def test_unavailable_robots_is_unreadable(status):
+    a = analyze_robots(None, status)
+    assert a.unreadable is True
+
+
+@pytest.mark.parametrize("status", [200, 403, 404, 410])
+def test_readable_or_absent_robots_is_not_unreadable(status):
+    a = analyze_robots("User-agent: *\nAllow: /", status)
+    assert a.unreadable is False

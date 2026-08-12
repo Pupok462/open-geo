@@ -8,6 +8,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-08-12
+
+### Added
+- **Perplexity is now a supported engine**, bringing the total to seven, all live-validated against
+  the real interface: Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice / Нейро, DeepSeek
+  and Perplexity.
+
+### Fixed
+- The Perplexity playbook described a source and citation layout that does not exist. It was drafted
+  against a numbered sources strip with inline `[N]` citation markers; the live interface has
+  unnumbered source cards and citation chips labelled with a shortened domain, where a single chip
+  may stand for several sources at once. A capture following the original text would have
+  under-counted citations without reporting any error. The playbook has been rewritten against the
+  live interface.
+- A malformed `--domain` no longer aborts the audit gate. The fetch layer caught only
+  `httpx.HTTPError`, but a domain string can fail before any request is made — a stray control
+  character or an over-long name raises `httpx.InvalidURL` / `UnicodeError`, which are not
+  `HTTPError` subclasses. Those escaped and killed the whole gate with a traceback; now every
+  failure degrades into the ordinary "unreachable" result and the gate returns a readable verdict.
+- A `robots.txt` that answers `429 Too Many Requests` is no longer read as "no robots.txt, so
+  everything is allowed". Like a timeout or a `5xx`, it is not an answer at all — RFC 9309 tells
+  crawlers to treat it as a full disallow — so the robots check now reports crawl access as
+  *unverified* instead of asserting access we never confirmed. A `404` remains a genuine pass.
+- The DeepSeek and Perplexity playbooks named the browser tools under a namespace that does not
+  exist (`mcp__Claude_in_Chrome__*` instead of `mcp__claude-in-chrome__*`).
+- The dashboard's PDF endpoint deleted none of the temp files it created: every download left one
+  behind in the system temp dir, and every failed render left a partial one. All paths clean up now.
+- `/api/metrics?period=all` omitted the `group` key that every other response shape carries.
+
+### Changed
+- The audit gate's own failure is now a documented outcome in the `/open-geo` skill: it means
+  *readiness unknown*, not *blocked*, and never silently hard-stops a run.
+
 ## [0.3.2] — 2026-08-08
 
 A correctness and stability pass. Every item below could previously produce either a false

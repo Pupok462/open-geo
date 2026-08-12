@@ -14,6 +14,7 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from pipeline.db import get_latest_audit, get_lens_sentiments
 from pipeline.schema import normalize_domain
@@ -258,6 +259,7 @@ def metrics(
                 "period": period,
                 "run": None,
                 "prev_run": None,
+                "group": None,
                 "n_runs": n_runs,
                 "metrics": out_rows,
             }
@@ -859,6 +861,13 @@ def i18n_locale(code: str) -> Any:
         raise HTTPException(status_code=500, detail=f"locale '{code}' unreadable: {exc}")
 
 
+def _unlink_quietly(path: str) -> None:
+    try:
+        Path(path).unlink()
+    except OSError:
+        pass
+
+
 def _report_cli(
     brand: str, domain: str, engine: str, period: str, out: str, db: str, lang: str
 ) -> str:
@@ -926,12 +935,14 @@ def report(
             timeout=180,
         )
     except Exception as exc:  # noqa: BLE001
+        _unlink_quietly(out_path)
         return JSONResponse(
             status_code=500,
             content={"status": "error", "message": str(exc), "command": cli},
         )
 
     if proc.returncode != 0 or not Path(out_path).exists():
+        _unlink_quietly(out_path)
         return JSONResponse(
             status_code=500,
             content={
@@ -948,4 +959,5 @@ def report(
         out_path,
         media_type="application/pdf",
         filename=filename,
+        background=BackgroundTask(_unlink_quietly, out_path),
     )

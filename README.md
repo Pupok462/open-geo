@@ -36,7 +36,7 @@ how the brand is spoken about when it does.
 |---|---|
 | **What it is** | A GEO / AI-visibility tracker for a brand or a URL, packaged as a **Claude Code skill** |
 | **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in browser (Claude-in-Chrome) |
-| **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek — Perplexity playbook written, awaiting live validation |
+| **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated |
 | **What it reports** | A funnel — answer coverage → visibility in sources → visibility in citations — plus positions, source→citation conversion, brand-mention rate, qualitative sentiment, and a top-domains leaderboard |
 | **Deliverables** | A local dashboard (FastAPI + React, 4 languages) and a themed PDF, from a local SQLite history |
 | **Operating model** | An **on-demand audit you run yourself**, not a 24/7 hosted monitor |
@@ -81,7 +81,7 @@ table is about **what each shape is built for**, so you can pick the right one:
 | | **open-geo** | **Hosted AI-visibility monitoring** | **A DIY API / scraping script** |
 |---|---|---|---|
 | **What it reads** | The **rendered** answer inside a real, logged-in browser session | A vendor-operated capture pipeline | Whatever the engine's API or the fetched HTML returns |
-| **Engine coverage** | Six engines today, including **Yandex Alice** and **DeepSeek**; adding one is a markdown playbook, not a parser | Set by the vendor's roadmap | Whatever you build and keep building |
+| **Engine coverage** | Seven engines today, including **Yandex Alice** and **DeepSeek**; adding one is a markdown playbook, not a parser | Set by the vendor's roadmap | Whatever you build and keep building |
 | **When the UI changes** | The agent follows a natural-language playbook (`engines/<engine>.md`), so a structural change is a few words in a file | Handled for you, on the vendor's schedule | Yours to fix when the markup moves |
 | **Operating model** | An **on-demand audit** you trigger and supervise | **Continuous** monitoring over large prompt sets | Whatever you schedule |
 | **Scale** | Tens to low hundreds of queries per run; costs inference and attention | Thousands of prompts, hands-off | Bounded by your budget and rate limits |
@@ -358,9 +358,9 @@ Claude-in-Chrome extension. You can also add it as a plugin with
 `/plugin marketplace add Pupok462/open-geo`.
 
 ### Which AI engines can open-geo track?
-Six today: **Google AI Overview, ChatGPT (web search), Claude (web search), Google Gemini, Yandex
-Alice / Нейро, and DeepSeek (web search)**. A Perplexity playbook is written and awaiting its first
-live validation run. Each engine is a natural-language playbook in
+Seven today: **Google AI Overview, ChatGPT (web search), Claude (web search), Google Gemini, Yandex
+Alice / Нейро, DeepSeek (web search), and Perplexity** — each one live-validated against the real
+interface. Each engine is a natural-language playbook in
 [`engines/`](engines/README.md), so adding one is writing a markdown file, not a parser.
 
 ### Can I track brand visibility in Yandex Alice or DeepSeek?

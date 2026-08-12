@@ -27,6 +27,12 @@ class RobotsAnalysis(BaseModel):
 
 _SITEMAP_RE = re.compile(r"^\s*sitemap\s*:\s*(\S+)", re.IGNORECASE)
 
+_UNAVAILABLE_STATUS = 429
+
+
+def _is_unreadable(status: Optional[int]) -> bool:
+    return status is None or status >= 500 or status == _UNAVAILABLE_STATUS
+
 
 def _all_allowed() -> list[BotPolicy]:
     return [
@@ -61,7 +67,7 @@ def analyze_robots(text: Optional[str], status: Optional[int]) -> RobotsAnalysis
             malformed=False,
             sitemaps=[],
             policies=_all_allowed(),
-            unreadable=status is None or status >= 500,
+            unreadable=_is_unreadable(status),
         )
     try:
         rp = Protego.parse(body)

@@ -1990,3 +1990,92 @@ def test_report_all_engines_returns_combined_pdf(make_client, dash_fixture_db_pa
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.content[:5] == b"%PDF-"
     assert "all-engines" in resp.headers.get("content-disposition", "")
+
+
+def test_report_success_removes_the_temp_pdf_after_streaming(
+    make_client, dash_fixture_db_path, monkeypatch
+):
+    captured: dict = {}
+
+    class _Proc:
+        returncode = 0
+        stderr = ""
+        stdout = ""
+
+    def _fake_run(argv, **kwargs):
+        out = argv[argv.index("--out") + 1]
+        captured["out"] = out
+        Path(out).write_bytes(b"%PDF-1.4\n% fake pdf for test\n")
+        return _Proc()
+
+    monkeypatch.setattr(api.subprocess, "run", _fake_run)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.post(
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "today"}
+    )
+    assert resp.status_code == 200
+    assert resp.content[:4] == b"%PDF"
+    assert not Path(captured["out"]).exists()
+
+
+def test_report_failure_removes_the_partial_temp_pdf(
+    make_client, dash_fixture_db_path, monkeypatch
+):
+    captured: dict = {}
+
+    class _Proc:
+        returncode = 1
+        stderr = "boom"
+        stdout = ""
+
+    def _fake_run(argv, **kwargs):
+        out = argv[argv.index("--out") + 1]
+        captured["out"] = out
+        Path(out).write_bytes(b"partial")
+        return _Proc()
+
+    monkeypatch.setattr(api.subprocess, "run", _fake_run)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.post(
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "all"}
+    )
+    assert resp.status_code == 500
+    assert not Path(captured["out"]).exists()
+
+
+def test_report_launch_failure_removes_the_temp_pdf(
+    make_client, dash_fixture_db_path, monkeypatch
+):
+    captured: dict = {}
+
+    def _fake_run(argv, **kwargs):
+        out = argv[argv.index("--out") + 1]
+        captured["out"] = out
+        Path(out).write_bytes(b"partial")
+        raise OSError("cannot spawn")
+
+    monkeypatch.setattr(api.subprocess, "run", _fake_run)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    resp = client.post(
+        "/api/report", params={"brand_id": example, "engine": ENGINE, "period": "all"}
+    )
+    assert resp.status_code == 500
+    assert not Path(captured["out"]).exists()
+
+
+def test_unlink_quietly_ignores_a_missing_file(tmp_path):
+    api._unlink_quietly(str(tmp_path / "nope.pdf"))
+
+
+def test_metrics_period_all_carries_the_group_key(make_client, dash_fixture_db_path):
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    payload = client.get(
+        "/api/metrics",
+        params={"brand_id": example, "engine": ENGINE, "period": "all"},
+    ).json()
+    assert "group" in payload
+    assert payload["group"] is None

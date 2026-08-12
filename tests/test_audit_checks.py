@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import httpx
-import pytest
 
 from audit.bots import AI_CRAWLERS
 from audit.checks import (
@@ -197,7 +196,7 @@ def test_a3b_pass_clean():
 def test_a3_skips_when_robots_is_unreadable_instead_of_asserting_access():
     from audit.robots import analyze_robots
 
-    for status in (500, 503, None):
+    for status in (429, 500, 503, None):
         robots = analyze_robots(None, status)
         assert robots.unreadable is True
         checks = _build(robots=robots, engine="google")

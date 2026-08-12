@@ -203,3 +203,29 @@ def test_is_fresh_garbage_false():
 
 def test_is_fresh_non_string_false():
     assert cache.is_fresh(None, 3600) is False  # type: ignore[arg-type]
+
+
+class _InvalidUrlClient:
+    def get(self, url, **kwargs):
+        raise httpx.InvalidURL("Invalid non-printable ASCII character in URL")
+
+
+def test_fetch_degrades_on_non_http_error_instead_of_raising():
+    f = fetch(_InvalidUrlClient(), "https://ex\nample.com/")
+    assert f.status is None
+    assert f.ok is False
+    assert f.text is None
+    assert f.error is not None
+    assert "Invalid" in f.error
+
+
+class _UnicodeErrorClient:
+    def get(self, url, **kwargs):
+        raise UnicodeError("label empty or too long")
+
+
+def test_fetch_degrades_on_unicode_error():
+    f = fetch(_UnicodeErrorClient(), "https://" + "a" * 300 + ".com/")
+    assert f.status is None
+    assert f.ok is False
+    assert f.error is not None

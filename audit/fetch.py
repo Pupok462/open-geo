@@ -39,7 +39,7 @@ class SiteArtifacts(BaseModel):
 def fetch(client: httpx.Client, url: str, *, timeout: float = 10.0) -> Fetched:
     try:
         resp = client.get(url, follow_redirects=True, timeout=timeout)
-    except httpx.HTTPError as exc:
+    except Exception as exc:  # noqa: BLE001
         return Fetched(
             url=url,
             final_url=None,

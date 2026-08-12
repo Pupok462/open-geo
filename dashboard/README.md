@@ -85,7 +85,10 @@ line up without `VITE_API_BASE`.
 - `today` → snapshot of the latest **completed** run; each rate metric carries a
   `*_delta` vs the previous completed run (INTERFACES §4.1, matched per lens).
 - `all` → whole-period view aggregated across **all** completed runs (the §4 ratios
-  recomputed from summed numerators/denominators); no per-run delta in this mode.
+  recomputed from summed numerators/denominators); no per-run delta in this mode. It also
+  carries `n_runs`, and `group: null` — every `/api/metrics` shape answers the `group`
+  question one way or another, so a reader never has to distinguish "not grouped" from
+  "this branch forgot to say".
 
 **KPI cards follow the selected lens.** The lens selector drives the KPI cards (not just the
 tables): pick "Branded" and the cards show the branded row with its per-lens deltas. Every card
@@ -191,7 +194,9 @@ client-side (`/api/results` is unchanged).
 (`python -m report.generate --brand --domain --engine --period --lang --out --db`) into a
 temp file and returns `application/pdf`. `lang` defaults to `en` and is passed through as
 `--lang`. If `report/generate.py` is absent it returns `501` with the exact CLI command, so
-the button degrades gracefully.
+the button degrades gracefully. The temp file is **deleted once the response is streamed**
+(and on every failure path, including a partially written PDF) — the endpoint is a long-lived
+server, so a per-download leak into the system temp dir accumulates for as long as it runs.
 
 `/api/i18n` and `/api/i18n/{code}` serve the static locale files from the repo's `i18n/`
 dir (resolved relative to the repo root, same as `OPEN_GEO_DB`). `/api/i18n` returns the

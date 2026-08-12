@@ -21,19 +21,21 @@ backlog spec is **ROADMAP Feature 3**.
 | `claude_search` | Claude with web search | **implemented** — [`claude_search.md`](claude_search.md) (grounded-answer gate) |
 | `gemini` | Google Gemini | **implemented** — [`gemini.md`](gemini.md) (grounded-answer gate) |
 | `yandex_neuro` | Yandex Alice / Нейро | **implemented** — [`yandex_neuro.md`](yandex_neuro.md) (grounded-answer gate) |
-| `perplexity` | Perplexity | **playbook authored** — [`perplexity.md`](perplexity.md) (grounded-answer gate); pending first live-validation run |
+| `perplexity` | Perplexity | **implemented** — [`perplexity.md`](perplexity.md) (grounded-answer gate) |
 | `deepseek` | DeepSeek with web search | **implemented** — [`deepseek.md`](deepseek.md) (grounded-answer gate) |
 | … | Bing / Microsoft Copilot, You.com, Baidu, … | future, as the market evolves |
 
 > The implemented ids are **`google`**, **`chatgpt_search`**, **`claude_search`**,
-> **`yandex_neuro`**, **`gemini`** and **`deepseek`** — each canonical because it equals its
-> playbook basename (`engines/google.md`, `engines/chatgpt_search.md`, `engines/claude_search.md`,
-> `engines/yandex_neuro.md`, `engines/gemini.md`, `engines/deepseek.md`; INTERFACES §1.1) and the
-> value written to the live run/DB; that is what `/open-geo` expects. The `<vendor>_<surface>` naming
+> **`yandex_neuro`**, **`gemini`**, **`deepseek`** and **`perplexity`** — each canonical because it
+> equals its playbook basename (`engines/google.md`, `engines/chatgpt_search.md`,
+> `engines/claude_search.md`, `engines/yandex_neuro.md`, `engines/gemini.md`,
+> `engines/deepseek.md`, `engines/perplexity.md`; INTERFACES §1.1) and the value written to the live
+> run/DB; that is what `/open-geo` expects. The `<vendor>_<surface>` naming
 > scheme is now in use (`chatgpt_search` = ChatGPT's *search* surface, the one GEO measures).
-> **`perplexity`**'s playbook is now **authored** (`engines/perplexity.md`) — so it is already
-> selectable by `/open-geo` — though its first **live-validation run** is still pending (that is the
-> only step between it and the "implemented" row above). The remaining **planned** ids
+> **`perplexity`** passed its live-validation run on **2026-08-08**; that run rewrote the playbook's
+> citation model (the drafted "numbered sources + `[N]` pills" surface does not exist — see the
+> validation note at the top of `perplexity.md`), which is exactly what step 6 below is for.
+> The remaining **planned** ids
 > (Bing/Copilot, You.com, …) are still **proposals** for ROADMAP Feature 3. If `/open-geo` is
 > invoked with an engine whose `engines/<engine>.md` is missing, the skill **stops and asks for the
 > playbook** — it never invents a capture procedure.
