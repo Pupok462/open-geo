@@ -1,0 +1,19 @@
+{
+  "fixture_id": "chatgpt_search__ai_visibility_2026",
+  "engine": "chatgpt_search",
+  "query": "best AI search visibility tracking tools",
+  "lens": "general",
+  "brand": "Otterly",
+  "target": "otterly.ai",
+  "captured_at": "2026-08-12T09:40:00Z",
+  "session": {
+    "surface": "chatgpt.com, logged-in, Temporary chat, web search ON, default model",
+    "ui_language": "ru",
+    "answer_language": "en"
+  },
+  "artifacts": [
+    { "file": "01_get_page_text.txt", "tool": "get_page_text", "state": "pristine" },
+    { "file": "02_read_page_interactive.txt", "tool": "read_page(filter=interactive)", "state": "pristine, main subtree only (sidebar stripped: private chat history)" },
+    { "file": "03_dom_links.json", "tool": "javascript_tool", "state": "pristine, before any hover" }
+  ]
+}

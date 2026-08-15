@@ -1,0 +1,92 @@
+{
+  "query": "best AI search visibility tracking tools",
+  "lens": "general",
+  "engine": "chatgpt_search",
+  "captured_at": "2026-08-12T09:40:00Z",
+  "answer_text_md": "If you mean AI-search / GEO visibility tracking — i.e. measuring whether your brand appears in ChatGPT, Perplexity, Gemini, Google AI Overviews, Claude, etc. — these are the tools I'd shortlist in 2026:\n\n| Tool | Best for | My take |\n|---|---|---|\n| Profound | Enterprise / large brands | ⭐ Best for deep enterprise analysis and competitive intelligence |\n| Peec AI | Marketing & SEO teams | ⭐ Best overall balance of analytics, prompts and share-of-voice |\n| Otterly | SMBs / affordable tracking | ⭐ Good starting point; relatively simple |\n| Scrunch | Agencies / enterprise | Strong monitoring + optimization workflows |\n| AthenaHQ | GEO teams | Good for understanding AI visibility and recommendations |\n| Semrush AI Visibility Toolkit | Existing SEO users | Convenient if you're already heavily invested in Semrush |\n| Ahrefs Brand Radar | SEO teams | Particularly interesting if you want AI visibility alongside traditional SEO |\n| HubSpot | AEO Marketing teams using HubSpot | Strong when you want visibility data turned into marketing tasks |\n\nRecent comparisons consistently put Profound, Peec AI, Otterly and Scrunch among the main dedicated players.\n\n**My picks**\n\n🥇 Peec AI — best default choice\nI'd start here if you're an SEO/content/marketing team. It focuses on prompt-level visibility, competitors and share of voice without the enterprise complexity of Profound.\n\n🥇 Profound — best for enterprise\nChoose it when you need sophisticated competitive analysis, large-scale tracking and deeper reporting rather than simply answering \"are we mentioned?\"\n\n🥇 Otterly — best inexpensive starting point\nGood if you want to establish a baseline quickly without committing to an enterprise platform.\n\n🥇 Semrush / Ahrefs — best if you already use them\nFor an established SEO team, integrating AI visibility into an existing SEO stack can be more useful than adding another standalone dashboard. A recent TechRadar comparison specifically highlighted Semrush's AI Visibility Toolkit and Ahrefs Brand Radar.\n\n**One important caveat**\n\nDon't optimize around a single \"AI visibility score.\" AI answers are nondeterministic: the same prompt can produce different citations and rankings at different times. Research published in 2026 found substantial variability in citation visibility and argues that these metrics should be treated statistically rather than as precise fixed numbers.\n\nI'd therefore prioritize tools that expose:\n\n- Exact prompts being monitored\n- Brand vs. competitor mentions\n- Citation/source URLs\n- Share of voice / position\n- Which prompts you're losing\n- Which sources cause competitors to be recommended\n- Tracking across ChatGPT + Perplexity + Gemini + Google AI Overviews, rather than one model\n\nThat prompt/source-level view is also what practitioners identify as the biggest differentiator between useful monitoring and a pretty dashboard.\n\nIf I were choosing today: Peec → Profound → Otterly depending on budget/company size.\n\nIf you tell me your company size + monthly budget + whether you need API/white-label reporting, I can narrow this to the 3 best tools and compare current pricing, tracked engines, prompts, API, and integrations.",
+  "screenshot_path": null,
+  "overview_present": true,
+  "sources": [
+    {
+      "rank": 1,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 2,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 3,
+      "url": "https://www.trylyra.ai/blog/profound-vs-otterly-vs-scrunch-ai/?utm_source=chatgpt.com",
+      "domain": "trylyra.ai"
+    },
+    {
+      "rank": 4,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 5,
+      "url": "https://www.techradar.com/pro/i-tested-the-7-best-aeo-tools?utm_source=chatgpt.com",
+      "domain": "techradar.com"
+    },
+    {
+      "rank": 6,
+      "url": "https://arxiv.org/abs/2603.08924?utm_source=chatgpt.com",
+      "domain": "arxiv.org"
+    },
+    {
+      "rank": 7,
+      "url": "https://www.reddit.com/r/GEO_optimization/comments/1tvvsxp/suggest_some_good_toolsplatforms_available_today/?utm_source=chatgpt.com",
+      "domain": "reddit.com"
+    }
+  ],
+  "citations": [
+    {
+      "rank": 1,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 2,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 3,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 4,
+      "url": "https://www.trylyra.ai/blog/profound-vs-otterly-vs-scrunch-ai/?utm_source=chatgpt.com",
+      "domain": "trylyra.ai"
+    },
+    {
+      "rank": 5,
+      "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com",
+      "domain": "getrefine.ai"
+    },
+    {
+      "rank": 6,
+      "url": "https://www.techradar.com/pro/i-tested-the-7-best-aeo-tools?utm_source=chatgpt.com",
+      "domain": "techradar.com"
+    },
+    {
+      "rank": 7,
+      "url": "https://arxiv.org/abs/2603.08924?utm_source=chatgpt.com",
+      "domain": "arxiv.org"
+    },
+    {
+      "rank": 8,
+      "url": "https://www.reddit.com/r/GEO_optimization/comments/1tvvsxp/suggest_some_good_toolsplatforms_available_today/?utm_source=chatgpt.com",
+      "domain": "reddit.com"
+    }
+  ],
+  "target_source_ranks": [],
+  "target_citation_ranks": [],
+  "brand_in_answer_text": true,
+  "sentiment": "recommended as best inexpensive starting point for SMBs, named among top three picks depending on budget level"
+}

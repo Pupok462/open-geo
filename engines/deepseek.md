@@ -402,3 +402,23 @@ object:
 > - **State (a), ungrounded (no web search / no sources):** `overview_present: false`,
 >   `answer_text_md: null`, `sources: []`, `citations: []`, both rank arrays `[]`,
 >   `brand_in_answer_text: false`, `sentiment: null` (`screenshot_path` stays `null`).
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set in one JS call: 11 of 12 with zero clicks; 12 of 12 after one click** on the sources
+  counter. Cheapest engine of the seven — two tool calls for the complete set, against this
+  playbook's click → scroll-panel → read-cards loop.
+- **Confirmed:** all three pinned controls are still there and still named as documented —
+  `Быстрый` mode, `Умный поиск` ON, `Глубокое мышление` OFF.
+- **Minor drift:** this playbook says the counter reads `Прочитано N веб-страниц` at the top of the
+  answer. Live it rendered as **`12 веб-страниц` at the bottom**. Match on meaning (a count of web
+  pages read), not on the exact string or position.
+- 17 numbered `[N]` badges, and the counter's own "12" matched the 12 distinct URLs.

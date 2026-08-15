@@ -389,3 +389,23 @@ the prose. Resulting single object:
 > - **State (a), ungrounded (no web search):** `overview_present: false`, `answer_text_md:
 >   null`, `sources: []`, `citations: []`, both rank arrays `[]`, `brand_in_answer_text:
 >   false`, `sentiment: null` (`screenshot_path` stays `null`).
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set in one JS call: 6 of 6.** A single `javascript_tool` read returned every external
+  link on the answer; scrolling the answer container top-to-bottom in three steps changed nothing
+  (13 anchors at every position, accumulated set stayed at 6).
+- ⚠️ **The virtualization warning in this playbook is about `read_page`, not the DOM.**
+  `read_page(filter="interactive")` is viewport-limited; `javascript_tool` sees the whole DOM. The
+  documented expand-trace → click "N results" → read-popup → scroll sequence exists to work around
+  `read_page` and is unnecessary when the scripted read is used.
+- The research-trace card rendered as documented (`… · 6 results`), and its count matched the 6
+  distinct domains exactly.

@@ -1,7 +1,7 @@
 ---
 name: capture-worker
 description: Drives one engine capture playbook over a chunk of (query, lens) rows and returns validated QueryCapture JSON. Never writes the DB, never starts servers. Spawned by the open-geo orchestrator (STEP 3).
-tools: Read, Write, Bash, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_close_mcp, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__find, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__browser_batch
+tools: Read, Write, Bash, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_close_mcp, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__find, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__browser_batch, mcp__claude-in-chrome__javascript_tool
 ---
 
 # capture-worker — engine capture sub-agent
@@ -39,6 +39,16 @@ the capture playbook you are given.
 2. **Collect links WITHOUT visiting source sites.** Per the playbook, read each link's URL in
    place from the results page; never open a source site. If one opens by accident, close it
    immediately and return. (The playbook has the exact engine-specific rule.)
+   - **Scripted fast path (optional, per engine).** `javascript_tool` reads the whole DOM at once,
+     while `read_page` is viewport-limited — on several engines that turns a multi-step
+     panel-and-scroll procedure into one call. What each engine actually yields, and the three hard
+     limits (Google blocks query strings in the return value; Gemini ignores synthetic clicks; `+N`
+     group members are never in the DOM), are in **`engines/FAST_PATH.md`**.
+   - **It is a fast path, not a trusted one.** If you use it, you **independently read the answer**
+     and check the script against what you see — at least the source count and a couple of domains.
+     Agreement → use it. **Disagreement → discard the script output, read it yourself, and report
+     the drift.** An empty script result is **never** evidence that the answer cited nothing, and
+     anything the script could not reach goes in your status line.
 3. **Stay out of the database.** Do **not** run `pipeline.ingest` / `--new-run` / `create_run` /
    `update_run_counts`, and do **not** start a server. Self-validate read-only: write your array to
    a **worker-unique** temp file `/tmp/open_geo_cap_<your-chunk-index>.json` (parallel workers share

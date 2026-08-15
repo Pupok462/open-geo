@@ -1,0 +1,17 @@
+{
+  "captured_by": "mcp__claude-in-chrome__javascript_tool",
+  "expression": "[...document.querySelector('main').querySelectorAll('a[href]')].map((a,i)=>({i, t:a.innerText.trim().slice(0,60), h:a.href}))",
+  "state": "pristine (before any hover / click on the answer)",
+  "nAnchors": 7,
+  "anchors": [
+    { "i": 0, "t": "Refine AI\n+2\nLyra\n+2", "h": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com" },
+    { "i": 1, "t": "Refine AI\n+1", "h": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com" },
+    { "i": 2, "t": "Lyra\n+1", "h": "https://www.trylyra.ai/blog/profound-vs-otterly-vs-scrunch-ai/?utm_source=chatgpt.com" },
+    { "i": 3, "t": "Refine AI\n+1", "h": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com" },
+    { "i": 4, "t": "TechRadar", "h": "https://www.techradar.com/pro/i-tested-the-7-best-aeo-tools?utm_source=chatgpt.com" },
+    { "i": 5, "t": "arXiv", "h": "https://arxiv.org/abs/2603.08924?utm_source=chatgpt.com" },
+    { "i": 6, "t": "Reddit\n+1", "h": "https://www.reddit.com/r/GEO_optimization/comments/1tvvsxp/suggest_some_good_toolsplatforms_available_today/?utm_source=chatgpt.com" }
+  ],
+  "buttons_in_main": ["Размышление"],
+  "sources_panel_present": false
+}

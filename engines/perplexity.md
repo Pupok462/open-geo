@@ -590,3 +590,29 @@ Resulting single object:
 > Note how the `+1` chip makes `citations` **longer** than the number of visible chips
 > (3 entries from 2 chips). If your `citations` array is never longer than your chip
 > count, you have almost certainly skipped carousel expansion — re-read step 4.
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set: one click + one read.** Switch to the **Ссылки / Links** tab, then read it with
+  `javascript_tool` or `get_page_text` — the full ordered set comes back at once.
+  ⚠️ **Correction (verified by a real capture run):** an earlier version of this section claimed
+  40 of 40 sources from the **Answer** tab with **zero** clicks. That did **not** reproduce — the
+  settled Answer tab held only the single, non-group chips (11 anchors). The 40 were visible only
+  because the sources rail happened to be expanded. Do not count on the Answer tab.
+- ⚠️ **The virtualized-panel workaround in this playbook is a `read_page` limitation, not a DOM one.**
+  `read_page(filter="interactive")` surfaces ~5 source cards at a time, which is where the 15–50 call
+  budget came from; `javascript_tool` returned all 40 in one read, and switching to the `Ссылки` tab
+  produced the identical set.
+- **The hover carousel is still required — but only for `citations`.** Five `+N` chips were `SPAN`s
+  with **no href**, while single chips resolved to real URLs. Which source backs which sentence still
+  needs cycling; source *discovery* no longer does.
+- Unchanged and still binding: **one worker, sequential** — the search quota is per **account**, not
+  per worker.

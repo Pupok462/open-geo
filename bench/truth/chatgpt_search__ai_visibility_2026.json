@@ -1,0 +1,31 @@
+{
+  "query": "best AI search visibility tracking tools",
+  "lens": "general",
+  "engine": "chatgpt_search",
+  "captured_at": "2026-08-12T09:40:00Z",
+  "answer_text_md": "If you mean AI-search / GEO visibility tracking ... these are the tools I'd shortlist in 2026: (table of Profound, Peec AI, Otterly, Scrunch, AthenaHQ, Semrush AI Visibility Toolkit, Ahrefs Brand Radar, HubSpot AEO) ... My picks: Peec AI best default, Profound best for enterprise, Otterly best inexpensive starting point, Semrush/Ahrefs if you already use them ... One important caveat: don't optimize around a single AI visibility score.",
+  "screenshot_path": null,
+  "overview_present": true,
+  "sources": [
+    { "rank": 1, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 2, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 3, "url": "https://www.trylyra.ai/blog/profound-vs-otterly-vs-scrunch-ai/?utm_source=chatgpt.com", "domain": "trylyra.ai" },
+    { "rank": 4, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 5, "url": "https://www.techradar.com/pro/i-tested-the-7-best-aeo-tools?utm_source=chatgpt.com", "domain": "techradar.com" },
+    { "rank": 6, "url": "https://arxiv.org/abs/2603.08924?utm_source=chatgpt.com", "domain": "arxiv.org" },
+    { "rank": 7, "url": "https://www.reddit.com/r/GEO_optimization/comments/1tvvsxp/suggest_some_good_toolsplatforms_available_today/?utm_source=chatgpt.com", "domain": "reddit.com" }
+  ],
+  "citations": [
+    { "rank": 1, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 2, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 3, "url": "https://www.trylyra.ai/blog/profound-vs-otterly-vs-scrunch-ai/?utm_source=chatgpt.com", "domain": "trylyra.ai" },
+    { "rank": 4, "url": "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com", "domain": "getrefine.ai" },
+    { "rank": 5, "url": "https://www.techradar.com/pro/i-tested-the-7-best-aeo-tools?utm_source=chatgpt.com", "domain": "techradar.com" },
+    { "rank": 6, "url": "https://arxiv.org/abs/2603.08924?utm_source=chatgpt.com", "domain": "arxiv.org" },
+    { "rank": 7, "url": "https://www.reddit.com/r/GEO_optimization/comments/1tvvsxp/suggest_some_good_toolsplatforms_available_today/?utm_source=chatgpt.com", "domain": "reddit.com" }
+  ],
+  "target_source_ranks": [],
+  "target_citation_ranks": [],
+  "brand_in_answer_text": true,
+  "sentiment": "named in the shortlist table and given its own pick as the inexpensive starting point for SMBs, but not linked"
+}

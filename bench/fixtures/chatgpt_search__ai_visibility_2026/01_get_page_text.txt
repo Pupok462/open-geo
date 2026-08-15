@@ -1,0 +1,80 @@
+Title: ChatGPT
+URL: https://chatgpt.com/?temporary-chat=true
+Source element: <main>
+---
+Поиск в сети
+best AI search visibility tracking tools
+
+If you mean AI-search / GEO visibility tracking — i.e. measuring whether your brand appears in ChatGPT, Perplexity, Gemini, Google AI Overviews, Claude, etc. — these are the tools I’d shortlist in 2026:
+
+Tool Best for My take
+Profound Enterprise / large brands ⭐ Best for deep enterprise analysis and competitive intelligence
+Peec AI Marketing & SEO teams ⭐ Best overall balance of analytics, prompts and share-of-voice
+Otterly SMBs / affordable tracking ⭐ Good starting point; relatively simple
+Scrunch Agencies / enterprise Strong monitoring + optimization workflows
+AthenaHQ GEO teams Good for understanding AI visibility and recommendations
+Semrush AI Visibility Toolkit Existing SEO users Convenient if you're already heavily invested in Semrush
+Ahrefs Brand Radar SEO teams Particularly interesting if you want AI visibility alongside traditional SEO
+HubSpot AEO Marketing teams using HubSpot Strong when you want visibility data turned into marketing tasks
+
+Recent comparisons consistently put Profound, Peec AI, Otterly and Scrunch among the main dedicated players.
+Refine AI
++2
+Lyra
++2
+
+My picks
+
+🥇 Peec AI — best default choice
+I'd start here if you're an SEO/content/marketing team. It focuses on prompt-level visibility, competitors and share of voice without the enterprise complexity of Profound.
+Refine AI
++1
+
+🥇 Profound — best for enterprise
+Choose it when you need sophisticated competitive analysis, large-scale tracking and deeper reporting rather than simply answering “are we mentioned?”
+Lyra
++1
+
+🥇 Otterly — best inexpensive starting point
+Good if you want to establish a baseline quickly without committing to an enterprise platform.
+Refine AI
++1
+
+🥇 Semrush / Ahrefs — best if you already use them
+For an established SEO team, integrating AI visibility into an existing SEO stack can be more useful than adding another standalone dashboard. A recent TechRadar comparison specifically highlighted Semrush's AI Visibility Toolkit and Ahrefs Brand Radar.
+TechRadar
+
+One important caveat
+
+Don't optimize around a single “AI visibility score.” AI answers are nondeterministic: the same prompt can produce different citations and rankings at different times. Research published in 2026 found substantial variability in citation visibility and argues that these metrics should be treated statistically rather than as precise fixed numbers.
+arXiv
+
+I'd therefore prioritize tools that expose:
+
+Exact prompts being monitored
+
+Brand vs. competitor mentions
+
+Citation/source URLs
+
+Share of voice / position
+
+Which prompts you're losing
+
+Which sources cause competitors to be recommended
+
+Tracking across ChatGPT + Perplexity + Gemini + Google AI Overviews, rather than one model
+
+That prompt/source-level view is also what practitioners identify as the biggest differentiator between useful monitoring and a pretty dashboard.
+Reddit
++1
+
+If I were choosing today: Peec → Profound → Otterly depending on budget/company size.
+
+If you tell me your company size + monthly budget + whether you need API/white-label reporting, I can narrow this to the 3 best tools and compare current pricing, tracked engines, prompts, API, and integrations.
+
+ChatGPT может допускать ошибки. Рекомендуем проверять важную информацию.
+
+Поиск в сети
+
+Размышление

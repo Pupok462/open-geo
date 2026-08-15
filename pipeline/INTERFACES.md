@@ -35,7 +35,7 @@ validates every object against it.
 |---|---|---|---|
 | `query` | string | yes | The exact query sent to the engine. |
 | `lens` | `"general" \| "branded" \| "comparative"` | yes | Framing of the query. `general` = neutral, no brand named; `branded` = brand explicitly named; `comparative` = brand vs alternatives. |
-| `engine` | string | yes | Engine id, snake_case — the orchestrator's `<engine>` argument **copied through verbatim** (it equals the capture playbook basename, e.g. `google` ↔ `engines/google.md`, `chatgpt_search` ↔ `engines/chatgpt_search.md`); do not hardcode a different value. **Open string by design** — this is the multi-engine extension point: one `engines/<engine>.md` playbook per engine. Shipped today: **`google`** (Google AI Overview), **`chatgpt_search`** (ChatGPT web search), **`claude_search`** (Claude web search), **`yandex_neuro`** (Yandex Alice / Нейро), **`gemini`** (Google Gemini) and **`deepseek`** (DeepSeek web search); **`perplexity`** (Perplexity) has an authored playbook (`engines/perplexity.md`, grounded-answer gate) pending its first live-validation run; more remain a backlog item (ROADMAP Feature 3). |
+| `engine` | string | yes | Engine id, snake_case — the orchestrator's `<engine>` argument **copied through verbatim** (it equals the capture playbook basename, e.g. `google` ↔ `engines/google.md`, `chatgpt_search` ↔ `engines/chatgpt_search.md`); do not hardcode a different value. **Open string by design** — this is the multi-engine extension point: one `engines/<engine>.md` playbook per engine. Shipped today: **`google`** (Google AI Overview), **`chatgpt_search`** (ChatGPT web search), **`claude_search`** (Claude web search), **`yandex_neuro`** (Yandex Alice / Нейро), **`gemini`** (Google Gemini) and **`deepseek`** (DeepSeek web search); **`perplexity`** (Perplexity, `engines/perplexity.md`, grounded-answer gate, live-validated 2026-08-08); more remain a backlog item (ROADMAP Feature 3). |
 | `captured_at` | string (ISO-8601 datetime) | yes | When the answer was captured. Parsed by pydantic into `datetime`. Use UTC, e.g. `"2026-06-18T20:15:30Z"`. |
 | `answer_text_md` | string \| null | no (default `null`) | The answer prose as Markdown. `null` if no overview / not captured. |
 | `screenshot_path` | string \| null | no (default `null`) | **v1: always `null`.** A *transient* screenshot may be taken to read the overview, but screenshots are **not persisted**, so nothing is stored here (column kept for forward-compat). |
@@ -520,8 +520,8 @@ holds and `n_cited` can never exceed `n_in_sources`.
 > has landed for `chatgpt_search`, `claude_search`, `yandex_neuro`, `gemini` and
 > `deepseek`** (`engines/chatgpt_search.md`, `engines/claude_search.md`,
 > `engines/yandex_neuro.md`, `engines/gemini.md`, `engines/deepseek.md`), and a
-> playbook has been **authored for `perplexity`** (`engines/perplexity.md`,
-> grounded-answer gate — pending its first live-validation run):
+> playbook has landed for **`perplexity`** too (`engines/perplexity.md`,
+> grounded-answer gate, live-validated 2026-08-08):
 > there `overview_present` means *the model ran a web search and rendered a sourced
 > answer* (it retrieved ≥1 source and surfaced sources / inline citations) — the
 > **same field, same funnel shape**

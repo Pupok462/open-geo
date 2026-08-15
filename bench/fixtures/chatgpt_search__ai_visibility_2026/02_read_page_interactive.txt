@@ -1,0 +1,12 @@
+main [ref_48]
+ generic [ref_49]
+  generic [ref_50]
+   button "Копировать таблицу" [ref_51]
+  link "https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com" [ref_52] href="https://getrefine.ai/blog/best-ai-visibility-tracking-tools-2026?utm_source=chatgpt.com"
+ button "Добавить файлы и другое" [ref_53] type="button"
+ textbox "Чат с ChatGPT" [ref_54]
+ button [ref_55] type="button"
+ button "Начало диктовки" [ref_56] type="button"
+ button "Отправить подсказку" [ref_57]
+
+Viewport: 1512x689

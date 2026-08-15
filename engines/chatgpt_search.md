@@ -75,16 +75,22 @@ or any other string.
 >   for `answer_text_md`, for detecting whether the answer is grounded, and for the ordered
 >   list of inline citation chips. A **screenshot** is a useful visual confirm but is not
 >   required to read the prose.
-> - **Collect source URLs → open the "Sources" (RU: "Источники") panel, then
->   `read_page(filter="interactive")`.** The panel lists **every** retrieved source as a
->   link card (favicon + site name + title + date) with a **real `href`**, e.g.
->   `https://www.spotsaas.com/blog/best-project-management-software/?utm_source=chatgpt.com`.
->   Panel display order = your `sources` rank order.
-> - **Inline citation chips also expose real `href`s** in
->   `read_page(filter="interactive")` (e.g. a chip link
->   `https://www.reddit.com/r/...?utm_source=chatgpt.com`) — but `read_page` only surfaces
->   the chips currently near the viewport, so for the **complete ordered list of chips** lean
->   on `get_page_text` and resolve each chip's URL against the Sources panel (step 4).
+> - ⚠️ **The end-of-answer "Sources" / "Источники" panel is GONE (re-verified live 2026-08-12).**
+>   Earlier builds put the full retrieved set behind a "Sources" button; that button no longer
+>   renders. Probed directly on a settled grounded answer: **zero** elements anywhere in the
+>   document whose text is `Источники|Sources|Цитаты|Citations`, and the only button inside
+>   `main` was the model selector. **Do not hunt for it.** Its replacement is the `+N` hover
+>   carousel below — the same mechanic already documented for Perplexity.
+> - **Inline citation chips expose real `href`s** in `read_page(filter="interactive")` (e.g. a
+>   chip link `https://www.reddit.com/r/...?utm_source=chatgpt.com`) — but `read_page` only
+>   surfaces the chips currently near the viewport, so for the **complete ordered list of chips**
+>   lean on `get_page_text` and read each chip's `href` in place when it is in view.
+> - **A chip carrying `+N` is a GROUP of N+1 sources, and the extra members are visible ONLY on
+>   hover** — hovering opens a small carousel popup with a `k/K` counter and prev/next arrows.
+>   The named (primary) source is what the chip shows; the rest are behind the arrows.
+> - ⚠️ **Chip labels MUTATE while the carousel is cycled** (a chip that read `Refine AI +2`
+>   pristine read `Baarely Refine AI` after cycling). **A label is not a stable key — only `href`
+>   is.** Never resolve a chip by its label.
 > - **URLs are DIRECT publisher URLs** (no Google-style `/url?q=` redirect wrappers), with
 >   a harmless **`?utm_source=chatgpt.com`** appended. `normalize_domain` strips the query
 >   string and `www.`, so no unwrapping is needed — store the URL as-is.
@@ -95,7 +101,10 @@ or any other string.
 >   is already on the ChatGPT page — read its `href` from the tree in place.** If a chip
 >   click accidentally opens a tab, switch back to your ChatGPT tab and carry on reading in
 >   place; do **not** visit, read, or "study" the source site.
-> - **A correct capture is ~6–12 tool calls with ZERO navigation away from ChatGPT.**
+> - **Budget: ~10–25 tool calls with ZERO navigation away from ChatGPT** — the lower end when the
+>   answer carries only single chips, the upper end when several `+N` groups must be expanded
+>   (each group costs a hover plus one read per member). The older "~6–12" figure predates the
+>   Sources panel being removed and is no longer reachable.
 
 ### 1. Open ChatGPT, pin a clean grounded session, submit the query
 - Use the connected logged-in Chrome. Get tab context (`tabs_context_mcp`) and work in
@@ -148,18 +157,24 @@ Three distinct states:
 > with neither is ungrounded → state (a). Do **not** force a reroll hoping search fires —
 > capture what rendered once (see Guardrails).
 
-### 3. Extract `sources` — the full relied-on set (the "Sources" panel)
+### 3. Extract `sources` — the full relied-on set (chips + expanded `+N` groups)
 - `sources` is the answer's **relied-on / retrieved set** — and it **MUST include every
   domain you cite in step 4** (citations ⊆ sources; see the box after step 4).
-- **Open the "Sources" panel** (RU: "Источники") at the end of the answer — `find` the
-  "Sources"/"Источники" button and `left_click` it (it is a real **button**, not a source
-  link). A side panel opens listing **every** retrieved source as a link card.
-- **Collect via `read_page(filter="interactive")`.** Each card is a link with a real
-  `href`. If the panel scrolls, scroll it and re-read until no new cards appear — capture the
-  **complete** set, in **panel display order**.
-- Record links in display order. **Duplicate domains are allowed** — keep every occurrence
-  (e.g. Reddit can legitimately appear several times). Do **not** dedupe and do **not**
-  reorder.
+- **There is no Sources panel any more** (see the tooling box). The retrieved set is assembled
+  from the inline chips: **every chip's primary `href`, plus every hidden member of every `+N`
+  group.**
+- **Expand each `+N` group by HOVERING the chip** (`computer` → `hover`), never by clicking it.
+  A popup opens with a `k/K` counter; step through it with the **next arrow** — the arrow is a
+  navigation control inside the popup and is safe to click. **The source card itself is a link —
+  never click it.** Read each member's `href` via `read_page(filter="interactive")` while the
+  popup is open.
+- Record links in **reading order** of the chips, and within a group in **carousel order**.
+  **Duplicate domains are allowed** — keep every occurrence (a chip and a group member can be the
+  same domain; `getrefine.ai` legitimately appeared three times in the validation capture). Do
+  **not** dedupe and do **not** reorder.
+- **If a group will not expand, record its primary source and say so in your status line.** An
+  undercount you flagged is data; an undercount you hid is a silent error — never invent the
+  missing members.
 - For each, build a `Link`: `{ "rank": <1-based position>, "url": "<full URL>",
   "domain": "<normalize_domain(url)>" }`. `rank` starts at **1** and matches array
   position exactly.
@@ -173,11 +188,14 @@ Three distinct states:
   **"mysoftwarecompare.com (+1)"**. In `get_page_text` they appear inline as the source
   label plus an optional **"+N"** on its own line. Walk them **in reading order**.
 - **A chip can hide multiple sources.** A chip carrying **"+N"** stands for the named source
-  **plus N more**, all of which are in the Sources panel. **Do not click the chip to expand
-  it** (clicking opens the source site in a possibly-unclosable tab). Instead, **resolve each
-  chip to a URL by matching its label to the Sources panel** (by domain or site name) and
-  read the chip's primary `href` from `read_page(filter="interactive")` when it is in view.
-  Capturing the chip's primary (named) source is sufficient for target detection.
+  **plus N more**, reachable only through the hover carousel (step 3). **Do not click the chip**
+  (clicking opens the source site in a possibly-unclosable tab) — **hover** it and step through
+  with the popup's next arrow.
+- **Never resolve a chip by its label** — labels are locale-dependent, truncated, and **mutate as
+  the carousel is cycled**. The `href` is the only authoritative identity.
+- For `citations`, record **one `Link` per chip occurrence** using that chip's **primary** href.
+  The group's extra members belong in `sources` (step 3), not in `citations` — they back the same
+  statement but are not separately attached to it.
 - Record one `Link` per chip occurrence, **in prose order** (top-to-bottom). **Duplicates
   allowed** — if the same source is cited at two places, list it twice. Same `Link` shape and
   same URL handling as step 3. `rank` is 1-based by position **within `citations`**

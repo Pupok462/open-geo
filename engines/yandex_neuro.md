@@ -105,7 +105,10 @@ or any other string.
   **navigate** to `https://yandex.ru/alice/` (a clean, empty chat) **or** click the
   **"Новый чат"** compose / "+" icon (top-left). Confirm the input box
   (**"Спросите о чём угодно"** — "ask anything") is empty/centered before typing.
-- Click the input box, **type the `query` verbatim**, and press **Return** to submit.
+- Click the input box and **type the `query` verbatim**. ⚠️ **Submit with the send ARROW, not
+  `Return`** (verified live 2026-08-12): pressing Return opened the autocomplete suggestion list and
+  left the query **unsent**, exactly as already documented for Perplexity. Confirm the query actually
+  went through before you start waiting on an answer that was never asked for.
   (Equivalently you may reach Alice from a Yandex search by clicking the **"Алиса AI"**
   tab, but a fresh `yandex.ru/alice/` chat is the deterministic entry.)
 - Keep the **session's** locale/login as-is. Do **not** open incognito, do **not** log
@@ -370,3 +373,20 @@ object:
 > - **State (a), ungrounded answer:** `overview_present: false`, `answer_text_md: null`,
 >   `sources: []`, `citations: []`, both rank arrays `[]`, `brand_in_answer_text: false`,
 >   `sentiment: null` (`screenshot_path` stays `null`).
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set in one JS call: 7 single-chip URLs.** `+N` chips carry no href and still need a click.
+- **Confirmed:** the `Источники` panel exists, `Промо` advertising cards exist (keep them out of
+  `sources`/`citations` — the Yandex-specific trap is real), and the chip split is exactly as
+  documented: a single chip is an `A` with a real href, a `+N` chip is a `SPAN` badge without one.
+- ⚠️ **`Return` does not submit** — it opens the autocomplete list and leaves the query unsent. Use
+  the send arrow (folded into step 1).

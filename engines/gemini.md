@@ -410,3 +410,25 @@ brand name "Example" was in the prose. Resulting single object:
 >   `sources: []`, `citations: []`, both rank arrays `[]`, `brand_in_answer_text: false`,
 >   `sentiment: null` (`screenshot_path` stays `null`). A model-typed "Sources:" line in the
 >   prose does **not** change this — without chips it is ungrounded.
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set in one JS call: 0.** Gemini has **no** scripted fast path — chips are buttons and
+  the URLs are absent from the DOM until a popup opens.
+- ⚠️ **Synthetic clicks do not work here.** `HTMLElement.click()` dispatched at all nine
+  domain-labelled chips opened **nothing** (0 popups, 0 URLs); a real `computer` `left_click` on the
+  same kind of chip opened the popup instantly and yielded its 2 URLs. Budget accordingly: 24 chips
+  × (click + read) is the real cost of a full capture.
+- **Confirmed with numbers — the reload step is mandatory:** before reloading the chat the answer had
+  settled but exposed **3 buttons and 0 grounding chips**; after **one** `navigate` to the same chat
+  URL it exposed **27 buttons and 24 chips**. One reload sufficed on this run.
+- Chip labels are **not** domains (`KIME`, `LLM Pulse`, `Searchable` sit alongside `nightwatch.io`),
+  so there is no label-only shortcut around the clicking.

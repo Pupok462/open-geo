@@ -407,3 +407,22 @@ Resulting single object:
 > - **State (a), no overview:** `overview_present: false`, `answer_text_md:
 >   null`, `sources: []`, `citations: []`, both rank arrays `[]`,
 >   `brand_in_answer_text: false`, `sentiment: null` (`screenshot_path` stays `null`).
+
+---
+
+## Live audit — 2026-08-12 (scripted fast path)
+
+> Measured by direct probe on a live answer, not inferred. Contract for using any of this:
+> [`engines/FAST_PATH.md`](FAST_PATH.md). Raw results: [`bench/ENGINE_AUDIT.md`](../bench/ENGINE_AUDIT.md).
+> The scripted read is a **fast path, not a trusted path** — the agent must independently confirm the
+> count and spot-check domains; on disagreement discard the script output, read with the agent, and
+> report the drift. An empty script result is never evidence that the answer cited nothing.
+
+- **Sources set in one JS call:** not directly — the AI Overview block held **78 anchors** for
+  roughly a dozen real sources (same article rendered twice, `support.google.com` helper links,
+  `youtube.com/watch` carousel items). Per-engine filtering is required before any of it is usable.
+- ⚠️ **`javascript_tool` on Google is blocked whenever the returned value contains a query string**
+  (`[BLOCKED: Cookie/query string data]`). Return `hostname + pathname` instead — the identical probe
+  then succeeds, and nothing is lost (`normalize_domain` drops the query string anyway).
+- **Confirmed:** `get_page_text` does **not** return the AI Overview block. The full SERP text came
+  back with the AI block absent, so the screenshot-driven read in this playbook stays mandatory.
