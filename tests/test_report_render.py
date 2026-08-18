@@ -41,9 +41,12 @@ from report.generate import (
     render_engine_matrix,
     render_footer,
     render_funnel,
+    render_gaps,
+    render_glossary,
     render_history,
     render_kpi_cards,
     render_lenses,
+    render_results,
     render_sentiment,
 )
 from report.i18n import DEFAULT_LANG, Translator
@@ -931,9 +934,10 @@ def test_build_pdf_ar_is_rtl_and_shapes_via_canvas(tmp_path):
     doc_seen = {}
     original = G.Doc
 
-    def spy(c, rtl=False):
+    def spy(c, rtl=False, lang=DEFAULT_LANG):
         doc_seen["rtl"] = rtl
-        return original(c, rtl=rtl)
+        doc_seen["lang"] = lang
+        return original(c, rtl=rtl, lang=lang)
 
     G.Doc = spy
     try:
@@ -942,6 +946,7 @@ def test_build_pdf_ar_is_rtl_and_shapes_via_canvas(tmp_path):
         G.Doc = original
         register_fonts(DEFAULT_LANG)
     assert doc_seen.get("rtl") is True
+    assert doc_seen.get("lang") == "ar"
 
 
 def test_resolve_brand_id_finds_prefix_brand_in_any_writing(tmp_path):
@@ -1029,3 +1034,700 @@ def test_main_engine_and_engines_are_mutually_exclusive(tmp_path, capsys):
     )
     capsys.readouterr()
     assert rc2 == 2
+
+
+def _rr(query="q", lens="general", overview=True, src=None, cit=None, mention=False, sentiment=None):
+    return G.ResultRow(
+        query=query,
+        lens=lens,
+        overview_present=overview,
+        source_ranks=list(src or []),
+        citation_ranks=list(cit or []),
+        brand_in_answer_text=mention,
+        sentiment=sentiment,
+    )
+
+
+def _all_outcomes_rows():
+    return [
+        _rr("cited query", src=[1], cit=[1], mention=True, sentiment="positive"),
+        _rr("sources query", src=[2]),
+        _rr("mention query", mention=True),
+        _rr("absent query", lens="comparative"),
+        _rr("no answer query", lens="branded", overview=False),
+    ]
+
+
+def test_results_by_outcome_groups_every_row_once():
+    grouped = G._results_by_outcome(_all_outcomes_rows())
+    assert list(grouped) == list(G.RESULT_OUTCOMES)
+    assert [len(v) for v in grouped.values()] == [1, 1, 1, 1, 1]
+
+
+def test_render_results_renders_every_outcome_group():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_results(doc, _en(), _report_data(results=_all_outcomes_rows()))
+    assert doc.y < y0
+
+
+def test_render_results_empty_uses_dashboard_empty_string():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_results(doc, _en(), _report_data(results=[]))
+    assert doc.y < y0
+
+
+def test_results_legend_mentions_both_markers():
+    t = _en()
+    legend = G._results_legend(t)
+    assert t.t("dashboard.results_overview_shown") in legend
+    assert t.t("dashboard.results_mention_no") in legend
+    assert G._mark_yes() in legend and G._mark_no() in legend
+
+
+def test_result_row_without_sentiment_falls_back_to_brand_absent():
+    t = _en()
+    row = G._result_table_row(t, _rr("q", sentiment=None))
+    assert row.cells[-1].text == t.t("dashboard.results_brand_absent")
+
+
+def test_render_gaps_lists_only_absent_rows():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_gaps(doc, _en(), _report_data(results=_all_outcomes_rows()))
+    assert doc.y < y0
+
+
+def test_render_gaps_empty_branch():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_gaps(doc, _en(), _report_data(results=[_rr("cited", src=[1], cit=[1])]))
+    assert doc.y < y0
+
+
+def test_render_glossary_covers_all_seven_metrics():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_glossary(doc, _en(), _report_data())
+    assert doc.y < y0
+    assert len(G._GLOSSARY_METRICS) == 7
+
+
+def test_funnel_invariant_text_uses_ascii_fallback_for_zh():
+    register_fonts("zh")
+    try:
+        assert "<=" in G._funnel_invariant_text(Translator("zh"))
+    finally:
+        register_fonts("en")
+    assert "⊆" in G._funnel_invariant_text(_en())
+
+
+def test_lenses_table_has_dashboard_columns():
+    t = _en()
+    columns, rows = G._lenses_table(t, _report_data())
+    labels = [c.label for c in columns]
+    assert t.t("dashboard.lens_col_queries") in labels
+    assert t.t("dashboard.lens_col_overview") in labels
+    assert t.t("dashboard.lens_col_mentions") in labels
+    assert len(rows[0].cells) == len(columns)
+
+
+def test_weekly_table_marks_repeat_runs_with_badge():
+    t = _en()
+    weeks = [
+        G.WeekPoint(week="2026-W20", monday="2026-05-11T00:00:00+00:00", n_runs=2, metrics=_lm("all")),
+        G.WeekPoint(week="2026-W21", monday="2026-05-18T00:00:00+00:00", n_runs=1, metrics=_lm("all")),
+    ]
+    columns, rows = G._weekly_table(t, weeks)
+    assert len(columns) == len(rows[0].cells)
+    assert rows[0].cells[0].badge == "×2"
+    assert rows[1].cells[0].badge is None
+
+
+def test_render_history_draws_weekly_rollup_when_two_weeks():
+    doc = _doc()
+    doc.fill_background()
+    hist = [
+        ("2026-05-12T09:00:00Z", {"all": _lm("all")}),
+        ("2026-05-19T09:00:00Z", {"all": _lm("all", overview_coverage=0.9)}),
+    ]
+    weekly = G._weekly_rollup(hist)
+    y0 = doc.y
+    render_history(doc, _en(), _report_data(period="all", history=hist, history_weekly=weekly))
+    assert doc.y < y0
+    assert len(weekly) == 2
+
+
+def test_competitors_citations_inset_sorted_by_citations():
+    t = _en()
+    comps = [
+        {"domain": "a.com", "is_brand": False, "appearances_sources": 9, "appearances_citations": 1,
+         "avg_source_position": 1.0, "avg_citation_position": 2.0, "share_sources": 0.9, "share_citations": 0.1},
+        {"domain": "b.com", "is_brand": True, "appearances_sources": 2, "appearances_citations": 5,
+         "avg_source_position": 3.0, "avg_citation_position": 1.0, "share_sources": 0.2, "share_citations": 0.5},
+        {"domain": "c.com", "is_brand": False, "appearances_sources": 4, "appearances_citations": 0,
+         "avg_source_position": 2.0, "avg_citation_position": None, "share_sources": 0.4, "share_citations": 0.0},
+    ]
+    _, rows = G._competitors_citations_inset(t, _report_data(competitors=comps))
+    assert [r.cells[0].text for r in rows] == ["b.com", "a.com"]
+    assert rows[0].highlight is True
+
+
+def test_audit_checks_grouped_by_category_in_order():
+    audit = {
+        "verdict": "ready",
+        "score": 80,
+        "checks": [
+            {"id": "B1", "category": "B", "title": "b", "severity": "recommended", "status": "warn", "detail": "d"},
+            {"id": "A1", "category": "A", "title": "a", "severity": "blocker", "status": "pass", "detail": "d"},
+            {"id": "A2", "category": "A", "title": "a2", "severity": "blocker", "status": "fail", "detail": "d"},
+        ],
+    }
+    groups = G._audit_checks_by_category(audit)
+    assert [g[0] for g in groups] == ["A", "B"]
+    assert [c["id"] for c in groups[0][1]] == ["A2", "A1"]
+
+
+def test_audit_table_has_fix_column_with_remediation():
+    t = _en()
+    audit = {
+        "checks": [
+            {"id": "A3", "category": "A", "title": "robots", "severity": "blocker",
+             "status": "fail", "detail": "blocked", "remediation": "Allow the search bot"}
+        ]
+    }
+    columns, rows = G._audit_table(t, audit)
+    assert columns[-1].label == t.t("audit.col_fix")
+    assert rows[0].cells[-1].text == "Allow the search bot"
+
+
+def test_fit_table_size_shrinks_for_a_wide_table():
+    wide = [G.Column(f"Column header {i}") for i in range(9)]
+    rows = [G.TableRow(cells=[G.Cell("value " + "x" * 8) for _ in range(9)])]
+    narrow = [G.Column("A"), G.Column("B")]
+    narrow_rows = [G.TableRow(cells=[G.Cell("1"), G.Cell("2")])]
+    assert G.fit_table_size(wide, rows) < G.fit_table_size(narrow, narrow_rows)
+    assert G.fit_table_size(narrow, narrow_rows) == G.T_TABLE
+
+
+def test_glyph_falls_back_when_codepoint_missing():
+    register_fonts("zh")
+    try:
+        assert G._glyph("✓", "•") == "•"
+        assert G._mark_no() == "—"
+    finally:
+        register_fonts("en")
+    assert G._glyph("✓", "•") == "✓"
+
+
+def test_wrap_budget_widths_none_without_wrap_columns():
+    columns = [G.Column("A"), G.Column("B")]
+    assert G._wrap_budget_widths(columns, [100.0, 100.0], [100.0, 100.0]) is None
+
+
+def test_wrap_budget_widths_none_when_fixed_columns_eat_the_frame():
+    columns = [G.Column("A"), G.Column("B", wrap=True)]
+    natural = [G.CONTENT_W, 200.0]
+    floor = [G.CONTENT_W, 200.0]
+    assert G._wrap_budget_widths(columns, natural, floor) is None
+
+
+def test_wrap_budget_widths_caps_wrap_columns_at_natural():
+    columns = [G.Column("A", wrap=True, grow=1.0), G.Column("B", wrap=True, grow=1.0)]
+    natural = [40.0, 60.0]
+    floor = [20.0, 30.0]
+    widths = G._wrap_budget_widths(columns, natural, floor)
+    assert widths == [40.0, 60.0]
+
+
+def test_column_widths_falls_back_to_shrink_for_many_fixed_columns():
+    columns = [G.Column(f"Very long column header {i}") for i in range(12)]
+    rows = [G.TableRow(cells=[G.Cell("some value here") for _ in range(12)])]
+    widths = G._column_widths(columns, rows, G.T_TABLE)
+    assert len(widths) == 12
+    assert sum(widths) == pytest.approx(G.CONTENT_W)
+
+
+def test_column_widths_zero_grow_shares_slack_evenly():
+    columns = [G.Column("A", grow=0.0), G.Column("B", grow=0.0)]
+    rows = [G.TableRow(cells=[G.Cell("1"), G.Cell("2")])]
+    widths = G._column_widths(columns, rows, G.T_TABLE)
+    assert widths[0] == pytest.approx(widths[1], rel=0.01)
+    assert sum(widths) == pytest.approx(G.CONTENT_W)
+
+
+def test_paragraph_h_zero_for_empty_text():
+    doc = _doc()
+    assert G._paragraph_h(doc, "") == 0.0
+    assert G._paragraph_h(doc, "some text") > 0.0
+
+
+def test_glyph_falls_back_when_font_is_unknown():
+    original = G.FONT
+    G.FONT = "NoSuchFontRegistered"
+    try:
+        assert G._glyph("✓", "•") == "•"
+    finally:
+        G.FONT = original
+
+
+def test_competitors_inset_computes_share_when_absent():
+    t = _en()
+    comps = [
+        {"domain": "a.com", "is_brand": False, "appearances_sources": 3,
+         "appearances_citations": 3, "avg_source_position": 1.0, "avg_citation_position": 1.0}
+    ]
+    data = _report_data(competitors=comps, metrics={"all": _lm("all", n_overviews=6)})
+    _, rows = G._competitors_citations_inset(t, data)
+    assert rows[0].cells[1].text == "50%"
+
+
+def test_render_competitors_without_citations_skips_inset():
+    doc = _doc()
+    doc.fill_background()
+    comps = [
+        {"domain": "a.com", "is_brand": False, "appearances_sources": 3,
+         "appearances_citations": 0, "avg_source_position": 1.0, "avg_citation_position": None,
+         "share_sources": 0.5, "share_citations": 0.0}
+    ]
+    y0 = doc.y
+    G.render_competitors(doc, _en(), _report_data(competitors=comps))
+    assert doc.y < y0
+
+
+def test_render_audit_skips_category_without_rows(monkeypatch):
+    doc = _doc()
+    doc.fill_background()
+    audit = {
+        "verdict": "ready",
+        "score": 90,
+        "checked_at": "2026-07-01T12:00:00",
+        "blockers": ["A3"],
+        "checks": [
+            {"id": "A1", "category": "A", "title": "a", "severity": "blocker",
+             "status": "pass", "detail": "d", "remediation": None}
+        ],
+    }
+    real = G._audit_table
+
+    def fake(t, a, checks=None):
+        columns, rows = real(t, a, checks)
+        return columns, ([] if checks else rows)
+
+    monkeypatch.setattr(G, "_audit_table", fake)
+    y0 = doc.y
+    G.render_audit(doc, _en(), _report_data(audit=audit))
+    assert doc.y < y0
+
+
+def test_wrap_budget_widths_breaks_when_no_room_left():
+    columns = [G.Column("A", wrap=True), G.Column("B", wrap=True)]
+    widths = G._wrap_budget_widths(columns, [40.0, 60.0], [40.0, 60.0])
+    assert widths == [40.0, 60.0]
+
+
+def test_row_lines_empty_when_inner_width_is_zero():
+    doc = _doc()
+    columns = [G.Column("A")]
+    row = G.TableRow(cells=[G.Cell("value")])
+    assert G._row_lines(doc, columns, [1.0], row, G.T_TABLE, False) == [[""]]
+
+
+def test_measure_and_min_height_zero_for_no_rows():
+    doc = _doc()
+    columns = [G.Column("A")]
+    assert G.measure_table(doc, columns, []) == 0.0
+    assert G.table_min_height(doc, columns, []) == 0.0
+
+
+def test_draw_table_without_rows_prints_no_data():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    G.draw_table(doc, _en(), [G.Column("A")], [])
+    assert doc.y < y0
+
+
+def test_draw_caption_and_paragraph_ignore_empty_text():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    G.draw_caption(doc, "")
+    G.draw_paragraph(doc, "")
+    assert doc.y == pytest.approx(y0)
+
+
+def test_glyph_falls_back_when_face_has_no_charmap(monkeypatch):
+    class _Face:
+        pass
+
+    class _Font:
+        face = _Face()
+
+    monkeypatch.setattr(G.pdfmetrics, "getFont", lambda name: _Font())
+    assert G._glyph("✓", "•") == "•"
+
+
+def test_place_full_width_chart_scales_down_when_space_is_short():
+    doc = _doc()
+    doc.fill_background()
+    png = chart_funnel(_en(), _lm("all"))
+    full = G._chart_height(png)
+    doc.y = MARGIN + full * 0.8
+    page0 = doc.c.getPageNumber()
+    G._place_full_width_chart(doc, png, G.GAP_S)
+    assert doc.c.getPageNumber() == page0
+
+
+def test_place_full_width_chart_breaks_page_when_space_is_tiny():
+    doc = _doc()
+    doc.fill_background()
+    _install_footer_hook(doc, _en(), _report_data())
+    png = chart_funnel(_en(), _lm("all"))
+    doc.y = MARGIN + 20
+    page0 = doc.c.getPageNumber()
+    G._place_full_width_chart(doc, png, G.GAP_S)
+    assert doc.c.getPageNumber() > page0
+
+
+def test_render_kpi_cards_repeat_group_shows_spread_chips():
+    doc = _doc()
+    doc.fill_background()
+    data = _report_data(
+        n_repeats=3,
+        group_id="g1",
+        spread={"overview_coverage": (0.6, 0.8), "avg_source_position": (1.5, 2.5)},
+    )
+    y0 = doc.y
+    render_kpi_cards(doc, _en(), data)
+    assert doc.y < y0
+
+
+def test_spread_chip_text_none_when_metric_missing():
+    t = _en()
+    cards = G._build_kpi_cards(t, _lm("all"), None, "en")
+    assert G._spread_chip_text(t, cards[0], {}, "en") is None
+    chip = G._spread_chip_text(t, cards[0], {"overview_coverage": (0.6, 0.8)}, "en")
+    assert chip == "60%–80%"
+
+
+def test_render_kpi_cards_period_all_uses_rollup_line():
+    doc = _doc()
+    doc.fill_background()
+    y0 = doc.y
+    render_kpi_cards(doc, _en(), _report_data(period="all", n_runs=4))
+    assert doc.y < y0
+
+
+def test_competitors_table_computes_missing_shares():
+    t = _en()
+    comps = [
+        {"domain": "a.com", "is_brand": True, "appearances_sources": 9,
+         "appearances_citations": 3, "avg_source_position": 1.0, "avg_citation_position": 2.0}
+    ]
+    data = _report_data(competitors=comps, metrics={"all": _lm("all", n_overviews=18)})
+    _, rows = G._competitors_table(t, data)
+    assert rows[0].cells[1].text == "50%"
+    assert rows[0].cells[2].text == "17%"
+
+
+def _record_strings(doc):
+    seen: list[tuple[int, float, str]] = []
+    base = doc.c.drawString
+
+    def rec(x, y, text, *a, **k):
+        seen.append((doc.c.getPageNumber(), round(float(x), 2), str(text)))
+        return base(x, y, text, *a, **k)
+
+    doc.c.drawString = rec
+    return seen
+
+
+ARABIC_SAMPLE = "عاب"
+
+
+def test_matplotlib_reorders_rtl_itself_so_charts_must_not_preshape():
+    from matplotlib import _text_helpers
+    from matplotlib.ft2font import FT2Font
+
+    font = FT2Font(os.path.join(G._FONTS_DIR, "NotoNaskhArabic-Regular.ttf"))
+    order = [item.char for item in _text_helpers.layout(ARABIC_SAMPLE, font)]
+    assert (order == list(reversed(ARABIC_SAMPLE))) is G._mpl_lays_out_rtl()
+
+
+def test_chart_text_leaves_arabic_raw_when_matplotlib_lays_it_out(monkeypatch):
+    monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", True)
+    assert G._chart_text(ARABIC_SAMPLE, "ar") == ARABIC_SAMPLE
+
+
+def test_chart_text_shapes_arabic_when_matplotlib_cannot(monkeypatch):
+    monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", False)
+    out = G._chart_text(ARABIC_SAMPLE, "ar")
+    assert out == shape(ARABIC_SAMPLE, "ar") != ARABIC_SAMPLE
+
+
+def test_chart_text_never_double_shapes_arabic(monkeypatch):
+    monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", True)
+    once = shape(ARABIC_SAMPLE, "ar")
+    assert shape(once, "ar") != once
+    assert G._chart_text(ARABIC_SAMPLE, "ar") != once
+
+
+def test_chart_text_is_identity_for_non_rtl_languages(monkeypatch):
+    for native in (True, False):
+        monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", native)
+        for lang in ("en", "ru", "zh", None):
+            assert G._chart_text("Answer coverage", lang) == "Answer coverage"
+            assert G._chart_text("Покрытие ответами", lang) == "Покрытие ответами"
+
+
+def test_charts_are_byte_stable_for_en_when_layout_probe_flips(monkeypatch):
+    metrics = {"general": _lm("general"), "all": _lm("all")}
+    monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", True)
+    native = chart_lenses_grouped_bar(_en(), metrics)
+    monkeypatch.setattr(G, "_MPL_RTL_LAYOUT", False)
+    shaped = chart_lenses_grouped_bar(_en(), metrics)
+    assert native == shaped
+
+
+def test_doc_text_w_measures_the_shaped_string_for_arabic():
+    register_fonts("ar")
+    try:
+        doc = Doc(canvas.Canvas(io.BytesIO(), pagesize=A4), rtl=True, lang="ar")
+        src = "العربية"
+        assert doc.text_w(src, G.FONT, 10) == pytest.approx(
+            pdfmetrics.stringWidth(shape(src, "ar"), G.FONT, 10)
+        )
+        assert doc.text_w(src, G.FONT, 10) != pytest.approx(
+            pdfmetrics.stringWidth(src, G.FONT, 10)
+        )
+    finally:
+        register_fonts(DEFAULT_LANG)
+
+
+def test_doc_text_w_is_plain_width_for_latin():
+    doc = _doc()
+    assert doc.lang == DEFAULT_LANG
+    assert doc.text_w("Cited", FONT_BOLD, 10) == pytest.approx(
+        pdfmetrics.stringWidth("Cited", FONT_BOLD, 10)
+    )
+
+
+def test_draw_group_heading_places_the_count_next_to_the_title():
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_strings(doc)
+    G._draw_group_heading(doc, "Cited", 9)
+    assert [s for _, _, s in seen] == ["Cited", f"{G.GROUP_COUNT_SEP}9"]
+    x_title, x_count = seen[0][1], seen[1][1]
+    assert x_title == pytest.approx(MARGIN + 10, abs=0.5)
+    assert x_count > x_title
+    assert x_count < G.PAGE_W - MARGIN - 100
+
+
+def test_draw_group_heading_without_count_draws_only_the_title():
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_strings(doc)
+    G._draw_group_heading(doc, "Cited")
+    assert [s for _, _, s in seen] == ["Cited"]
+
+
+def test_draw_group_heading_count_text_wins_over_count():
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_strings(doc)
+    G._draw_group_heading(doc, "By week", 5, count_text="5 weeks")
+    assert [s for _, _, s in seen] == ["By week", f"{G.GROUP_COUNT_SEP}5 weeks"]
+
+
+def test_draw_group_heading_truncates_a_title_that_would_push_the_count_out():
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_strings(doc)
+    G._draw_group_heading(doc, "word " * 200, 9)
+    title, count = seen[0][2], seen[1][2]
+    end_x = seen[1][1] + pdfmetrics.stringWidth(count, FONT, 10)
+    assert title.endswith("…")
+    assert end_x <= G.PAGE_W - MARGIN + 0.5
+
+
+def _long_table(n: int):
+    columns = [G.Column("Query", wrap=True, grow=3.0), G.Column("Lens")]
+    rows = [
+        G.TableRow(cells=[G.Cell(f"query number {i}"), G.Cell("General")])
+        for i in range(n)
+    ]
+    return columns, rows
+
+
+def test_draw_table_repeats_the_group_heading_on_a_continuation_page():
+    doc = _doc()
+    doc.fill_background()
+    columns, rows = _long_table(70)
+    seen = _record_strings(doc)
+    G.draw_table(doc, _en(), columns, rows, group_title="In sources, not cited")
+    pages = sorted({p for p, _, _ in seen})
+    assert len(pages) > 1
+    later = [(p, s) for p, _, s in seen if p > pages[0]]
+    assert ("In sources, not cited") in [s for _, s in later]
+    assert any("continued" in s for _, s in later)
+
+
+def test_draw_table_without_group_title_draws_no_continuation_heading():
+    doc = _doc()
+    doc.fill_background()
+    columns, rows = _long_table(70)
+    seen = _record_strings(doc)
+    G.draw_table(doc, _en(), columns, rows)
+    assert len({p for p, _, _ in seen}) > 1
+    assert not any("continued" in s for _, _, s in seen)
+
+
+def test_render_results_repeats_group_headings_across_pages():
+    rows = [
+        _rr(f"cited query number {i}", src=[1], cit=[1], mention=True, sentiment="ok")
+        for i in range(60)
+    ]
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_strings(doc)
+    render_results(doc, _en(), _report_data(results=rows))
+    assert sum(1 for _, _, s in seen if "continued" in s) >= 1
+
+
+def test_render_history_counts_weeks_in_the_group_heading():
+    doc = _doc()
+    doc.fill_background()
+    hist = [
+        ("2026-05-12T09:00:00Z", {"all": _lm("all")}),
+        ("2026-05-19T09:00:00Z", {"all": _lm("all", overview_coverage=0.9)}),
+    ]
+    weekly = G._weekly_rollup(hist)
+    seen = _record_strings(doc)
+    render_history(doc, _en(), _report_data(period="all", history=hist, history_weekly=weekly))
+    assert any(s == f"{G.GROUP_COUNT_SEP}{len(weekly)} weeks" for _, _, s in seen)
+
+
+def test_token_segments_break_after_punctuation_only():
+    assert G._token_segments('{"@type":"Organization",') == [
+        '{"',
+        '@type"',
+        ":",
+        '"',
+        'Organization"',
+        ",",
+    ]
+    assert G._token_segments("plainword") == ["plainword"]
+
+
+def test_token_segments_keep_dotted_and_decimal_tokens_whole():
+    assert G._token_segments("logo.png") == ["logo.png"]
+    assert G._token_segments("3.14") == ["3.14"]
+    assert G._token_segments("1,234") == ["1,234"]
+    assert G._token_segments("schema.org/") == ["schema.org/"]
+
+
+def _jsonld_snippet() -> str:
+    return (
+        '<script type="application/ld+json">{"@context":"https://schema.org",'
+        '"@type":"Organization","name":"<Brand>","logo":"https://example.com/logo.png"}'
+        "</script>"
+    )
+
+
+def test_wrap_text_breaks_a_snippet_at_punctuation_not_inside_a_token():
+    c = _canvas()
+    snippet = _jsonld_snippet().replace(" ", "")
+    out = _wrap_text(c, snippet, FONT, 7.5, 120.0)
+    assert len(out) > 1
+    assert "".join(out) == snippet
+    for line in out[:-1]:
+        assert line[-1] in G.TOKEN_BREAK_AFTER
+    assert not any("logo." == line[-5:] for line in out[:-1])
+
+
+def test_wrap_text_still_hard_breaks_a_token_without_punctuation():
+    c = _canvas()
+    token = "x" * 400
+    out = _wrap_text(c, token, FONT, 10, 50)
+    assert len(out) > 1
+    assert "".join(out) == token
+
+
+def _audit_with_snippet() -> dict:
+    return {
+        "verdict": "ready_with_notes",
+        "score": 67,
+        "checks": [
+            {
+                "id": "B1",
+                "category": "B",
+                "title": "Structured data (JSON-LD)",
+                "severity": "recommended",
+                "status": "fail",
+                "detail": "No JSON-LD structured data found.",
+                "remediation": _jsonld_snippet().replace(" ", ""),
+            }
+        ],
+    }
+
+
+def test_audit_table_renders_smaller_than_the_default_table():
+    assert G.T_AUDIT_TABLE < G.T_TABLE
+
+
+def test_audit_fix_column_gets_the_widest_share():
+    columns, rows = G._audit_table(_en(), _audit_with_snippet())
+    widths = G._column_widths(columns, rows, G.T_AUDIT_TABLE)
+    assert widths[-1] == max(widths)
+    assert widths[-1] > widths[3]
+    assert sum(widths) == pytest.approx(G.CONTENT_W, abs=0.5)
+
+
+def test_audit_fix_cell_wraps_without_splitting_a_token():
+    doc = _doc()
+    columns, rows = G._audit_table(_en(), _audit_with_snippet())
+    widths = G._column_widths(columns, rows, G.T_AUDIT_TABLE)
+    lines = G._row_lines(doc, columns, widths, rows[0], G.T_AUDIT_TABLE, False)[-1]
+    assert len(lines) > 1
+    assert "".join(lines) == _jsonld_snippet().replace(" ", "")
+    for line in lines[:-1]:
+        assert line[-1] in G.TOKEN_BREAK_AFTER
+
+
+def _record_draws(doc):
+    seen: list[tuple[float, float, str, str, float]] = []
+    base = doc.c.drawString
+    right = doc.c.drawRightString
+
+    def rec(x, y, text, *a, **k):
+        seen.append((float(x), float(y), str(text), doc.c._fontname, doc.c._fontsize))
+        return base(x, y, text, *a, **k)
+
+    def rec_right(x, y, text, *a, **k):
+        w = pdfmetrics.stringWidth(str(text), doc.c._fontname, doc.c._fontsize)
+        seen.append((float(x) - w, float(y), str(text), doc.c._fontname, doc.c._fontsize))
+        return right(x, y, text, *a, **k)
+
+    doc.c.drawString = rec
+    doc.c.drawRightString = rec_right
+    return seen
+
+
+def test_render_audit_keeps_every_drawn_string_inside_the_frame():
+    doc = _doc()
+    doc.fill_background()
+    seen = _record_draws(doc)
+    G.render_audit(doc, _en(), _report_data(audit=_audit_with_snippet()))
+    assert seen
+    for x, y, text, font, size in seen:
+        assert x >= MARGIN - 0.5
+        assert x + pdfmetrics.stringWidth(text, font, size) <= G.PAGE_W - MARGIN + 0.5
+        assert y >= MARGIN - 14.0

@@ -5,9 +5,8 @@ frontend. Shows AI-visibility metrics per brand/engine with retrospective charts
 read-time deltas, lens breakdown, a **GEO-readiness audit panel**, a **top-domains
 (competitor) leaderboard**, a per-query results table, and a PDF export. The
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
-(`/api/engines`), so every captured engine (six live-validated today, plus Perplexity's
-authored playbook pending its first live run; ROADMAP Feature 3 adds more)
-surfaces automatically with no dashboard change — the metric labels in `i18n/` are
+(`/api/engines`), so every captured engine (seven live-validated today; ROADMAP Feature 3
+adds more) surfaces automatically with no dashboard change — the metric labels in `i18n/` are
 **engine-neutral** ("Answer coverage", "Grounded answer shown"), so no per-engine label
 work is needed either. The
 React UI has light & dark themes (toggle, system-aware), a **language switcher** (EN/RU/ZH/AR,
@@ -191,9 +190,17 @@ the brand appears nowhere: no source, no citation, no name mention). The table a
 client-side (`/api/results` is unchanged).
 
 `/api/report` invokes the report CLI
-(`python -m report.generate --brand --domain --engine --period --lang --out --db`) into a
+(`python -m report.generate --brand --domain --engine --period --lang --out --db`, contract in
+[`pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §3.5) into a
 temp file and returns `application/pdf`. `lang` defaults to `en` and is passed through as
-`--lang`. If `report/generate.py` is absent it returns `501` with the exact CLI command, so
+`--lang`. The PDF is **not a subset of this dashboard**: alongside the same KPI/lens/funnel/
+top-domain/sentiment sections it carries a full per-query results table grouped by outcome (the
+static equivalent of the outcome-filter chips), a "Gaps to close" section holding the `absent`
+subset alone, an audit section with a "How to fix" column per check, and a closing glossary that
+replaces this UI's per-metric tooltips. `period=all` is a **whole-period rollup on both surfaces**
+— the report folds the period with the same weighted math as `/api/metrics`, so a downloaded PDF
+and the panel it was downloaded from cannot disagree; inside a repeat group both show the min–max
+spread instead of deltas. If `report/generate.py` is absent it returns `501` with the exact CLI command, so
 the button degrades gracefully. The temp file is **deleted once the response is streamed**
 (and on every failure path, including a partially written PDF) — the endpoint is a long-lived
 server, so a per-download leak into the system temp dir accumulates for as long as it runs.

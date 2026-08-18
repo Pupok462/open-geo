@@ -77,12 +77,12 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "SEO and GEO measurement",
   "operatingSystem": "macOS, Linux, Windows",
-  "softwareVersion": "0.3.0",
+  "softwareVersion": "0.4.0",
   "url": "https://pupok462.github.io/open-geo/",
   "codeRepository": "https://github.com/Pupok462/open-geo",
   "downloadUrl": "https://github.com/Pupok462/open-geo",
   "license": "https://opensource.org/licenses/MIT",
-  "dateModified": "2026-08-02",
+  "dateModified": "2026-08-18",
   "description": "open-geo is a GEO (generative engine optimization) visibility tracker. It measures whether a brand appears in AI answers by reading the rendered answer a logged-in user actually sees, through an agent in a real browser rather than an API or a headless scrape. It covers Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek, and reports a nested funnel of answer coverage, visibility in sources and visibility in citations.",
   "featureList": [
     "Reads the rendered AI answer in a real, logged-in browser",
@@ -90,7 +90,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     "Seven auditable metrics over a nested funnel, with no composite index",
     "Top-domains leaderboard for competitive context",
     "Deterministic pre-run GEO readiness audit of the target domain",
-    "Local SQLite history, local dashboard and PDF report",
+    "Local SQLite history, a local dashboard, and a standalone PDF report with per-query results, a gap list and audit remediation",
     "Dashboard and report in English, Russian, Chinese and Arabic"
   ],
   "offers": {
@@ -264,7 +264,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
       <tr><th>How it measures</th><td>An agent reads the <strong>rendered</strong> AI answer in a real, logged-in browser</td></tr>
       <tr><th>Engines covered</th><td>Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated</td></tr>
       <tr><th>What it reports</th><td>Answer coverage → visibility in sources → visibility in citations, plus positions, source-to-citation conversion, brand-mention rate, qualitative sentiment and a top-domains leaderboard</td></tr>
-      <tr><th>Deliverables</th><td>A local dashboard (FastAPI + React, four languages) and a themed PDF, from a local SQLite history</td></tr>
+      <tr><th>Deliverables</th><td>A local dashboard (FastAPI + React, four languages) and a themed PDF that reads on its own — the same numbers plus a per-query table, a gap list and a glossary — from a local SQLite history</td></tr>
       <tr><th>Operating model</th><td>An on-demand audit you run yourself, not a 24/7 hosted monitor</td></tr>
       <tr><th>Requirements</th><td>Claude Code, the Claude-in-Chrome extension, a browser logged in to the engine. No data API, no paid keys</td></tr>
       <tr><th>License</th><td>MIT</td></tr>
@@ -286,7 +286,10 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     are scored per lens (general, branded, comparative) plus an aggregate row. Every number traces
     to one formula in the published contract.</li>
     <li><strong>You get a dashboard and a PDF.</strong> Both are local, in four languages, built
-    from the same scored run, with run-over-run deltas from your own history.</li>
+    from the same scored run, with run-over-run deltas from your own history. The PDF is a
+    standalone document rather than a summary of the dashboard: every query grouped by how the
+    brand ended up in the answer, a separate list of the answers the brand was absent from, the
+    readiness audit with its fixes, and a glossary of every formula.</li>
   </ol>
 
   <p><img src="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/dashboard-en.png"

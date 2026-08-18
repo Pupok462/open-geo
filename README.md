@@ -38,7 +38,7 @@ how the brand is spoken about when it does.
 | **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in browser (Claude-in-Chrome) |
 | **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated |
 | **What it reports** | A funnel — answer coverage → visibility in sources → visibility in citations — plus positions, source→citation conversion, brand-mention rate, qualitative sentiment, and a top-domains leaderboard |
-| **Deliverables** | A local dashboard (FastAPI + React, 4 languages) and a themed PDF, from a local SQLite history |
+| **Deliverables** | A local dashboard (FastAPI + React, 4 languages) and a themed PDF that reads on its own — same numbers, plus the per-query table, the gap list and a glossary — from a local SQLite history |
 | **Operating model** | An **on-demand audit you run yourself**, not a 24/7 hosted monitor |
 | **Requirements** | Claude Code, the Claude-in-Chrome extension, a browser logged in to the engine. No data API, no paid keys |
 | **License** | MIT |
@@ -130,8 +130,14 @@ is the right shape — if you need a defensible read of what an engine really re
   **"By run / By week"** toggle (ISO-week rollup).
 - **A dashboard with a four-language switcher** — English, Русский, 中文, العربية (RTL-aware) —
   FastAPI read-only API + a Vite/React frontend with light/dark themes and per-metric tooltips.
-- **A PDF report** — a self-contained themed A4 report (ReportLab + matplotlib), no headless
-  Chrome and no system libraries required.
+- **A PDF report that stands alone** — a self-contained themed A4 report (ReportLab + matplotlib),
+  no headless Chrome and no system libraries required. It is not a summary of the dashboard: it
+  carries the same numbers plus every query of the run **grouped by outcome** (cited / in sources,
+  not cited / mentioned, no link / absent / no answer), a separate **"Gaps to close"** list of the
+  queries the engine answered without the brand in it at all, the GEO-readiness audit **with a
+  "How to fix" column**, and a closing glossary giving the formula behind each metric. On
+  `--period all` the report rolls the whole period up with the same math as the dashboard, so the
+  two deliverables never disagree about a number.
 - **Engines side by side, one document** — an **"All engines — compare"** option in the dashboard
   shows every captured engine of the brand next to each other — engines are **never blended** into
   a single cross-engine score (each has its own answer-gate semantics) — and
@@ -300,10 +306,13 @@ Every run produces two deliverables — a themed **PDF report** and a local **da
 built from the same scored run.
 
 The PDF's **key-metrics page** (from the seeded **Example** demo — engine `google`;
-[download the full sample PDF](assets/sample-report-example.pdf)):
+[download the full sample PDF](assets/sample-report-example.pdf)). The full document runs
+`01` key metrics → `02` breakdown by lens → `03` visibility funnel → `04` trend across runs →
+`05` top domains → `06` sentiment by lens → `07` results by query → `08` gaps to close →
+`09` GEO-readiness audit → `10` how to read this report:
 
 <p align="center">
-  <img src="assets/report-metrics.png" alt="open-geo PDF report — key metrics page for Example (example.com): six KPI cards with run-over-run deltas and a per-lens breakdown table" width="78%">
+  <img src="assets/report-metrics.png" alt="open-geo PDF report — key metrics page for Example (example.com): seven KPI cards with run-over-run deltas and a per-lens breakdown table" width="78%">
 </p>
 
 The **dashboard** — KPI cards with read-time deltas, the per-lens breakdown, a "Sentiment by lens"

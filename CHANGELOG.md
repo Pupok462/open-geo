@@ -8,6 +8,51 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-18
+
+The PDF report stopped being a subset of the dashboard, and one of the two deliverables stopped
+disagreeing with the other about the numbers.
+
+### Added
+- **"Results by query" (section 07)** — every query of the run in one table (query, lens, answer,
+  source ranks, citation ranks, mention, sentiment), **grouped by outcome** in the order cited →
+  in sources, not cited → mentioned, no link → absent → no answer, with a count per group. This is
+  the static equivalent of the dashboard's outcome filter chips.
+- **"Gaps to close" (section 08)** — the `absent` subset on its own: the queries where the engine
+  gave a grounded answer and the brand was nowhere in it. The actionable list, separated from the
+  full table so it can be handed to whoever fixes it.
+- **"How to read this report" (section 10)** — a glossary that replaces the dashboard's hover
+  tooltips: the formula behind each of the seven metrics, plus the funnel invariant
+  `cited ⊆ in_sources ⊆ overviews ⊆ queries`.
+- **Parity with the dashboard in the existing sections** — the lens table gained Queries /
+  Answered / Mentioned columns, the trend section gained an ISO-week rollup (when the period spans
+  two weeks or more), the top-domains section gained an "In citations" column and a "top 5 by
+  citations" inset, and the engine matrix gained the source→citation conversion column.
+- **Repeat groups in the PDF** — a run that belongs to a `--repeat` group now shows the group's
+  **min–max spread** on each KPI card instead of a run-over-run delta, exactly as the dashboard
+  does. A spread is a stability signal, not a precision claim.
+- **Page numbers**, and a cover that carries the three headline numbers instead of only the run's
+  identity.
+
+### Fixed
+- **`--period all` reported the latest run, not the period.** The dashboard rolls the whole period
+  up; the report showed the most recent run under the same "whole period" label, so the two
+  deliverables printed different numbers for the same brand, engine and period — and both looked
+  valid. The report now folds the period with the same weighted math as the API (ratios recomputed
+  from summed numerators, average positions weighted by appearances, missing values read as "no
+  data" rather than zero) and states how many completed runs were folded. Verified against the API
+  on a real history: 120 queries, 83 grounded answers, 43.37 % / 30.12 % / 69.44 % / 59.04 %,
+  positions 2.61 / 1.00 — identical on both surfaces.
+- **The audit section printed the diagnosis without the treatment.** Checks are now grouped by
+  category A/B/C/D with a **"How to fix"** column carrying each check's remediation, plus the
+  blocker list and the audit date. `pipeline/INTERFACES.md` §7.4 had promised this; the code had
+  not been doing it.
+- **Layout.** Text no longer runs off the right margin — it wraps; a section header is no longer
+  orphaned from the content it introduces; a chart no longer drifts away from its own section;
+  long tables split across pages with the header row repeated instead of jumping whole; table type
+  size adapts to the column set. Section numbering is now a single run of `01`…`10` (the former
+  "03b" is gone).
+
 ## [0.3.4] — 2026-08-15
 
 A drift-and-measurement pass. Every playbook was re-probed against the live interface on
@@ -230,7 +275,8 @@ First public release.
 - Targets as a domain **or a URL prefix**, so a single repo or docs section can be measured.
 - A four-language dashboard and PDF (English, Русский, 中文, العربية, RTL-aware).
 
-[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Pupok462/open-geo/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/Pupok462/open-geo/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/Pupok462/open-geo/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/Pupok462/open-geo/compare/v0.3.1...v0.3.2

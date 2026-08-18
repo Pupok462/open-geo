@@ -36,7 +36,7 @@
 | **如何衡量** | 由代理在真实、已登录的浏览器里读取**渲染后**的 AI 回答（Claude-in-Chrome） |
 | **覆盖的引擎** | Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice（Нейро）、DeepSeek、Perplexity——七个均已完成实机验证 |
 | **报告什么** | 一条漏斗——回答覆盖率 → 来源可见度 → 引用可见度——外加位置、来源→引用转化率、品牌提及率、定性情感，以及热门域名排行榜 |
-| **交付物** | 本地仪表盘（FastAPI + React，四种语言）和主题化 PDF，数据来自本地 SQLite 历史 |
+| **交付物** | 本地仪表盘（FastAPI + React，四种语言）和一份可独立阅读的主题化 PDF——同样的数字，外加逐查询表格、缺口清单与术语表——数据来自本地 SQLite 历史 |
 | **运作模式** | **由你自己触发的按需审计**，而不是 7×24 的托管监控 |
 | **前置条件** | Claude Code、Claude-in-Chrome 扩展、已登录该引擎的浏览器。无需数据 API，无需付费密钥 |
 | **许可证** | MIT |
@@ -119,8 +119,12 @@
   波动区间会告诉你哪个数字不可信）。趋势图新增**「按运行 / 按周」**切换（按 ISO 周汇总）。
 - **带四语言切换器的仪表盘** —— English、Русский、中文、العربية（支持 RTL）——
   FastAPI 只读 API + 一个 Vite/React 前端，带浅色/深色主题和逐指标的悬浮提示。
-- **PDF 报告** —— 一份自包含的带主题 A4 报告（ReportLab + matplotlib），无需 headless
-  Chrome，也不需要系统库。
+- **可独立阅读的 PDF 报告** —— 一份自包含的带主题 A4 报告（ReportLab + matplotlib），无需 headless
+  Chrome，也不需要系统库。它并不是仪表盘的摘要：除了同样的数字，还包含本次运行的每一个查询，并
+  **按结果分组**（被引用 / 在来源中但未被引用 / 被提及但无链接 / 完全缺席 / 无回答）；一份独立的
+  **「Gaps to close」**清单，列出引擎给出了有依据的回答、而品牌完全不在其中的查询；带
+  **「如何修复」列**的 GEO 就绪度审计；以及结尾处给出每个指标计算公式的术语表。在 `--period all`
+  下，报告会用与仪表盘相同的算法汇总整个周期，因此两件交付物不会在数字上互相打架。
 - **引擎并排，一份文档** —— 仪表盘的**「所有引擎——对比」**选项把该品牌下每个已捕获的引擎并排展示
   ——引擎**从不**被混合成一个跨引擎分数（每个引擎都有自己的回答判定语义）——而
   `report.generate --engines all`（或对比模式下仪表盘的「下载 PDF」按钮）会导出一份
@@ -279,10 +283,12 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 都从同一次打分后的运行构建而来。
 
 PDF 的**关键指标页**（来自预置的 **Example** 演示——引擎 `google`；
-[下载完整示例 PDF](assets/sample-report-example.pdf)）：
+[下载完整示例 PDF](assets/sample-report-example.pdf)）。整份文档依次为：`01` 关键指标 →
+`02` 按视角拆分 → `03` 可见性漏斗 → `04` 跨运行趋势 → `05` 顶级域名 → `06` 按视角的情感 →
+`07` 逐查询结果 → `08` 待补的缺口 → `09` GEO 就绪度审计 → `10` 如何阅读本报告：
 
 <p align="center">
-  <img src="assets/report-metrics.png" alt="open-geo PDF 报告——Example（example.com）的关键指标页：六张 KPI 卡片，带逐次运行差值，以及一张按视角的拆分表" width="78%">
+  <img src="assets/report-metrics.png" alt="open-geo PDF 报告——Example（example.com）的关键指标页：七张 KPI 卡片，带逐次运行差值，以及一张按视角的拆分表" width="78%">
 </p>
 
 **仪表盘** —— 带读取时差值的 KPI 卡片、按视角的拆分、一个「Sentiment by lens」

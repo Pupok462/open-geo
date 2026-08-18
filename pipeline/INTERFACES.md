@@ -351,7 +351,8 @@ mid-run never loses already-captured work:
 - **Repeat-run groups (Feature 5)** — `--repeat R` (SKILL) captures the same
   question set R times as R **ordinary runs** sharing one `runs.group_id` (§2);
   each repeat keeps the full durability/resume story above (it IS a normal run).
-  Aggregation over the group is **read-time only** (dashboard API): per lens, the
+  Aggregation over the group is **read-time only** (dashboard API and the PDF
+  report, §3.5): per lens, the
   seven §4 metrics are rolled up **weighted** across the group's completed runs
   (same math as the whole-period rollup) and each metric additionally carries its
   **min–max spread across repeats** — a *stability signal, not a precision claim*
@@ -364,11 +365,13 @@ mid-run never loses already-captured work:
 
 ---
 
-## 3. CLI contracts — `pipeline.ingest`, `pipeline.aggregate`, `pipeline.lens_sentiment`
+## 3. CLI contracts — `pipeline.ingest`, `pipeline.aggregate`, `pipeline.lens_sentiment`, `report.generate`
 
-> **All three CLIs are implemented.** This section is the authoritative contract they
-> conform to. All CLIs print a **single JSON object to STDOUT** (so callers can
-> parse it); human/log noise goes to STDERR. Each also accepts an optional
+> **All four CLIs are implemented.** This section is the authoritative contract they
+> conform to. The three `pipeline.*` CLIs print a **single JSON object to STDOUT** (so
+> callers can parse it); human/log noise goes to STDERR. `report.generate` (§3.5) is a
+> renderer, not a JSON CLI: its product is the PDF at `--out` and STDOUT stays empty.
+> Each also accepts an optional
 > `--db <path>` (default `data/aeo.db`, §2) selecting the SQLite file — used by
 > tests/fixtures; it changes no contract shape.
 
@@ -469,6 +472,43 @@ mid-run never loses already-captured work:
   (§3.3) never touches this table.
 - **STDOUT:** `{"run_id": N, "written": ["all", "general", ...]}` — lenses written, in input order.
 - Unknown `run_id` → message on STDERR, exit 1 (STDOUT carries the JSON only on success).
+
+### 3.5 `python -m report.generate --brand "<name>" --domain <domain-or-url-prefix> (--engine <e> | --engines <a,b|all>) --period today|all --out <file.pdf> [--lang <code>]`
+
+| flag | default | meaning |
+|---|---|---|
+| `--engine <e>` / `--engines <a,b\|all>` | — (exactly one required) | single-engine report, or the **combined multi-engine** document (`all` = every engine with completed runs for this brand). Engines get a matrix row + a chapter each; they are **never blended** into one number. |
+| `--period today\|all` | — (required) | `today` = the latest completed run as a snapshot. `all` = **the whole period rolled up** (see below). |
+| `--lang <code>` | `en` | UI-chrome language (`i18n/<code>.json`); unknown codes fall back to English. Captured **data** (queries, sentiment, domains, audit text) keeps its own language. |
+| `--out <path>` | — (required) | output PDF. |
+| `--db <path>` | `data/aeo.db` | SQLite DB (§2). |
+
+- **`--period all` is a rollup, not "the latest run with a trend chart".** The report folds the
+  brand+engine's completed runs with the **same weighted math as the dashboard API**
+  (`dashboard/api.py`): ratios recomputed from summed numerators/denominators, `avg_*_position`
+  as `Σ sum_min_rank / Σ appearances`, `NULL` treated as "no data" (§2 migration note). The cover
+  and section 01 name how many runs were folded; the run-context line still shows the latest run.
+  A report and a dashboard opened on the same brand/engine/period MUST show the same numbers.
+- **Repeat groups (§2.1).** When the focus run carries a `group_id`, the report reads the group as
+  **one measurement** exactly like the dashboard: metrics rolled up across the group's completed
+  runs, and each KPI card carries the **min–max spread** instead of a run-over-run delta.
+- **Section order is fixed** (numbered `01`…`10` in the document): cover → `01` key metrics →
+  `02` breakdown by lens → `03` visibility funnel → `04` trend across runs (`--period all` only:
+  by-run chart + ISO-week rollup when the period spans ≥2 weeks) → `05` top domains in answer
+  space (§4.2) → `06` sentiment by lens (§3.4) → `07` **results by query** (every row of the run,
+  grouped by outcome `cited → in sources, not cited → mentioned, no link → absent → no answer`,
+  with per-group counts — the static equivalent of the dashboard's outcome filter) → `08`
+  **gaps to close** (the `absent` subset alone) → `09` GEO-readiness audit (§7.4) → `10`
+  **how to read this report** (the glossary: one `metrics.<id>.hint` formula per metric plus the
+  funnel invariant `cited ⊆ in_sources ⊆ overviews ⊆ queries` — it replaces the dashboard's
+  tooltips). `--engines` prepends the engine matrix and repeats `01`…`09` per engine chapter.
+- **The PDF is not a subset of the dashboard.** Anything the dashboard shows for a scope has a
+  static equivalent here; new report-only strings live under the `report.*` i18n namespace, the
+  shared vocabulary is reused from `dashboard.*` / `audit.*` / `metrics.*` so both surfaces say
+  the same thing in all four locales.
+- **Exit code:** `0` on success; `1` on a resolution failure (unknown brand/domain/engine, no
+  completed run); `2` when neither or both of `--engine` / `--engines` are given. Progress and
+  the resolved run context go to STDERR.
 
 ---
 
@@ -592,6 +632,10 @@ per `lens`). Deltas apply to `overview_coverage`, `visibility_in_sources`,
 `relative_citation`, and `brand_mention_rate` (for the two `avg_*_position`
 deltas, remember **lower = better**, so a negative delta is an improvement).
 **Do not store deltas** in any table — derive them on read.
+
+Two scopes carry **no** run-over-run delta, on both surfaces (dashboard and PDF): a
+**repeat group** shows the min–max spread instead (§2.1), and a **whole-period rollup**
+(`period=all`, §3.5) is not a single run, so there is nothing to compare it against.
 
 ### 4.2 Competitor / top-domain leaderboard (`domain_stats`)
 
@@ -815,7 +859,11 @@ they appear in `model_dump()` / STDOUT but are recomputed on read.
 ### 7.4 Where it surfaces (read side)
 
 The latest audit for a brand's registrable domain (`get_latest_audit`, §2) is read at report /
-dashboard time and rendered as **an audit section in the PDF** and **an audit panel in the
-dashboard** (verdict + score + the per-check table with severity and remediation). Like the
+dashboard time and rendered as **an audit section in the PDF** (§3.5, section `09`) and **an
+audit panel in the dashboard** — both carry verdict + score + the per-check table with severity
+and remediation. In the PDF the checks are **grouped by category A/B/C/D** (blockers first,
+advisory after), each row carries a **"How to fix"** column with the check's `remediation`, and
+the section states the blocker list and the audit's `checked_at` date, so the report prints the
+treatment and not only the diagnosis. Like the
 funnel metrics, the audit is **data** — its check titles/remediation are English canon and the
 UI chrome around it is localized via the i18n layer (`--lang`).

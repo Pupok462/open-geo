@@ -5,8 +5,24 @@
   <link href="https://pupok462.github.io/open-geo/feed.xml" rel="self"/>
   <link href="https://pupok462.github.io/open-geo/"/>
   <id>https://pupok462.github.io/open-geo/</id>
-  <updated>2026-08-12T00:00:00Z</updated>
+  <updated>2026-08-18T00:00:00Z</updated>
   <author><name>open-geo contributors</name></author>
+
+  <entry>
+    <title>0.4.0 — the PDF report stops being a subset of the dashboard</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#040--2026-08-18"/>
+    <id>tag:github.com,2026:open-geo/0.4.0</id>
+    <updated>2026-08-18T00:00:00Z</updated>
+    <summary>The report gains a per-query results table grouped by outcome, a standalone gap list, a metric glossary, and dashboard parity in the existing sections. It also stops disagreeing with the dashboard: "whole period" now folds the period with the same weighted math as the API instead of printing the latest run under that label. The audit section finally prints the remediation it had been promising, and the layout was rewritten — no clipped text, no orphaned headers, page numbers.</summary>
+  </entry>
+
+  <entry>
+    <title>0.3.4 — scripted fast path for source extraction, live audit of all seven engines</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#034--2026-08-15"/>
+    <id>tag:github.com,2026:open-geo/0.3.4</id>
+    <updated>2026-08-15T00:00:00Z</updated>
+    <summary>Every engine playbook was re-probed against the live interface, and two prescribed procedures turned out to work around a tool limit rather than the page. The result is a scripted fast path for source extraction — cheaper, and explicitly a fast path rather than a trusted one: the agent still cross-checks before the numbers count.</summary>
+  </entry>
 
   <entry>
     <title>0.3.3 — Perplexity engine, audit-gate robustness</title>
