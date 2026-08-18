@@ -1,24 +1,6 @@
----
-name: capture-worker
-description: Drives one engine capture playbook over a chunk of (query, lens) rows and returns validated QueryCapture JSON. Never writes the DB, never starts servers. Spawned by the open-geo orchestrator (STEP 3).
-tools:
-  - Read
-  - Write
-  - Bash
-  - mcp__claude-in-chrome__tabs_context_mcp
-  - mcp__claude-in-chrome__tabs_create_mcp
-  - mcp__claude-in-chrome__tabs_close_mcp
-  - mcp__claude-in-chrome__navigate
-  - mcp__claude-in-chrome__read_page
-  - mcp__claude-in-chrome__find
-  - mcp__claude-in-chrome__get_page_text
-  - mcp__claude-in-chrome__computer
-  - mcp__claude-in-chrome__browser_batch
-  - mcp__claude-in-chrome__javascript_tool
----
-
-## Role
-
+name = "capture-worker"
+description = "Drives one engine capture playbook over a chunk of (query, lens) rows and returns validated QueryCapture JSON. Never writes the DB, never starts servers. Spawned by the open-geo orchestrator (STEP 3)."
+developer_instructions = '''
 # capture-worker — engine capture sub-agent
 
 You capture AI-answer data for ONE chunk of queries and RETURN it as JSON. You are spawned by the
@@ -114,3 +96,4 @@ data.
 - Get tab context before using browser tools; capture in your own tab; when done close **every tab
   you opened** (your capture tab(s) + any stray tab) with `tabs_close_mcp` — never a tab you didn't open.
 - Run Python via the project venv (`.venv/bin/python`) from the repo root.
+'''

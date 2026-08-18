@@ -352,7 +352,7 @@ mid-run never loses already-captured work:
   question set R times as R **ordinary runs** sharing one `runs.group_id` (§2);
   each repeat keeps the full durability/resume story above (it IS a normal run).
   Aggregation over the group is **read-time only** (dashboard API and the PDF
-  report, §3.5): per lens, the
+  report, §3.6): per lens, the
   seven §4 metrics are rolled up **weighted** across the group's completed runs
   (same math as the whole-period rollup) and each metric additionally carries its
   **min–max spread across repeats** — a *stability signal, not a precision claim*
@@ -365,11 +365,11 @@ mid-run never loses already-captured work:
 
 ---
 
-## 3. CLI contracts — `pipeline.ingest`, `pipeline.aggregate`, `pipeline.lens_sentiment`, `report.generate`
+## 3. CLI contracts — ingest, aggregate, sentiment, artifact export, report
 
-> **All four CLIs are implemented.** This section is the authoritative contract they
-> conform to. The three `pipeline.*` CLIs print a **single JSON object to STDOUT** (so
-> callers can parse it); human/log noise goes to STDERR. `report.generate` (§3.5) is a
+> **All five CLIs are implemented.** This section is the authoritative contract they
+> conform to. The four `pipeline.*` CLIs print a **single JSON object to STDOUT** (so
+> callers can parse it); human/log noise goes to STDERR. `report.generate` (§3.6) is a
 > renderer, not a JSON CLI: its product is the PDF at `--out` and STDOUT stays empty.
 > Each also accepts an optional
 > `--db <path>` (default `data/aeo.db`, §2) selecting the SQLite file — used by
@@ -473,7 +473,30 @@ mid-run never loses already-captured work:
 - **STDOUT:** `{"run_id": N, "written": ["all", "general", ...]}` — lenses written, in input order.
 - Unknown `run_id` → message on STDERR, exit 1 (STDOUT carries the JSON only on success).
 
-### 3.5 `python -m report.generate --brand "<name>" --domain <domain-or-url-prefix> (--engine <e> | --engines <a,b|all>) --period today|all --out <file.pdf> [--lang <code>]`
+### 3.5 `python -m pipeline.artifact --run-id <N> [--out <file.json>]`
+
+- Exports one run as a portable, versioned JSON document for agent-to-agent workflow
+  composition. The default output is `reports/run-<N>.json`; `--out` may be an absolute path
+  in the caller's workspace.
+- Reads the already-persisted run only; it does not capture, mutate metrics, start a server,
+  or require the dashboard frontend.
+- The top-level `schema_version` is **`open-geo.run-artifact.v1`**. The payload contains:
+  `run`, `brand`, `metrics` keyed by lens, `lens_sentiment`, decoded per-query `results`,
+  `domain_stats` keyed by lens, and the latest matching engine-aware `audit` (or `null`).
+- The file write is atomic (`tempfile` in the destination directory + `os.replace`), UTF-8,
+  and pretty-printed. Downstream agents consume this file instead of scraping the human
+  summary or reading SQLite directly.
+- **STDOUT:**
+  ```json
+  {
+    "schema_version": "open-geo.run-artifact.v1",
+    "run_id": 42,
+    "artifact_path": "/absolute/path/to/run-42.json"
+  }
+  ```
+- Unknown `run_id` → message on STDERR, exit 1, no output artifact.
+
+### 3.6 `python -m report.generate --brand "<name>" --domain <domain-or-url-prefix> (--engine <e> | --engines <a,b|all>) --period today|all --out <file.pdf> [--lang <code>]`
 
 | flag | default | meaning |
 |---|---|---|
@@ -635,7 +658,7 @@ deltas, remember **lower = better**, so a negative delta is an improvement).
 
 Two scopes carry **no** run-over-run delta, on both surfaces (dashboard and PDF): a
 **repeat group** shows the min–max spread instead (§2.1), and a **whole-period rollup**
-(`period=all`, §3.5) is not a single run, so there is nothing to compare it against.
+(`period=all`, §3.6) is not a single run, so there is nothing to compare it against.
 
 ### 4.2 Competitor / top-domain leaderboard (`domain_stats`)
 
@@ -859,7 +882,7 @@ they appear in `model_dump()` / STDOUT but are recomputed on read.
 ### 7.4 Where it surfaces (read side)
 
 The latest audit for a brand's registrable domain (`get_latest_audit`, §2) is read at report /
-dashboard time and rendered as **an audit section in the PDF** (§3.5, section `09`) and **an
+dashboard time and rendered as **an audit section in the PDF** (§3.6, section `09`) and **an
 audit panel in the dashboard** — both carry verdict + score + the per-check table with severity
 and remediation. In the PDF the checks are **grouped by category A/B/C/D** (blockers first,
 advisory after), each row carries a **"How to fix"** column with the check's `remediation`, and

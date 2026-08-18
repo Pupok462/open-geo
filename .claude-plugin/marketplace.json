@@ -10,8 +10,8 @@
     {
       "name": "open-geo",
       "source": "./",
-      "description": "GEO visibility tracker: run queries through an AI engine, measure a target domain's visibility/citation in the answers, and emit a dashboard or PDF report.",
-      "version": "0.4.0",
+      "description": "Composable GEO visibility agent skill: capture rendered AI answers and return a portable JSON run artifact with optional PDF/dashboard outputs.",
+      "version": "0.4.1",
       "license": "MIT",
       "homepage": "https://github.com/Pupok462/open-geo",
       "keywords": [
@@ -20,7 +20,9 @@
         "generative-engine-optimization",
         "ai-overview",
         "visibility",
-        "seo"
+        "seo",
+        "agent-skill",
+        "workflow"
       ]
     }
   ]

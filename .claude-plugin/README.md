@@ -1,7 +1,8 @@
 # open-geo — Claude Code plugin manifests
 
-This directory holds the **optional** one-command-install path for open-geo as a
-Claude Code plugin:
+This directory holds the one-command-install path for open-geo as a Claude Code plugin.
+The installed skill performs the full run and always returns a portable JSON artifact;
+PDF and dashboard outputs are optional.
 
 - `plugin.json` — the plugin manifest (skill at `.claude/skills/open-geo/`, worker
   agents at `.claude/agents/` — both declared via custom paths, since this repo keeps
@@ -27,16 +28,16 @@ Install (from a Claude Code session):
 > `/open-geo:open-geo`. The plain `/open-geo` form exists only when working from a repo
 > clone (project-level `.claude/skills/`).
 
-> **Installing the plugin does NOT finish setup.** The plugin only registers the
-> `/open-geo` skill. To actually run a visibility pass you still need to:
->
-> 1. Run **`scripts/setup.sh`** in the repo (creates `.venv`, installs Python deps,
->    runs `npm install` for the dashboard frontend), and
-> 2. Have a **connected Claude-in-Chrome MCP** plus a **visible, logged-in Chrome**
->    session for the target engine — capture is manual and not headless.
->
-> The robust, fully supported path remains: clone the repo and run
-> `scripts/setup.sh`. The plugin install is a convenience wrapper on top of that.
+> **No manual runtime launch.** On first invocation, the skill resolves the plugin/repository
+> runtime and runs `scripts/setup.sh --minimal` itself when Python dependencies are missing.
+> It installs dashboard dependencies only when the caller explicitly requests `dashboard` or
+> `both`. The remaining prerequisite is a **connected visible-browser capability** plus a
+> **logged-in browser session** for the target engine; the skill never substitutes API/headless
+> data for that rendered surface.
+
+The default `--output data` starts no servers. Every completed run exports
+`open-geo.run-artifact.v1`, which lets another agent workflow consume the measurement without
+scraping the chat response or reading SQLite directly.
 
 Schema reference (verified against the official Claude Code docs):
 - Plugin manifest: https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema

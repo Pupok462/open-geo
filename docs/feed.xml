@@ -9,6 +9,14 @@
   <author><name>open-geo contributors</name></author>
 
   <entry>
+    <title>0.4.1 — portable run artifacts and composable agent workflows</title>
+    <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#041--2026-08-18"/>
+    <id>tag:github.com,2026:open-geo/0.4.1</id>
+    <updated>2026-08-18T00:00:00Z</updated>
+    <summary>Every run now exports open-geo.run-artifact.v1 for agent-to-agent handoff. Data mode starts no servers, the installed skill bootstraps its runtime on first use, and AgentsMesh generates adapters for Claude Code, Codex CLI, Cursor and Gemini CLI.</summary>
+  </entry>
+
+  <entry>
     <title>0.4.0 — the PDF report stops being a subset of the dashboard</title>
     <link href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md#040--2026-08-18"/>
     <id>tag:github.com,2026:open-geo/0.4.0</id>

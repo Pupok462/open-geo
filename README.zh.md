@@ -4,15 +4,15 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">中文</a> · <a href="README.ar.md">العربية</a></p>
 
-# open-geo — 面向 Claude Code 的 GEO 可见度追踪器
+# open-geo — GEO 可见度代理技能
 
 **open-geo 是一个 GEO（生成式引擎优化）可见度追踪器：它通过读取已登录用户真实看到的_渲染后_回答，
 来衡量你的品牌是否出现在 AI 回答中。**
 捕获通过一个代理在真实、已登录的浏览器里进行——不走引擎 API，也不做无头抓取，因为那两者与
 真人被展示的回答并不一致。已覆盖 **Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice
 和 DeepSeek**，并输出一条诚实的漏斗（查询 → 回答 → 来源 → 引用）；当一次运行不可信时它会直说，
-而不是猜。它以 **Claude Code 技能**的形式运行：把 `/open-geo` 指向一份问题集和一个域名，
-即可得到仪表盘和 PDF。
+而不是猜。它以**代理技能**的形式运行：提出测量请求后，代理会完成捕获、保存运行，
+并返回可移植的 JSON 数据产物；PDF 和仪表盘是可选项。无需手动启动流水线或常驻服务。
 
 搜索正在从「十条蓝色链接」转向生成式回答，而每条回答都依赖少数几个来源。成为其中之一**就是**
 在 AI 中的可见度——因此 open-geo 会逐条查询记录：你的域名是否进入了**来源**、是否进入了
@@ -32,12 +32,12 @@
 
 | | |
 |---|---|
-| **这是什么** | 面向品牌或 URL 的 GEO / AI 可见度追踪器，以 **Claude Code 技能**的形式打包 |
+| **这是什么** | 面向品牌或 URL 的 GEO / AI 可见度数据采集代理，以可组合的**技能**形式打包 |
 | **如何衡量** | 由代理在真实、已登录的浏览器里读取**渲染后**的 AI 回答（Claude-in-Chrome） |
 | **覆盖的引擎** | Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice（Нейро）、DeepSeek、Perplexity——七个均已完成实机验证 |
 | **报告什么** | 一条漏斗——回答覆盖率 → 来源可见度 → 引用可见度——外加位置、来源→引用转化率、品牌提及率、定性情感，以及热门域名排行榜 |
-| **交付物** | 本地仪表盘（FastAPI + React，四种语言）和一份可独立阅读的主题化 PDF——同样的数字，外加逐查询表格、缺口清单与术语表——数据来自本地 SQLite 历史 |
-| **运作模式** | **由你自己触发的按需审计**，而不是 7×24 的托管监控 |
+| **交付物** | 始终生成：供其他代理消费的版本化 JSON 运行产物；可选生成本地仪表盘和 PDF |
+| **运作模式** | **由代理完成的按需审计**，而不是 7×24 的托管监控 |
 | **前置条件** | Claude Code、Claude-in-Chrome 扩展、已登录该引擎的浏览器。无需数据 API，无需付费密钥 |
 | **许可证** | MIT |
 
@@ -55,8 +55,13 @@
   来源 → 引用），第七项是相邻的品牌提及份额——外加一项定性的情感判读**以及一个热门域名排行榜**（你的品牌与回答中所有其他域名的对比）。
   **没有综合指数，没有编造的 share-of-voice 指数。** 每个数字都可追溯到 [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) 进行审计。
 - **本地优先、多品牌时间序列。** 捕获结果落入本地 SQLite（WAL）数据库，于是你可以
-  构建按品牌、按引擎的历史，并得到逐次运行之间的差值。交付物是一份带主题的 **PDF** 和
-  一个**带四语言切换器的 FastAPI + React 仪表盘**。没有 SaaS、无需账户——由你自己运行，方法论你可随时查看与复现。
+  构建按品牌、按引擎的历史，并得到逐次运行之间的差值。每次运行都会导出可移植的 **JSON
+  工件**；带主题的 **PDF** 和**带四语言切换器的 FastAPI + React 仪表盘**都是可选项。
+  没有 SaaS、无需账户——代理按需执行，方法论始终可查看、可复现。
+- **可嵌入任何其他代理工作流。** 每次完成的运行都会导出 `open-geo.run-artifact.v1`，
+  在一个 JSON 文件中包含指标、解码后的捕获、来源/引用排名、情感、热门域名和就绪度审计。
+  任何能调用技能并读取 JSON 的下游代理工作流，都可以把 open-geo 作为其中一步继续处理，
+  无需启动仪表盘，也无需直接读取 SQLite。
 
 ### 这是给谁用的
 
@@ -66,8 +71,8 @@
   按查询视角（general / branded / comparative）拆分，并捕捉逐周的漂移。
 - **自建 AI 可见度测量的团队** —— 把 open-geo 当作基准：你的 API / 抓取流水线
   与渲染后回答里真实呈现的内容是否相关？
-- **已经在用 Claude Code 的创始人和开发者** —— 它就是一个技能：把 `/open-geo` 指向一个 CSV 和一个
-  域名，得到一个仪表盘。没有 SaaS，无需上传，无需账户。
+- **已经在用代理宿主的创始人和开发者** —— 它就是一个技能：把 open-geo 指向一个 CSV 和一个
+  域名，得到可移植的数据工件。没有 SaaS，无需上传，无需账户。
 
 ## open-geo 有何不同
 
@@ -132,42 +137,33 @@
 
 ## 快速开始
 
-open-geo 是一个 **Claude Code 技能**——你从与 Claude 的对话中驱动它，而不是从一堆
-shell 命令。整个上手流程是：克隆、让 Claude 安装它，然后把它当作命令来用。
+安装技能，然后直接向代理索要结果。首次请求时，技能会自行准备运行时、完成捕获，
+并返回 JSON 产物的绝对路径；无需手动克隆、运行 `setup.sh`、Python、API 或仪表盘。
 
-1. **克隆仓库**（或者直接把 Claude 指向 URL）：
+1. **作为 Claude Code 插件安装：**
 
-   ```bash
-   git clone <repo> open-geo
+   ```text
+   /plugin marketplace add Pupok462/open-geo
+   /plugin install open-geo@open-geo-marketplace
    ```
 
-2. **让 Claude 帮你完成设置。** 在该文件夹下的 Claude Code 会话里，说类似这样的话：
+2. **用自然语言请求：**
 
-   > 设置好 open-geo（运行 `scripts/setup.sh`），然后用 `examples/questions.csv`
-   > 在 `google` 上追踪 `example.com`（品牌为 "Example"）。
+   > 使用 `examples/questions.csv` 在 Google 上测量 `example.com`（品牌 "Example"），
+   > 返回数据产物，不要启动仪表盘。
 
-   Claude 会替你执行安装和捕获——并打印出一个仪表盘链接和一份摘要。
-
-3. **或者在安装后直接以命令运行：**
+3. **或者显式调用技能：**
 
    ```bash
-   /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
+   /open-geo:open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3
    ```
 
 > **`examples/questions.csv` 只是占位样例**——一个虚构品牌的问题集，让首次运行开箱即用。正式判读前，请换成
 > **你自己的**查询：问题集是核心输入，它决定*测量什么*，报告的质量取决于你所提问题的质量。格式与如何挑选见
 > FAQ「我需要什么输入？」。
 
-**也可以作为 Claude Code 插件安装** —— 在任意会话中注册该命令及其工作代理：
-
-```
-/plugin marketplace add Pupok462/open-geo
-/plugin install open-geo@open-geo-marketplace
-```
-
 > 插件技能带命名空间：通过插件安装后命令为 **`/open-geo:open-geo`**（从仓库克隆中使用时仍是
-> `/open-geo`）。插件只是安装入口：流水线本身仍需从仓库克隆中运行（见上文步骤 1–2），若在克隆
-> 之外调用，命令会明确提示这一点。之后可用 `/plugin update open-geo` 获取新版本。
+> `/open-geo`）。首次运行会自动准备 Python 运行时。之后可用 `/plugin update open-geo` 获取新版本。
 
 **按计划追踪。** 用 Claude Code 的 **`/loop`** 把命令包起来，以一定间隔重新捕获并
 观察漂移——例如做一次每周的判读：
@@ -181,13 +177,13 @@ shell 命令。整个上手流程是：克隆、让 Claude 安装它，然后把
 
 ## 命令
 
-一切都通过**一个**操作员命令运行——即 **`/open-geo`** 技能。你不用碰
-Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和/或一份 PDF 交到你手里。
+一切都通过**一个**技能运行。你不用碰 Python：宿主代理编排捕获 → 指标 → 数据产物，
+并把版本化 JSON 交给你或调用它的上层工作流。
 
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
-          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] \
-          [--force] [--repeat R]
+          [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
+          [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]
 ```
 
 | 参数 | 含义 |
@@ -197,7 +193,8 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 | `<domain>` | 目标域名**或 URL 前缀**（`github.com`、`github.com/user`、`github.com/user/repo`；任意写法——会被自动归一化）。 |
 | `--brand "<name>"` | 人类可读的品牌名（用于报告/仪表盘标题和摘要）。 |
 | `--n-worker <N>` | **并行**运行的捕获 worker 数量——即本次运行的并发度。 |
-| `--output` | `dashboard`（默认）\| `pdf` \| `both`。 |
+| `--output` | `data`（默认；仅 JSON，不启动服务）\| `dashboard` \| `pdf` \| `both`。 |
+| `--artifact-out` | 可移植 JSON 产物的目标路径；默认 `reports/run-<run-id>.json`。 |
 | `--period` | `all`（默认——完整的品牌+引擎历史，含趋势图）\| `today`（仅本次运行）。 |
 | `--lang` | 交付物的 UI 语言——`en`（默认）\| `ru` \| `zh` \| `ar`。 |
 | `--force` | 即使运行前的 GEO 审计闸门返回 `blocked` 也继续（改为大声警告，而不是中止）。 |
@@ -205,8 +202,9 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 
 它端到端做了什么：创建一次运行 → 把查询分摊到**并行**的捕获 worker（
 每个 worker 在你已登录的 Chrome 里驱动引擎，并为每个查询返回一条经过校验的记录）→
-集中地摄入并打分 → 输出仪表盘和/或 PDF → 从跨视角的 `all` 行打印一份简短摘要。
-通过 `/loop` 重新运行，即可随时间追踪漂移。
+集中地摄入并打分 → 导出 `open-geo.run-artifact.v1` → 可选输出仪表盘/PDF → 从跨视角的
+`all` 行打印摘要。其他代理可直接读取该产物继续执行研究、SEO、报告或内容工作流，
+无需保持仪表盘运行。
 
 ## 工作原理
 
@@ -279,8 +277,8 @@ Python：Claude 编排捕获 → 指标 → 交付物，并把一个仪表盘和
 
 ## 示例输出
 
-每次运行产出两件交付物——一份带主题的 **PDF 报告**和一个本地**仪表盘**，二者
-都从同一次打分后的运行构建而来。
+每次运行都会产出一个可移植的 **JSON 工件**。下面的带主题 **PDF 报告**和本地**仪表盘**
+是可选的展示视图，均从同一次打分后的运行构建而来。
 
 PDF 的**关键指标页**（来自预置的 **Example** 演示——引擎 `google`；
 [下载完整示例 PDF](assets/sample-report-example.pdf)）。整份文档依次为：`01` 关键指标 →
@@ -336,9 +334,9 @@ AEO（答案引擎优化）。它的衡量问题与 SEO 不同：没有排名位
 **检索**到了你、是否**引用**了你，以及你落在回答中的什么位置。
 
 ### 有没有面向 Claude Code 的 GEO / AI 可见度追踪器？
-有，open-geo 就是。它以 Claude Code 技能的形式安装，用一条命令运行——
-`/open-geo <questions.csv> <engine> <domain>`，通过 Claude-in-Chrome 扩展驱动你已登录的 Chrome。
-也可以作为插件安装：`/plugin marketplace add Pupok462/open-geo`。
+有，open-geo 就是。它以代理技能的形式安装，按请求完成整个捕获，并返回可由其他工作流
+直接消费的版本化 JSON 产物。在 Claude Code 中可用
+`/plugin marketplace add Pupok462/open-geo` 安装，首次运行会自动准备运行时。
 
 ### open-geo 能追踪哪些 AI 引擎？
 目前七个：**Google AI Overview、ChatGPT（联网搜索）、Claude（联网搜索）、Google Gemini、

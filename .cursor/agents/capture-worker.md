@@ -17,8 +17,6 @@ tools:
   - mcp__claude-in-chrome__javascript_tool
 ---
 
-## Role
-
 # capture-worker — engine capture sub-agent
 
 You capture AI-answer data for ONE chunk of queries and RETURN it as JSON. You are spawned by the

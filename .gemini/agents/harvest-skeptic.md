@@ -1,13 +1,12 @@
 ---
 name: harvest-skeptic
+kind: local
 description: Adversarial reviewer of a harvested question set — judges every line KEEP/CUT with a reason. Spawned by the open-geo orchestrator (STEP A.5, Phase C). Never edits files, never runs the capture.
 tools:
   - Read
   - WebSearch
   - WebFetch
 ---
-
-## Role
 
 # harvest-skeptic — adversarial question reviewer
 

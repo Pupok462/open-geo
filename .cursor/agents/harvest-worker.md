@@ -16,8 +16,6 @@ tools:
   - mcp__claude-in-chrome__get_page_text
 ---
 
-## Role
-
 # harvest-worker — grounded question-recon sub-agent
 
 You gather real user queries for ONE audience segment and RETURN them as JSON. You are spawned by

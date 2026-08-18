@@ -1,7 +1,7 @@
 {
   "name": "open-geo",
-  "description": "GEO (Generative Engine Optimization) visibility tracker: run queries through an AI engine, measure a target domain's visibility and citation in the answers, and emit a dashboard or PDF report.",
-  "version": "0.4.0",
+  "description": "Composable GEO visibility agent skill: capture rendered AI answers, measure a target's visibility/citation, and return a portable JSON run artifact with optional PDF/dashboard outputs.",
+  "version": "0.4.1",
   "author": {
     "name": "open-geo contributors"
   },
@@ -14,7 +14,9 @@
     "generative-engine-optimization",
     "ai-overview",
     "visibility",
-    "seo"
+    "seo",
+    "agent-skill",
+    "workflow"
   ],
   "skills": "./.claude/skills/",
   "agents": [

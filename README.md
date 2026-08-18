@@ -4,7 +4,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">中文</a> · <a href="README.ar.md">العربية</a></p>
 
-# open-geo — GEO Visibility Tracker for Claude Code
+# open-geo — GEO Visibility Agent Skill
 
 **open-geo is a GEO (generative engine optimization) visibility tracker: it measures whether your
 brand shows up in AI answers by reading the _rendered_ answer a logged-in user actually sees.**
@@ -12,8 +12,9 @@ Capture runs through an agent in a real, logged-in browser — not the engine's 
 headless scrape, because those don't match the answer a person is shown. It covers **Google AI
 Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek**, and reports an honest funnel
 (queries → answers → sources → citations) that says when a run can't be trusted instead of
-guessing. It runs as a **Claude Code skill**: point `/open-geo` at a question set and a domain,
-get a dashboard and a PDF.
+guessing. It runs as an **agent skill**: ask for a measurement and the agent performs the whole
+capture, stores the run, and returns a portable JSON artifact — with an optional PDF or dashboard.
+You do not launch the pipeline or keep a service running.
 
 Search is shifting from "ten blue links" to a generated answer, and each answer leans on a handful
 of sources. Being one of them **is** visibility in AI — so what open-geo records, per query, is
@@ -34,13 +35,13 @@ how the brand is spoken about when it does.
 
 | | |
 |---|---|
-| **What it is** | A GEO / AI-visibility tracker for a brand or a URL, packaged as a **Claude Code skill** |
+| **What it is** | A GEO / AI-visibility data-collection agent for a brand or URL, packaged as a composable **skill** |
 | **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in browser (Claude-in-Chrome) |
 | **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated |
 | **What it reports** | A funnel — answer coverage → visibility in sources → visibility in citations — plus positions, source→citation conversion, brand-mention rate, qualitative sentiment, and a top-domains leaderboard |
-| **Deliverables** | A local dashboard (FastAPI + React, 4 languages) and a themed PDF that reads on its own — same numbers, plus the per-query table, the gap list and a glossary — from a local SQLite history |
-| **Operating model** | An **on-demand audit you run yourself**, not a 24/7 hosted monitor |
-| **Requirements** | Claude Code, the Claude-in-Chrome extension, a browser logged in to the engine. No data API, no paid keys |
+| **Deliverables** | Always: a versioned JSON run artifact for other agents. Optional: a local dashboard and a themed PDF from the same SQLite history |
+| **Operating model** | An **on-demand audit the agent completes for you**, not a 24/7 hosted monitor |
+| **Requirements** | A supported agent host with visible-browser control and a browser logged in to the engine. No data API, no paid keys |
 | **License** | MIT |
 
 ### Why open-geo
@@ -58,9 +59,15 @@ how the brand is spoken about when it does.
   **and a top-domains leaderboard** (your brand ranked against every other domain in the answers). **No composite index, no made-up
   share-of-voice *index*.** Every number is auditable to [`pipeline/INTERFACES.md`](pipeline/INTERFACES.md).
 - **Local-first, multi-brand time-series.** Captures land in a local SQLite (WAL) database, so you
-  build per-brand, per-engine history and run-over-run deltas. Deliverables are a themed **PDF** and
-  a **FastAPI + React dashboard** with a four-language switcher. No SaaS and no account — you run it
-  yourself, so the methodology is yours to inspect and reproduce.
+  build per-brand, per-engine history and run-over-run deltas. Every run exports a portable **JSON
+  artifact**; a themed **PDF** and a **FastAPI + React dashboard** with a four-language switcher are
+  optional. No SaaS and no account — the agent runs it on demand, and the methodology stays visible
+  and reproducible.
+- **Drops into another agent workflow.** Every completed run exports
+  `open-geo.run-artifact.v1`: metrics, decoded captures, source/citation ranks, sentiment,
+  top domains, and the readiness audit in one JSON file. Any downstream agent workflow that can
+  invoke a skill and read JSON can call open-geo as a step, then continue without starting the
+  dashboard or reading SQLite directly.
 
 ### Who this is for
 
@@ -70,8 +77,8 @@ how the brand is spoken about when it does.
   split by query lens (general / branded / comparative), and catch week-over-week drift.
 - **Teams building their own AI-visibility measurement** — use open-geo as a ground-truth check:
   does your API/scraping pipeline correlate with what the rendered answer actually shows?
-- **Founders & devs already in Claude Code** — it's just a skill: point `/open-geo` at a CSV and a
-  domain, get a dashboard. No SaaS, no upload, no account.
+- **Founders & devs already in an agent host** — it's just a skill: point open-geo at a CSV and a
+  domain, get a portable data artifact. No SaaS, no upload, no account.
 
 ## How open-geo compares
 
@@ -85,7 +92,7 @@ table is about **what each shape is built for**, so you can pick the right one:
 | **When the UI changes** | The agent follows a natural-language playbook (`engines/<engine>.md`), so a structural change is a few words in a file | Handled for you, on the vendor's schedule | Yours to fix when the markup moves |
 | **Operating model** | An **on-demand audit** you trigger and supervise | **Continuous** monitoring over large prompt sets | Whatever you schedule |
 | **Scale** | Tens to low hundreds of queries per run; costs inference and attention | Thousands of prompts, hands-off | Bounded by your budget and rate limits |
-| **Where results live** | Local SQLite history, local dashboard and PDF | The vendor's cloud | Wherever you put them |
+| **Where results live** | Local SQLite history + portable JSON artifact; optional dashboard/PDF | The vendor's cloud | Wherever you put them |
 | **When the data is shaky** | A grounded-answer gate and a nested funnel; a run is **flagged**, never guessed | Vendor-defined | Yours to design |
 
 **The trade-off is deliberate: fidelity over volume.** open-geo is supervised, it spends inference,
@@ -146,26 +153,26 @@ is the right shape — if you need a defensible read of what an engine really re
 
 ## Quick start
 
-open-geo is a **Claude Code skill** — you drive it from a chat with Claude, not from a pile of
-shell commands. The whole setup is: clone, ask Claude to install it, then use it as a command.
+Install the skill, then ask the agent for the outcome. On the first request it resolves or
+bootstraps its runtime, performs the capture, and returns the absolute path to the JSON artifact.
+No manual clone, `setup.sh`, Python command, API server, or dashboard launch is required.
 
-1. **Clone the repo** (or just point Claude at the URL):
+1. **Install it as a Claude Code plugin:**
 
-   ```bash
-   git clone <repo> open-geo
+   ```text
+   /plugin marketplace add Pupok462/open-geo
+   /plugin install open-geo@open-geo-marketplace
    ```
 
-2. **Ask Claude to set it up.** In a Claude Code session in that folder, say something like:
+2. **Ask naturally:**
 
-   > Set up open-geo (run `scripts/setup.sh`), then track `example.com` (brand "Example") on `google`
-   > using `examples/questions.csv`.
+   > Measure `example.com` (brand "Example") on Google using `examples/questions.csv` and return
+   > the data artifact. Do not start the dashboard.
 
-   Claude runs the install and the capture for you — and prints a dashboard link and a summary.
-
-3. **Or run it directly** as a command once installed:
+3. **Or invoke the skill explicitly:**
 
    ```bash
-   /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
+   /open-geo:open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3
    ```
 
 > **`examples/questions.csv` is a placeholder** — a fictional brand's question set, there so the
@@ -173,18 +180,9 @@ shell commands. The whole setup is: clone, ask Claude to install it, then use it
 > the core input — it decides *what* gets measured, and the report is only as good as the questions
 > you ask. Format and how to choose them: [What input do I need?](#what-input-do-i-need).
 
-**Or install it as a Claude Code plugin** — registers the command and its worker agents in
-any session:
-
-```
-/plugin marketplace add Pupok462/open-geo
-/plugin install open-geo@open-geo-marketplace
-```
-
 > Plugin skills are namespaced, so the plugin-installed command is **`/open-geo:open-geo`**
-> (from a repo clone it stays plain `/open-geo`). The plugin is a discovery wrapper: the
-> pipeline still runs from a repo clone (steps 1–2 above), and the command says exactly that
-> if invoked outside one. To pick up a new release later, run `/plugin update open-geo`.
+> (from a repo clone it stays plain `/open-geo`). The first run prepares its Python runtime
+> automatically. To pick up a new release later, run `/plugin update open-geo`.
 
 **Track it on a schedule.** Wrap the command in Claude Code's **`/loop`** to re-capture on an
 interval and watch the drift — e.g. a weekly read:
@@ -198,13 +196,13 @@ interval and watch the drift — e.g. a weekly read:
 
 ## Commands
 
-Everything runs through **one** operator command — the **`/open-geo`** skill. You don't touch
-Python: Claude orchestrates capture → metrics → deliverables and hands you a dashboard and/or a PDF.
+Everything runs through **one** skill. You don't touch Python: the host agent orchestrates
+capture → metrics → artifact and hands the versioned JSON to you or the calling workflow.
 
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
-          [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] \
-          [--force] [--repeat R]
+          [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
+          [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]
 ```
 
 | argument | meaning |
@@ -214,7 +212,8 @@ Python: Claude orchestrates capture → metrics → deliverables and hands you a
 | `<domain>` | the target domain **or URL prefix** (`github.com`, `github.com/user`, `github.com/user/repo`; any spelling — normalized automatically). |
 | `--brand "<name>"` | human brand name (used in report/dashboard titles and the summary). |
 | `--n-worker <N>` | number of capture workers run **in parallel** — the run's concurrency. |
-| `--output` | `dashboard` (default) \| `pdf` \| `both`. |
+| `--output` | `data` (default; JSON only, no servers) \| `dashboard` \| `pdf` \| `both`. |
+| `--artifact-out` | destination for the portable JSON artifact; defaults to `reports/run-<run-id>.json`. |
 | `--period` | `all` (default — full brand+engine history, with the trend chart) \| `today` (this run only). |
 | `--lang` | UI language of the deliverables — `en` (default) \| `ru` \| `zh` \| `ar`. |
 | `--force` | continue even when the pre-run GEO-audit gate returns `blocked` (it warns loudly instead of stopping). |
@@ -222,8 +221,24 @@ Python: Claude orchestrates capture → metrics → deliverables and hands you a
 
 What it does, end to end: creates a run → splits the queries across **parallel** capture workers
 (each drives the engine in your logged-in Chrome and returns one validated record per query) →
-ingests and scores them centrally → emits the dashboard and/or PDF → prints a short summary from
-the cross-lens `all` row. Re-run on a [`/loop`](#quick-start) to track drift over time.
+ingests and scores them centrally → exports `open-geo.run-artifact.v1` → optionally emits the
+dashboard/PDF → prints a short summary from the cross-lens `all` row. Another agent can consume the
+artifact immediately; no local service is part of the handoff.
+
+### Use it inside another agent workflow
+
+Treat open-geo as a data-producing node, not a UI dependency:
+
+```text
+1. Content/SEO agent selects or harvests the question set.
+2. It invokes open-geo with --output data --artifact-out <workspace>/open-geo-run.json.
+3. open-geo captures, validates, persists, aggregates, and returns that JSON path.
+4. The parent workflow reads the artifact and continues with diagnosis, briefs, reports, or fixes.
+```
+
+The integration boundary is the versioned JSON schema documented in
+[`pipeline/INTERFACES.md`](pipeline/INTERFACES.md) §3.5, so the parent agent never needs to parse
+chat prose or keep the dashboard alive.
 
 ## How it works
 
@@ -240,8 +255,8 @@ The whole tracker is orchestrated by the **`/open-geo`** command:
    owns every DB write: it ingests **each chunk as its worker returns** — incrementally, so a
    crash mid-run never loses captured work — finalizes the run, then computes metrics per lens
    plus an `all` row.
-4. **dashboard / PDF** — the orchestrator emits the deliverable(s) **last**, from the stored
-   metrics, plus a short summary (the dashboard server is started only after all captures are in).
+4. **artifact / optional presentation** — the orchestrator always exports the versioned JSON
+   **last**, from stored data, then optionally adds a PDF or starts the dashboard.
 
 The pipeline is **engine-agnostic**: `engine` is an open id end to end (contract, DB, CLI,
 dashboard, report), and supporting a new engine is mainly a new `engines/<engine>.md` playbook —
@@ -302,8 +317,8 @@ previous completed run of the same brand + engine; they are not stored. Authorit
 
 ## Sample output
 
-Every run produces two deliverables — a themed **PDF report** and a local **dashboard**, both
-built from the same scored run.
+Every run produces a portable **JSON artifact**. The themed **PDF report** and local **dashboard**
+below are optional presentation views built from the same scored run.
 
 The PDF's **key-metrics page** (from the seeded **Example** demo — engine `google`;
 [download the full sample PDF](assets/sample-report-example.pdf)). The full document runs
@@ -361,10 +376,9 @@ problem is different from SEO's: there is no rank position to read, so what you 
 answer **retrieved** you, whether it **cited** you, and where in the answer you landed.
 
 ### Is there a GEO / AI-visibility tracker for Claude Code?
-Yes — open-geo is one. It installs as a Claude Code skill and runs as a single command,
-`/open-geo <questions.csv> <engine> <domain>`, driving your logged-in Chrome through the
-Claude-in-Chrome extension. You can also add it as a plugin with
-`/plugin marketplace add Pupok462/open-geo`.
+Yes — open-geo is one. It installs as an agent skill, performs the full capture on request, and
+returns a versioned JSON run artifact that another workflow can consume directly. In Claude Code,
+install it with `/plugin marketplace add Pupok462/open-geo`; the first run prepares its runtime.
 
 ### Which AI engines can open-geo track?
 Seven today: **Google AI Overview, ChatGPT (web search), Claude (web search), Google Gemini, Yandex
@@ -428,7 +442,7 @@ connected, and a **browser already logged in** to the engine / market you want t
 
 ### Is there a cloud service or an account?
 No. open-geo is a local tool: every run is stored in a local **SQLite (WAL) database** at
-`data/aeo.db`, and the deliverables are a **local PDF** and a **local dashboard** you run yourself.
+`data/aeo.db`, and every run exports a local **JSON artifact**; PDF and dashboard are optional.
 There is no SaaS and no account, so the methodology is yours to inspect and reproduce. (Capture
 itself runs through Claude Code / Claude-in-Chrome, so it is not an offline or air-gapped tool.)
 

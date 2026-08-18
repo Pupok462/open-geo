@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>open-geo — GEO visibility tracker that reads the rendered AI answer</title>
-<meta name="description" content="open-geo measures whether your brand appears in AI answers by reading the rendered answer a logged-in user actually sees. Covers Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek. Open-source Claude Code skill, MIT.">
+<meta name="description" content="open-geo is a composable GEO visibility agent skill. It reads the rendered AI answer a logged-in user sees and returns a portable JSON run artifact, with optional PDF and dashboard outputs. MIT licensed.">
 <link rel="canonical" href="https://pupok462.github.io/open-geo/">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta property="og:type" content="website">
@@ -77,7 +77,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "SEO and GEO measurement",
   "operatingSystem": "macOS, Linux, Windows",
-  "softwareVersion": "0.4.0",
+  "softwareVersion": "0.4.1",
   "url": "https://pupok462.github.io/open-geo/",
   "codeRepository": "https://github.com/Pupok462/open-geo",
   "downloadUrl": "https://github.com/Pupok462/open-geo",
@@ -90,7 +90,8 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     "Seven auditable metrics over a nested funnel, with no composite index",
     "Top-domains leaderboard for competitive context",
     "Deterministic pre-run GEO readiness audit of the target domain",
-    "Local SQLite history, a local dashboard, and a standalone PDF report with per-query results, a gap list and audit remediation",
+    "A versioned JSON run artifact for agent-to-agent workflow composition",
+    "Local SQLite history, an optional dashboard, and a standalone PDF report with per-query results, a gap list and audit remediation",
     "Dashboard and report in English, Russian, Chinese and Arabic"
   ],
   "offers": {
@@ -145,7 +146,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
       "name": "Is there a GEO or AI-visibility tracker for Claude Code?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. open-geo installs as a Claude Code skill and runs as a single command, /open-geo questions.csv engine domain, driving your logged-in Chrome through the Claude-in-Chrome extension. It can also be installed as a plugin with /plugin marketplace add Pupok462/open-geo."
+        "text": "Yes. open-geo installs as an agent skill, performs the full capture on request, and returns a versioned JSON run artifact. It can be installed as a Claude Code plugin with /plugin marketplace add Pupok462/open-geo; the first run prepares its runtime automatically."
       }
     },
     {
@@ -243,7 +244,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   reports an honest funnel that says when a run cannot be trusted instead of guessing.</p>
 
   <ul class="badges">
-    <li>Claude Code skill</li>
+    <li>Composable agent skill</li>
     <li>Python 3.11</li>
     <li>MIT licensed</li>
     <li>Local SQLite history</li>
@@ -260,13 +261,13 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 
   <table>
     <tbody>
-      <tr><th>What it is</th><td>A GEO / AI-visibility tracker for a brand or a URL, packaged as a Claude Code skill</td></tr>
+      <tr><th>What it is</th><td>A GEO / AI-visibility data-collection agent for a brand or URL, packaged as a composable skill</td></tr>
       <tr><th>How it measures</th><td>An agent reads the <strong>rendered</strong> AI answer in a real, logged-in browser</td></tr>
       <tr><th>Engines covered</th><td>Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated</td></tr>
       <tr><th>What it reports</th><td>Answer coverage → visibility in sources → visibility in citations, plus positions, source-to-citation conversion, brand-mention rate, qualitative sentiment and a top-domains leaderboard</td></tr>
-      <tr><th>Deliverables</th><td>A local dashboard (FastAPI + React, four languages) and a themed PDF that reads on its own — the same numbers plus a per-query table, a gap list and a glossary — from a local SQLite history</td></tr>
-      <tr><th>Operating model</th><td>An on-demand audit you run yourself, not a 24/7 hosted monitor</td></tr>
-      <tr><th>Requirements</th><td>Claude Code, the Claude-in-Chrome extension, a browser logged in to the engine. No data API, no paid keys</td></tr>
+      <tr><th>Deliverables</th><td>Always: a versioned JSON artifact for another agent workflow. Optional: a local dashboard and themed PDF from the same SQLite history</td></tr>
+      <tr><th>Operating model</th><td>An on-demand audit the agent completes for you, not a 24/7 hosted monitor</td></tr>
+      <tr><th>Requirements</th><td>An agent host with visible-browser control and a browser logged in to the engine. No data API, no paid keys</td></tr>
       <tr><th>License</th><td>MIT</td></tr>
     </tbody>
   </table>
@@ -285,8 +286,9 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     <li><strong>Scoring is plain arithmetic.</strong> Records land in a local SQLite database and
     are scored per lens (general, branded, comparative) plus an aggregate row. Every number traces
     to one formula in the published contract.</li>
-    <li><strong>You get a dashboard and a PDF.</strong> Both are local, in four languages, built
-    from the same scored run, with run-over-run deltas from your own history. The PDF is a
+    <li><strong>You always get a portable JSON artifact.</strong> It is the versioned handoff for
+    another research, SEO, reporting, or content agent. Dashboard and PDF are optional, local,
+    in four languages, and built from the same scored run. The PDF is a
     standalone document rather than a summary of the dashboard: every query grouped by how the
     brand ended up in the answer, a separate list of the answers the brand was absent from, the
     readiness audit with its fixes, and a glossary of every formula.</li>
@@ -334,7 +336,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
       <tr><th>Engine coverage</th><td>Seven engines, including Yandex Alice and DeepSeek; adding one is a markdown playbook</td><td>Set by the vendor's roadmap</td><td>Whatever you build and keep building</td></tr>
       <tr><th>Operating model</th><td>An on-demand audit you trigger and supervise</td><td>Continuous monitoring over large prompt sets</td><td>Whatever you schedule</td></tr>
       <tr><th>Scale</th><td>Tens to low hundreds of queries per run</td><td>Thousands of prompts, hands-off</td><td>Bounded by budget and rate limits</td></tr>
-      <tr><th>Where results live</th><td>Local SQLite history, local dashboard and PDF</td><td>The vendor's cloud</td><td>Wherever you put them</td></tr>
+      <tr><th>Where results live</th><td>Local SQLite history + portable JSON artifact; optional dashboard/PDF</td><td>The vendor's cloud</td><td>Wherever you put them</td></tr>
       <tr><th>When data is shaky</th><td>A grounded-answer gate and a nested funnel; a run is flagged, never guessed</td><td>Vendor-defined</td><td>Yours to design</td></tr>
     </tbody>
   </table>
@@ -346,18 +348,20 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 
   <h2 id="install">Get started</h2>
 
-  <p>Clone the repository and ask Claude to set it up, or install it as a Claude Code plugin:</p>
+  <p>Install the skill, then ask the agent for the measurement. The first run prepares its
+  Python runtime automatically; no manual clone, setup command, API server, or dashboard launch is required:</p>
 
 <pre><code>/plugin marketplace add Pupok462/open-geo
 /plugin install open-geo@open-geo-marketplace</code></pre>
 
-  <p>Then run a capture against your own question set:</p>
+  <p>Then ask naturally, or invoke the namespaced skill against your own question set:</p>
 
-<pre><code>/open-geo questions.csv google example.com --brand "Example" --n-worker 3 --output both</code></pre>
+<pre><code>/open-geo:open-geo questions.csv google example.com --brand "Example" --n-worker 3</code></pre>
 
   <p class="muted">Plugin skills are namespaced, so the plugin-installed command is
-  <code>/open-geo:open-geo</code>. The one thing that cannot be automated for you: connecting the
-  Claude-in-Chrome extension and logging the browser in to the market you want to track.</p>
+  <code>/open-geo:open-geo</code>. The default data mode starts no servers and returns
+  <code>open-geo.run-artifact.v1</code>. The remaining prerequisite is a visible browser session
+  logged in to the market you want to track.</p>
 
   <h2 id="faq">Frequently asked questions</h2>
 
@@ -370,8 +374,8 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     whether an answer retrieved you, whether it cited you, and where in the answer you landed.</p>
 
     <h3>Is there a GEO or AI-visibility tracker for Claude Code?</h3>
-    <p>Yes — open-geo is one. It installs as a Claude Code skill and runs as a single command,
-    driving your logged-in Chrome through the Claude-in-Chrome extension.</p>
+    <p>Yes — open-geo is one. It installs as an agent skill, performs the full capture on request,
+    and returns a versioned JSON artifact that another agent workflow can consume directly.</p>
 
     <h3>Which AI engines can open-geo track?</h3>
     <p>Seven today: Google AI Overview, ChatGPT with web search, Claude with web search, Google
@@ -392,7 +396,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     nobody sees.</p>
 
     <h3>Is open-geo an audit or 24/7 monitoring?</h3>
-    <p>An audit you run on demand. A run is supervised, spends inference, and measures the questions
+    <p>An audit the agent runs on demand. A run is supervised, spends inference, and measures the questions
     you chose. To repeat it, wrap the command in Claude Code's <code>/loop</code>, or use
     <code>--repeat</code> to capture the same set several times and read the min–max spread.</p>
 
@@ -409,8 +413,8 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
     a match when the target has a path.</p>
 
     <h3>Do I need any paid API keys to run open-geo?</h3>
-    <p>No external data API and no paid keys. You need Claude Code, the Claude-in-Chrome extension
-    connected, and a browser already logged in to the engine and market you want to track.</p>
+    <p>No external data API and no paid keys. You need a supported agent host with visible-browser
+    control and a browser already logged in to the engine and market you want to track.</p>
 
     <h3>Is open-geo free and open source?</h3>
     <p>Yes — MIT-licensed, with no data API or paid key in the loop. Running it does spend your own
@@ -434,7 +438,7 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 <footer class="site">
   <div class="wrap">
     <span>MIT licensed.</span>
-    <span>Last updated <time datetime="2026-08-02">2 August 2026</time>.</span>
+    <span>Last updated <time datetime="2026-08-18">18 August 2026</time>.</span>
     <span><a href="https://github.com/Pupok462/open-geo">github.com/Pupok462/open-geo</a></span>
     <span><a href="llms.txt">llms.txt</a></span>
   </div>

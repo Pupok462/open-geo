@@ -61,6 +61,7 @@ data/responses/
 # --- Generated reports (recreated by report.generate) ---
 reports/*.pdf
 reports/*.png
+reports/*.json
 
 # --- Font build cache (upstream variable fonts pulled by fonts/build.py) ---
 # The subsetted .ttf faces + OFL licenses under fonts/ stay committed; only the
@@ -94,6 +95,12 @@ Thumbs.db
 # Debugger / run configs — machine-specific dev convenience, in any .claude/ dir
 # (the committed skill under .claude/skills/ stays tracked)
 **/.claude/launch.json
+
+# --- AgentsMesh local/cache state ---
+agentsmesh.local.yaml
+.agentsmeshcache
+.agentsmesh/.lock.tmp
+.agentsmesh/packs/
 
 # --- Secrets / local env (never commit to a public repo) ---
 .env

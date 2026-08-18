@@ -191,7 +191,7 @@ client-side (`/api/results` is unchanged).
 
 `/api/report` invokes the report CLI
 (`python -m report.generate --brand --domain --engine --period --lang --out --db`, contract in
-[`pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §3.5) into a
+[`pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §3.6) into a
 temp file and returns `application/pdf`. `lang` defaults to `en` and is passed through as
 `--lang`. The PDF is **not a subset of this dashboard**: alongside the same KPI/lens/funnel/
 top-domain/sentiment sections it carries a full per-query results table grouped by outcome (the

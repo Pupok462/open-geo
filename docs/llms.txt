@@ -5,12 +5,13 @@
 > agent in a real browser rather than an API or a headless scrape. It covers Google AI Overview,
 > ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek, and reports a nested funnel — answer coverage,
 > visibility in sources, visibility in citations — flagging a run as untrustworthy instead of
-> guessing. It runs as a Claude Code skill and is MIT-licensed.
+> guessing. It runs as a composable agent skill and is MIT-licensed.
 
 Key facts:
 
 - Category: GEO / AEO measurement, AI-visibility tracking, SEO tooling.
-- Form factor: a Claude Code skill and plugin, driven by the command `/open-geo`.
+- Form factor: a composable agent skill; Claude Code plugin plus generated adapters for Codex CLI,
+  Cursor and Gemini CLI.
 - Capture method: an agent drives a visible, logged-in Chrome via the Claude-in-Chrome extension and
   reads the rendered answer, including the sources panel and the inline citation chips.
 - Engines supported: `google` (Google AI Overview), `chatgpt_search`, `claude_search`, `gemini`,
@@ -20,11 +21,13 @@ Key facts:
   average citation position, relative citation (source-to-citation conversion), brand mention rate,
   plus a qualitative sentiment note and a top-domains leaderboard. There is deliberately no
   composite index and no numeric sentiment.
-- Operating model: an on-demand audit the user runs and supervises, not a hosted 24/7 monitor.
-- Storage and output: a local SQLite (WAL) database, a local FastAPI + React dashboard and a PDF
-  report, in English, Russian, Chinese and Arabic.
-- Requirements: Claude Code, the Claude-in-Chrome extension, and a browser logged in to the target
-  engine. No external data API and no paid keys.
+- Operating model: an on-demand audit the agent completes, not a hosted 24/7 monitor.
+- Storage and output: a local SQLite (WAL) database plus an always-produced versioned JSON run
+  artifact; the FastAPI + React dashboard and PDF report are optional and support four languages.
+- Workflow integration: another research, SEO, reporting or content agent can invoke open-geo as a
+  data-collection step and consume `open-geo.run-artifact.v1` without keeping a service running.
+- Requirements: a supported agent host with visible-browser control and a browser logged in to the
+  target engine. No external data API and no paid keys.
 - License: MIT.
 
 ## Docs

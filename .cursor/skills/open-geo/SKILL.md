@@ -3,8 +3,6 @@ name: open-geo
 description: Run an end-to-end GEO visibility measurement through a real AI interface, persist the captures, and return a portable JSON run artifact plus optional PDF/dashboard outputs. Use automatically on an explicit request to measure a brand's AI-search visibility, and as a composable data-collection step inside another agent workflow; the user should not have to launch the pipeline or dashboard manually.
 ---
 
-## Purpose
-
 # open-geo — GEO visibility run orchestrator
 
 You are the orchestrator for one **open-geo run**: drive a list of queries through one

@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://unpkg.com/agentsmesh@0.32.0/schemas/agentsmesh.json
+version: 1
+targets:
+  - claude-code
+  - codex-cli
+  - cursor
+  - gemini-cli
+features:
+  - skills
+  - agents

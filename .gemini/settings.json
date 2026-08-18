@@ -1,0 +1,11 @@
+{
+  "experimental": {
+    "enableAgents": true
+  },
+  "context": {
+    "fileName": [
+      "GEMINI.md",
+      "AGENTS.md"
+    ]
+  }
+}

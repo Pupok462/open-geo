@@ -8,6 +8,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-18
+
+open-geo can now act as a data-producing skill inside another agent workflow instead of requiring
+the dashboard to be the handoff surface.
+
+### Added
+- **Portable run artifacts.** Every completed skill run exports
+  `open-geo.run-artifact.v1` through `python -m pipeline.artifact`: run metadata, target, metrics
+  by lens, qualitative summaries, decoded per-query captures, top-domain statistics, and the
+  matching GEO-readiness audit in one atomic UTF-8 JSON file.
+- **Agent-workflow mode.** `--output data` is now the default and starts no FastAPI/Vite servers.
+  `--artifact-out` lets a parent research, SEO, reporting, or content workflow choose the handoff
+  path and continue from the versioned JSON contract.
+- **Cross-agent packaging.** AgentsMesh is the canonical source for the skill and its workers;
+  adapters are generated for Claude Code, Codex CLI, Cursor, and Gemini CLI.
+
+### Changed
+- The installed skill bootstraps its Python runtime on first use (`scripts/setup.sh --minimal`)
+  instead of stopping with manual clone/setup instructions. Dashboard dependencies are installed
+  only when `dashboard` or `both` is requested.
+- The plugin and all four localized READMEs now lead with the one-request outcome and the
+  composable agent-workflow boundary. A visible, logged-in browser remains the honest capture
+  prerequisite; API/headless data is still never substituted.
+
 ## [0.4.0] — 2026-08-18
 
 The PDF report stopped being a subset of the dashboard, and one of the two deliverables stopped
@@ -275,7 +299,8 @@ First public release.
 - Targets as a domain **or a URL prefix**, so a single repo or docs section can be measured.
 - A four-language dashboard and PDF (English, Русский, 中文, العربية, RTL-aware).
 
-[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/Pupok462/open-geo/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Pupok462/open-geo/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/Pupok462/open-geo/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/Pupok462/open-geo/compare/v0.3.2...v0.3.3

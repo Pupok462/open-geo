@@ -1,0 +1,31 @@
+# Auto-generated. DO NOT EDIT MANUALLY.
+# Tracks the state of all config files for team conflict resolution.
+
+generated_at: 2026-08-18T21:52:47.938Z
+generated_by: vladimir
+lib_version: 0.32.0
+checksums:
+  agents/capture-worker.md: sha256:685a7558264ba9cc01e324010bcb1d7bbaf5072c3b6a2f5ccb02e9c1f3ab4c6a
+  agents/harvest-skeptic.md: sha256:aca9618837667087139341f8e23e9d2ef31460f69f29d444b5cce3ea77b94865
+  agents/harvest-worker.md: sha256:fed1992b17c83638c7ee237163c9988ae4d0312d3fd1d613f66ad1b89c667b0f
+  skills/open-geo/SKILL.md: sha256:fa8dd1a0718aaab2d314f32c036757603dfea2704ec33eb984cb7167c8b63f90
+extends: {}
+packs: {}
+outputs:
+  .claude/agents/capture-worker.md: sha256:edb3ee0a2c096021a95846ef8f9d6523abde8aa1f78e3d412455119cd15c9a21
+  .claude/agents/harvest-skeptic.md: sha256:cdaaa3ecea4cd0b26002df61069e1332846a39f48980c21073ed52385eecb273
+  .claude/agents/harvest-worker.md: sha256:82bd44e5090f2592256d4361b5ed90fdf6aef3c8374fe3cf5f8314a953640535
+  .codex/agents/capture-worker.toml: sha256:7d0c26855ff6f6312395483567aff70da4cdbfb2f7ddad2b90720ddaace70efb
+  .codex/agents/harvest-skeptic.toml: sha256:307194f83a80ef11fd0576847c02a0717a56d6a712b26755a0ddca3835ce1af5
+  .codex/agents/harvest-worker.toml: sha256:8016dc25ea0b9479f802964b3cf45a9c1f7eafdfb647952ecf7adcc7da5cdec7
+  .cursor/agents/capture-worker.md: sha256:b1be2897a75991a82da6ed34ce260d74f08c80a9fba804a036af71ce7fb46887
+  .cursor/agents/harvest-skeptic.md: sha256:aca9618837667087139341f8e23e9d2ef31460f69f29d444b5cce3ea77b94865
+  .cursor/agents/harvest-worker.md: sha256:fed1992b17c83638c7ee237163c9988ae4d0312d3fd1d613f66ad1b89c667b0f
+  .gemini/agents/capture-worker.md: sha256:1777a93ee44890edecf5e36b9e996f16ce54364a871655563803b5f5ceebee6a
+  .gemini/agents/harvest-skeptic.md: sha256:911388a85bedef509c8ec013afefdc87dcb98a54cce045f1540eee6814c88142
+  .gemini/agents/harvest-worker.md: sha256:dffa1110e5e944feb4699662d61ddb8a0696eec40218d121a526eac94bf14112
+  .claude/skills/open-geo/SKILL.md: sha256:cddde43858cad62f7a52885b61402576791c53b69eb171f2fa9655110032a27a
+  .agents/skills/open-geo/SKILL.md: sha256:6ce6f752c4a1a390a42d084acc7d2fe5c553bf4bc67ab8db3cbc28b330698377
+  .cursor/skills/open-geo/SKILL.md: sha256:6a4cc0027a95793cbd8916419841a6dc4372fde62c779f73d356f9b47388a251
+  .gemini/skills/open-geo/SKILL.md: sha256:6a4cc0027a95793cbd8916419841a6dc4372fde62c779f73d356f9b47388a251
+  .gemini/settings.json: sha256:8c66e069201ec25354c644c88b683b285cfbee25f1c64d135ec50510c1cb1c0c

@@ -1,23 +1,6 @@
----
-name: harvest-worker
-description: Grounded recon for ONE audience segment — gathers real, signal-backed user queries and returns validated QuestionCandidate JSON. Never writes questions.csv, never touches the DB. Spawned by the open-geo orchestrator (STEP A.5, Phase A).
-tools:
-  - Read
-  - Write
-  - Bash
-  - WebSearch
-  - WebFetch
-  - mcp__claude-in-chrome__tabs_context_mcp
-  - mcp__claude-in-chrome__tabs_create_mcp
-  - mcp__claude-in-chrome__tabs_close_mcp
-  - mcp__claude-in-chrome__navigate
-  - mcp__claude-in-chrome__read_page
-  - mcp__claude-in-chrome__find
-  - mcp__claude-in-chrome__get_page_text
----
-
-## Role
-
+name = "harvest-worker"
+description = "Grounded recon for ONE audience segment — gathers real, signal-backed user queries and returns validated QuestionCandidate JSON. Never writes questions.csv, never touches the DB. Spawned by the open-geo orchestrator (STEP A.5, Phase A)."
+developer_instructions = '''
 # harvest-worker — grounded question-recon sub-agent
 
 You gather real user queries for ONE audience segment and RETURN them as JSON. You are spawned by
@@ -70,3 +53,4 @@ methodology is authoritative — the "how" comes entirely from the injected `har
 - Never write `questions.csv`, never call `harvest.build`, never touch `data/aeo.db`, never run a
   capture or a server. You produce a **candidate pool** and return it.
 - Run Python via the project venv (`.venv/bin/python`) from the repo root.
+'''

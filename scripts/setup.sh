@@ -5,11 +5,27 @@ set -euo pipefail
 # open-geo dev setup — idempotent.
 #   1. create .venv (python3 -m venv)
 #   2. upgrade pip, install requirements.txt
-#   3. npm install for the dashboard frontend
+#   3. npm install for the dashboard frontend (unless --minimal)
 # Re-running is safe: venv reuse, pip/npm are no-ops when already satisfied.
 # Paths are derived from this script's location so it works from any CWD and
 # tolerates spaces in the path (everything is quoted).
 # ---------------------------------------------------------------------------
+
+MINIMAL=0
+case "${1:-}" in
+  "") ;;
+  --minimal) MINIMAL=1 ;;
+  -h|--help)
+    echo "Usage: scripts/setup.sh [--minimal]"
+    echo "  --minimal  install only the Python runtime used by data/PDF skill runs"
+    exit 0
+    ;;
+  *)
+    echo "Unknown argument: $1" >&2
+    echo "Usage: scripts/setup.sh [--minimal]" >&2
+    exit 2
+    ;;
+esac
 
 # Repo root = parent of the directory holding this script, resolved absolutely.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -39,7 +55,9 @@ echo "==> Installing Python dependencies (requirements.txt)"
 "${PIP_BIN}" install -r "${ROOT}/requirements.txt"
 
 # --- 3. Dashboard frontend --------------------------------------------------
-if command -v npm >/dev/null 2>&1; then
+if [ "${MINIMAL}" -eq 1 ]; then
+  echo "==> Minimal setup: skipping dashboard frontend dependencies"
+elif command -v npm >/dev/null 2>&1; then
   echo "==> Installing dashboard frontend deps (npm install)"
   ( cd "${WEB_DIR}" && npm install )
 else
@@ -58,7 +76,7 @@ Next steps:
   1. Seed demo data into the local SQLite DB:
        "${PY_BIN}" -m pipeline.seed_demo --reset
 
-  2. Run the dashboard (two terminals):
+  2. Run the dashboard (requires full setup without --minimal; two terminals):
        # API (read-only) — port 8000 is often taken, 8077 is a safe alt:
        OPEN_GEO_DB="${ROOT}/data/aeo.db" "${PY_BIN}" -m uvicorn dashboard.api:app \\
            --host 127.0.0.1 --port 8077
@@ -72,7 +90,7 @@ Next steps:
          - the Claude-in-Chrome browser extension is installed and connected, and
          - Chrome is open and logged in to the target engine (e.g. Google).
 
-  4. Run a visibility tracking pass (inside Claude Code):
+  4. Run a visibility tracking pass (through the open-geo skill):
        /open-geo examples/questions.csv google example.com \\
            --brand "Example" --n-worker 3 --output both
        (Generated PDFs land in reports/ ; the local DB is data/aeo.db.)

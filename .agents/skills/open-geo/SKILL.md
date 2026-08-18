@@ -3,8 +3,6 @@ name: open-geo
 description: Run an end-to-end GEO visibility measurement through a real AI interface, persist the captures, and return a portable JSON run artifact plus optional PDF/dashboard outputs. Use automatically on an explicit request to measure a brand's AI-search visibility, and as a composable data-collection step inside another agent workflow; the user should not have to launch the pipeline or dashboard manually.
 ---
 
-## Purpose
-
 # open-geo — GEO visibility run orchestrator
 
 You are the orchestrator for one **open-geo run**: drive a list of queries through one
@@ -208,7 +206,7 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
       one may not. Keep the plan to the segments the product actually has.
 
    c. **Phase A — fan-out grounded recon.** Spawn **one `harvest-worker` sub-agent per segment**
-      (Task tool), **in parallel**. Its full contract lives in `../../agents/harvest-worker.md` —
+      (Task tool), **in parallel**. Its full contract lives in `../../../.codex/agents/harvest-worker.toml` —
       do not restate it. Give each a self-contained brief:
       - the **full text of `harvest/METHODOLOGY.md`** (authoritative process + iron reality rule);
       - the **product context** (brand, domain, market, competitors);
@@ -225,7 +223,7 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
       each lens; split any non-primary-language slice into its own list.
 
    e. **Phase C — adversarial skeptic.** Spawn **1–2 `harvest-skeptic` sub-agents** (Task tool;
-      contract in `../../agents/harvest-skeptic.md`) with the thesis + the final `{query, lens}`
+      contract in `../../../.codex/agents/harvest-skeptic.toml`) with the thesis + the final `{query, lens}`
       list. They return **KEEP/CUT verdicts**. Apply the cuts, backfill each with the next-strongest
       distinct Phase-A candidate, until every shipped line survives.
 
@@ -365,7 +363,7 @@ Spawn **N = `--n-worker`** subagents of type **`capture-worker`** (Task tool), o
 run them **in parallel** — each drives its chunk concurrently in its own browser tab/context. A
 capture worker's only job is to **capture and RETURN data**; it never ingests, creates runs, starts
 servers, or writes the DB. Its full step-by-step contract lives in
-`../../agents/capture-worker.md` — do not restate it here. Give each `capture-worker` a
+`../../../.codex/agents/capture-worker.toml` — do not restate it here. Give each `capture-worker` a
 self-contained brief containing:
 
 - The **full text** of `engines/<engine>.md` (the capture playbook).
@@ -381,7 +379,7 @@ self-contained brief containing:
 
 > The worker's full step-by-step contract — output fields, the no-DB and no-source-visit rules,
 > per-worker temp-file self-validation, what to return — lives in
-> `../../agents/capture-worker.md`. It is **engine-agnostic**; the injected `engines/<engine>.md`
+> `../../../.codex/agents/capture-worker.toml`. It is **engine-agnostic**; the injected `engines/<engine>.md`
 > playbook is authoritative for how to drive the specific engine, and `INTERFACES §1` for the
 > `QueryCapture` shape.
 
@@ -668,7 +666,7 @@ Report: /absolute/path/reports/example_2026-08-18.pdf · Dashboard: http://local
 | A.5 | `harvest-worker` + `harvest-skeptic` subagents under `harvest/METHODOLOGY.md`; `python -m harvest.build` | **Built** — Feature 1 (question harvesting); opt-in, contract in INTERFACES §6. Skipped when a CSV is supplied. |
 | 0 | `python -m audit.gate --domain <d> --engine <e>` (deterministic, non-LLM) | **Built** — Feature 2 (GEO-audit gate); runs before A.5, hard-stops a `blocked` domain (overridable with `--force`). Contract in INTERFACES §7, checks in `audit/CHECKS.md`. |
 | 1 | `python -m pipeline.ingest --new-run` | Contract in INTERFACES §3.1 |
-| 3 | `capture-worker` subagent (`../../agents/capture-worker.md`) driving `engines/<engine>.md` (workers **capture & return JSON** — no DB writes) | Capture contract §1; playbook file may be absent early |
+| 3 | `capture-worker` subagent (`../../../.codex/agents/capture-worker.toml`) driving `engines/<engine>.md` (workers **capture & return JSON** — no DB writes) | Capture contract §1; playbook file may be absent early |
 | 4 | `python -m pipeline.ingest --run-id` (orchestrator) + `pipeline.db.update_run_counts` | Incremental per-chunk ingest §3.2 (idempotent) + finalize helper §2 (call inline) |
 | 5 | `python -m pipeline.aggregate --run-id` | Contract in INTERFACES §3.3 |
 | 5b | `python -m pipeline.lens_sentiment --run-id` (orchestrator-written qualitative per-lens roll-up) | Contract in INTERFACES §3.4 |

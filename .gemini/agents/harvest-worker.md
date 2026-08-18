@@ -1,5 +1,6 @@
 ---
 name: harvest-worker
+kind: local
 description: Grounded recon for ONE audience segment — gathers real, signal-backed user queries and returns validated QuestionCandidate JSON. Never writes questions.csv, never touches the DB. Spawned by the open-geo orchestrator (STEP A.5, Phase A).
 tools:
   - Read
@@ -15,8 +16,6 @@ tools:
   - mcp__claude-in-chrome__find
   - mcp__claude-in-chrome__get_page_text
 ---
-
-## Role
 
 # harvest-worker — grounded question-recon sub-agent
 
