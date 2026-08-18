@@ -390,3 +390,77 @@ object:
   documented: a single chip is an `A` with a real href, a `+N` chip is a `SPAN` badge without one.
 - ⚠️ **`Return` does not submit** — it opens the autocomplete list and leaves the query unsent. Use
   the send arrow (folded into step 1).
+
+---
+
+## Live audit — 2026-08-17 (20-query run, 3 parallel workers, one account)
+
+> Observed independently by all three capture workers on the same run. These are **input-integrity**
+> findings: each one can produce a confident, well-formed capture of the **wrong query** — the failure
+> mode this project exists to prevent.
+
+### ⚠️ ORCHESTRATOR: prefer `--n-worker 1` on this engine
+
+Not for quota reasons (that is Perplexity) — for **cross-worker contamination on one Yandex account**:
+
+- **The compose draft is server-synced across sessions.** Another worker's query text arrived
+  pre-filled in a worker's input box and its own text was appended to it — three separate times.
+  Mandatory countermeasure: `cmd+a` + `Backspace`, then **verify the box in a screenshot before
+  sending**.
+- **Alice personalises from account memory shared by the parallel workers.** One answer opened with
+  «вы интересовались превентивной медициной и нутрициологией» — drawn from a *different* worker's
+  queries. Parallel chunks on one account are therefore **not independent samples**.
+- **Only the window's active tab receives key/mouse input.** With workers competing, `type` silently
+  dropped spaces (`ирина арбатская` → `иринаарбатская`), `cmd+a` intermittently failed, and one tab
+  received no mouse input at all for a stretch.
+
+### Typing is the weak link — two verified workarounds
+
+- **Skip typing entirely:** navigate to `https://yandex.ru/search/?text=<query>` and click the
+  **«Алиса AI»** tab. This submits the exact query verbatim into a fresh chat, bypassing the composer,
+  the shared draft, and the space-dropping bug at once. Preferred entry when it is available.
+- If you do type: type → **verify** → clear → retype. `computer type` drops spaces on the **first**
+  typing attempt after page load. A query sent without spaces is a silently-wrong measurement.
+
+### Render lag and the «Источники» button
+
+- **The rendered view lags the tab state.** `get_page_text` kept returning the empty `/alice/` greeting
+  while the tab had already navigated to `/alice/chat/<id>/`; screenshots went stale mid-run. Fix:
+  read the chat id from tab context and **`navigate` to the chat URL again** (the trick already
+  documented for Gemini), sometimes twice. One answer stuck mid-stream completed only after a reload.
+- **The «Источники» button often needs 2–4 clicks**, and the panel can appear seconds later. On **3 of
+  20 queries it never opened at all** despite real clicks, synthetic pointer sequences and a fresh tab.
+  Fallback used: `sources` = unique cited links in first-appearance order, which keeps
+  `citations ⊆ sources` **but drops retrieved-but-uncited sources** — report such rows as a flagged
+  undercount, since a **panel-only appearance of the target cannot be ruled out** there (in this run
+  the target appeared **only** in the panel on one query, so the risk is real, not theoretical).
+- **Do not trust a computed rect blindly**: `querySelectorAll('button')` matching «Источники» returned
+  a rect ~215 px left of the visible button in one state. Verify against a screenshot.
+- **Bare `element.click()` never opens a chip popover** (same limitation as Gemini). A real
+  `computer left_click` works; where clicks were not delivered, a **full synthetic pointer sequence**
+  (`pointerover/enter/move` + `mouseover/enter/move` + `pointerdown/mousedown/pointerup/mouseup/click`)
+  worked. Press `Escape` to dismiss a popup before locating the next chip — a popup covering the next
+  chip's coordinates caused a mis-click that opened a source site.
+
+### Fast path — confirmed, with a correction to step 3
+
+One `javascript_tool` call over the whole DOM returns the **complete** «Источники» panel (14, 21, 15,
+22, 13 entries measured) with **no panel scrolling**: the playbook's "scroll the popover until no new
+cards appear" is a **`read_page` limitation, not a page one**. Panel anchors separate from body chips
+by `getBoundingClientRect().left > ~1050` (CSS px at a 1440 viewport); panel cards render **two anchors
+with the same href** (domain label + title) — consecutive-dedupe them. Still a **fast path, not a
+trusted path** (`FAST_PATH.md`): every worker cross-checked script output against `get_page_text` chip
+order and `+N` counts before using it.
+
+**`+N` popup cards carry no `href`** — group members are reachable only as domain labels, so a
+href-diff after the click returns `[]` even with the popup visibly open. Enumerate group members by
+**reading card text**, and map a group member to a URL via its entry in the «Источники» panel.
+
+### Промо exclusion — confirmed at scale
+
+Promo cards appeared on **~12 of 20** queries (lantox.ru, profi.ru, miin.ru, genosys.ru, nadpo.ru,
+uom-education.online, avdoshenkoschool.com, imin.ru, mizomed.ru, fr-ekolaser.ru, genotek.ru, ddma.me,
+edprodpo.com) and were excluded. Their links are **`yabs.yandex.ru` redirect wrappers**, so filtering
+`yandex.ru` hosts drops them automatically. Two adjacent traps: a promo advertiser's domain may **also**
+appear legitimately inside the panel (`biogotchi.genotek.ru` did) — keep the panel entry; and
+**Yandex Maps organisation cards** (universities, clinics) are org cards, **not sources** — exclude them.

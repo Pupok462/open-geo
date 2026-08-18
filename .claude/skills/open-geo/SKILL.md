@@ -2,13 +2,15 @@
 name: open-geo
 description: Run a list of queries through a chosen AI engine, measure the target domain's visibility/citation in the AI answers, and produce a dashboard or PDF report. Use when the user runs /open-geo or asks to measure a brand's GEO / AI-search visibility (citations in Google AI Overview, etc.).
 argument-hint: "<questions.csv> <engine> <domain> --brand <name> --n-worker <N> [--output dashboard|pdf|both] [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]"
-disable-model-invocation: true
 allowed-tools: Read, Write, Bash(.venv/bin/python:*), Bash(npm:*), Bash(uvicorn:*), Bash(mktemp:*), Task, AskUserQuestion
 # Orchestrator-only tools. STEP A uses AskUserQuestion for the parameter wizard; Task spawns the
 # N capture sub-agents (STEP 3). Browser capture tools (mcp__claude-in-chrome__*) live on the
 # capture-worker subagent (.claude/agents/capture-worker.md) — the orchestrator never drives Chrome.
-# disable-model-invocation: this run opens a real logged-in Chrome, writes data/aeo.db and spawns N
-# parallel workers, so it is /open-geo-ONLY (no auto-invoke).
+# Model-invocable since 2026-08-17 (owner decision): the run may be started by the assistant on an
+# explicit request, not only by a typed /open-geo. The run still opens a real logged-in Chrome,
+# writes data/aeo.db and spawns N parallel workers, so it stays an explicit-request action: never
+# start it as a side effect of an unrelated task, and never fan out workers on a per-account-quota
+# engine (see the perplexity ORCHESTRATOR guardrail).
 ---
 
 # open-geo — GEO visibility run orchestrator
