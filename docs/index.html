@@ -3,131 +3,58 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>open-geo — GEO visibility tracker that reads the rendered AI answer</title>
-<meta name="description" content="open-geo is a composable GEO visibility agent skill. It reads the rendered AI answer a logged-in user sees and returns a portable JSON run artifact, with optional PDF and dashboard outputs. MIT licensed.">
+<title>open-geo — measure the AI answer, not the API</title>
+<meta name="description" content="open-geo is a composable GEO visibility agent skill. It reads rendered AI answers in a real logged-in browser and returns a portable JSON artifact for any downstream agent workflow.">
 <link rel="canonical" href="https://pupok462.github.io/open-geo/">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="open-geo">
-<meta property="og:title" content="open-geo — GEO visibility tracker that reads the rendered AI answer">
-<meta property="og:description" content="Measure whether your brand shows up in AI answers by reading the rendered answer a logged-in user actually sees. Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek.">
+<meta property="og:title" content="open-geo — measure the AI answer, not the API">
+<meta property="og:description" content="Capture the rendered AI answer a logged-in user sees. Measure sources, citations and brand mentions. Return a portable JSON artifact for another agent workflow.">
 <meta property="og:url" content="https://pupok462.github.io/open-geo/">
 <meta property="og:image" content="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="open-geo — GEO visibility tracker that reads the rendered AI answer">
-<meta name="twitter:description" content="Measure whether your brand shows up in AI answers by reading the rendered answer a logged-in user actually sees.">
+<meta name="twitter:title" content="open-geo — measure the AI answer, not the API">
+<meta name="twitter:description" content="A composable GEO visibility agent skill built around the real rendered answer.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/social-preview.png">
-<meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#07080c">
 <link rel="alternate" type="application/atom+xml" title="open-geo releases" href="feed.xml">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%235b4bd6'/><circle cx='14' cy='14' r='6.5' fill='none' stroke='%23fff' stroke-width='2.6'/><path d='M19 19l6 6' stroke='%23fff' stroke-width='2.6' stroke-linecap='round'/></svg>">
-<style>
-:root{
-  --bg:#ffffff; --fg:#1a1d21; --muted:#5b6570; --line:#e3e7ec;
-  --card:#f7f9fb; --accent:#5b4bd6; --accent-fg:#ffffff; --code:#f0f2f5;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0d1117; --fg:#e6edf3; --muted:#9aa7b4; --line:#232a33;
-    --card:#141b23; --accent:#8b7cf6; --accent-fg:#12101f; --code:#1a222c;
-  }
-}
-*{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
-body{
-  margin:0; background:var(--bg); color:var(--fg);
-  font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-}
-.wrap{max-width:860px;margin:0 auto;padding:0 20px}
-header.site{border-bottom:1px solid var(--line);padding:14px 0}
-header.site .wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-header.site strong{font-size:15px;letter-spacing:.2px}
-header.site nav{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap}
-a{color:var(--accent);text-decoration:none}
-a:hover{text-decoration:underline}
-h1{font-size:2rem;line-height:1.25;margin:36px 0 12px;letter-spacing:-.4px}
-h2{font-size:1.35rem;margin:44px 0 12px;letter-spacing:-.2px}
-h3{font-size:1.02rem;margin:26px 0 6px}
-.lead{font-size:1.09rem}
-.muted{color:var(--muted)}
-.badges{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0;padding:0;list-style:none}
-.badges li{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
-.cta{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 6px}
-.cta a{border:1px solid var(--line);border-radius:8px;padding:9px 15px;font-size:14px;font-weight:600}
-.cta a.primary{background:var(--accent);color:var(--accent-fg);border-color:transparent}
-table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14.5px;display:block;overflow-x:auto}
-th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
-th{background:var(--card);font-weight:600}
-pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-size:13.5px}
-code{background:var(--code);border-radius:4px;padding:1px 5px;font-size:.92em}
-pre code{background:none;padding:0}
-img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
-ol.steps{padding-left:20px}
-ol.steps li{margin:9px 0}
-.faq h3{scroll-margin-top:16px}
-footer.site{border-top:1px solid var(--line);margin-top:52px;padding:24px 0 44px;color:var(--muted);font-size:14px}
-footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=0.4.1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307080c'/%3E%3Ccircle cx='14' cy='14' r='7' fill='none' stroke='%23c7ff4a' stroke-width='2.5'/%3E%3Cpath d='M19.5 19.5L26 26' stroke='%23c7ff4a' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='14' cy='14' r='2.2' fill='%237c5cff'/%3E%3C/svg%3E">
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "open-geo",
-  "alternateName": "open-geo GEO visibility tracker",
   "applicationCategory": "DeveloperApplication",
-  "applicationSubCategory": "SEO and GEO measurement",
-  "operatingSystem": "macOS, Linux, Windows",
+  "operatingSystem": "macOS, Linux",
   "softwareVersion": "0.4.1",
   "url": "https://pupok462.github.io/open-geo/",
-  "codeRepository": "https://github.com/Pupok462/open-geo",
   "downloadUrl": "https://github.com/Pupok462/open-geo",
+  "codeRepository": "https://github.com/Pupok462/open-geo",
   "license": "https://opensource.org/licenses/MIT",
-  "dateModified": "2026-08-18",
-  "description": "open-geo is a GEO (generative engine optimization) visibility tracker. It measures whether a brand appears in AI answers by reading the rendered answer a logged-in user actually sees, through an agent in a real browser rather than an API or a headless scrape. It covers Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek, and reports a nested funnel of answer coverage, visibility in sources and visibility in citations.",
+  "isAccessibleForFree": true,
+  "description": "A composable GEO visibility agent skill that reads rendered AI answers in a real logged-in browser and exports a portable JSON run artifact.",
   "featureList": [
-    "Reads the rendered AI answer in a real, logged-in browser",
-    "Covers Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek",
-    "Seven auditable metrics over a nested funnel, with no composite index",
-    "Top-domains leaderboard for competitive context",
-    "Deterministic pre-run GEO readiness audit of the target domain",
-    "A versioned JSON run artifact for agent-to-agent workflow composition",
-    "Local SQLite history, an optional dashboard, and a standalone PDF report with per-query results, a gap list and audit remediation",
-    "Dashboard and report in English, Russian, Chinese and Arabic"
+    "Rendered-answer capture in a visible logged-in browser",
+    "Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity",
+    "Portable open-geo.run-artifact.v1 JSON output",
+    "Source and citation visibility funnel",
+    "Brand mention and qualitative sentiment tracking",
+    "Optional local dashboard and PDF report"
   ],
   "offers": {
     "@type": "Offer",
     "price": "0",
     "priceCurrency": "USD"
-  },
-  "isAccessibleForFree": true,
-  "author": {
-    "@type": "Organization",
-    "name": "open-geo contributors"
   }
 }
 </script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "open-geo",
-  "url": "https://pupok462.github.io/open-geo/",
-  "logo": "https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/social-preview.png",
-  "description": "Open-source GEO (generative engine optimization) visibility tracker for measuring brand presence in AI answers.",
-  "sameAs": [
-    "https://github.com/Pupok462/open-geo"
-  ]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "open-geo",
-  "url": "https://pupok462.github.io/open-geo/",
-  "inLanguage": "en"
-}
-</script>
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -135,18 +62,26 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
   "mainEntity": [
     {
       "@type": "Question",
-      "name": "What is GEO (generative engine optimization)?",
+      "name": "What is GEO or generative engine optimization?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "GEO is the practice of getting a brand surfaced and cited inside AI-generated answers, rather than ranked in a list of links. It is also called AEO (answer engine optimization). The measurement problem differs from SEO: there is no rank position to read, so what you track is whether an answer retrieved you, whether it cited you, and where in the answer you landed."
+        "text": "GEO is the practice of getting a brand surfaced and cited inside AI-generated answers rather than only ranked in a list of links. open-geo measures whether an answer retrieved the target, cited it and mentioned the brand."
       }
     },
     {
       "@type": "Question",
-      "name": "Is there a GEO or AI-visibility tracker for Claude Code?",
+      "name": "Can open-geo be used inside another agent workflow?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes. open-geo installs as an agent skill, performs the full capture on request, and returns a versioned JSON run artifact. It can be installed as a Claude Code plugin with /plugin marketplace add Pupok462/open-geo; the first run prepares its runtime automatically."
+        "text": "Yes. open-geo is a composable agent skill. Every completed run exports the versioned open-geo.run-artifact.v1 JSON document so another research, SEO, reporting or content workflow can consume the measurement directly."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does open-geo use an API or the real AI interface?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The real interface. An agent drives a visible browser that is already logged in and reads the rendered answer, source panel and inline citation chips. It does not substitute API or headless data."
       }
     },
     {
@@ -154,63 +89,39 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
       "name": "Which AI engines can open-geo track?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Seven today: Google AI Overview, ChatGPT with web search, Claude with web search, Google Gemini, Yandex Alice (Neuro), DeepSeek with web search, and Perplexity — each one live-validated against the real interface. Each engine is a natural-language playbook, so adding one means writing a markdown file rather than a parser."
+        "text": "Seven engines are live-validated: Google AI Overview, ChatGPT web search, Claude web search, Google Gemini, Yandex Alice or Neuro, DeepSeek web search and Perplexity."
       }
     },
     {
       "@type": "Question",
-      "name": "Can I track brand visibility in Yandex Alice or DeepSeek?",
+      "name": "Does open-geo require a dashboard server?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "Yes, both are supported engines. They matter because Russian- and Chinese-market answer engines are commonly left out of Western tooling, and each has quirks the playbook handles: Yandex mixes paid promo cards in with sources, which open-geo deliberately keeps out of sources and citations, and DeepSeek numbers its retrieved set the way Perplexity does."
+        "text": "No. The default data mode starts no FastAPI or Vite servers and returns a portable JSON artifact. The dashboard and PDF are optional presentation outputs."
       }
     },
     {
       "@type": "Question",
-      "name": "Does open-geo use the engine's API or the real UI?",
+      "name": "Can open-geo track a URL prefix such as a GitHub repository?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "The real UI. An agent drives a visible, logged-in Chrome and reads the answer as it was rendered to a person: the sources panel, the inline citation chips and the answer text. This is the core design choice, because API and headless reads do not match what a logged-in user is actually shown."
+        "text": "Yes. The target can be a registrable domain or a hierarchical URL prefix such as github.com/user/repository. Prefix matching respects path-segment boundaries."
       }
     },
     {
       "@type": "Question",
-      "name": "Is open-geo an audit or 24/7 monitoring?",
+      "name": "Is open-geo a continuous monitoring service?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "An audit you run on demand. A run is supervised, spends inference, and measures the questions you chose, so it is built for a point-in-time read you can defend rather than continuous coverage of a large prompt set. To repeat it, wrap the command in Claude Code's /loop, or use --repeat to capture the same set several times and read the min-max spread."
+        "text": "It is an on-demand supervised measurement workflow rather than a 24/7 hosted monitor. Runs can be repeated or scheduled by the host agent when needed."
       }
     },
     {
       "@type": "Question",
-      "name": "How is open-geo different from a hosted AI-visibility monitoring service?",
+      "name": "Do I need paid data API keys?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "It trades volume for fidelity. open-geo reads the rendered answer in your own logged-in browser, keeps history locally, and flags a run it cannot vouch for instead of guessing, at the cost of scale and of being hands-on. A hosted monitor is the better fit when you need thousands of prompts tracked continuously without supervision."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I track a GitHub repo or a URL prefix instead of a whole domain?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. The target accepts a domain such as example.com or a URL prefix such as github.com/user/repo, so you can measure a single repo, a docs section or a subfolder. Prefix matching is conservative: a link that only names the domain is not counted as a match when the target has a path."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Do I need any paid API keys to run open-geo?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "No external data API and no paid keys. You need Claude Code, the Claude-in-Chrome extension connected, and a browser already logged in to the engine and market you want to track. Running it does spend your own Claude Code inference."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is open-geo free and open source?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes, it is MIT-licensed and there is no data API or paid key in the loop. Running it spends your own Claude Code inference, and it needs a browser already logged in to the engine you want to measure."
+        "text": "No external data API or paid data key is required. A supported agent host with visible-browser control and a browser logged in to the chosen engine are required."
       }
     }
   ]
@@ -218,231 +129,444 @@ footer.site .wrap{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 </script>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 
-<header class="site">
-  <div class="wrap">
-    <strong>open-geo</strong>
-    <nav>
-      <a href="#how-it-works">How it works</a>
-      <a href="#compare">Compare</a>
+<div class="page-noise" aria-hidden="true"></div>
+<div class="ambient ambient-a" aria-hidden="true"></div>
+<div class="ambient ambient-b" aria-hidden="true"></div>
+
+<header class="site-header" data-header>
+  <div class="shell nav-shell">
+    <a class="brand" href="#top" aria-label="open-geo home">
+      <span class="brand-mark" aria-hidden="true"><span></span></span>
+      <span>open-geo</span>
+      <span class="version">v0.4.1</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+      <span class="sr-only">Toggle navigation</span>
+      <span></span><span></span>
+    </button>
+    <nav class="site-nav" id="site-nav" data-nav>
+      <a href="#system">System</a>
+      <a href="#signal">Signal</a>
+      <a href="#workflow">Workflow</a>
       <a href="#faq">FAQ</a>
-      <a href="#about">About</a>
-      <a href="https://github.com/Pupok462/open-geo">GitHub</a>
+      <a class="nav-github" href="https://github.com/Pupok462/open-geo">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2.23c-3.24.7-3.92-1.37-3.92-1.37-.53-1.35-1.3-1.71-1.3-1.71-1.06-.73.08-.72.08-.72 1.17.08 1.79 1.2 1.79 1.2 1.04 1.79 2.73 1.27 3.4.97.1-.76.4-1.27.74-1.56-2.59-.3-5.31-1.3-5.31-5.74 0-1.27.45-2.3 1.2-3.12-.12-.3-.52-1.48.11-3.08 0 0 .98-.31 3.16 1.19a10.96 10.96 0 0 1 5.76 0c2.2-1.5 3.17-1.19 3.17-1.19.63 1.6.23 2.78.11 3.08.75.82 1.2 1.85 1.2 3.12 0 4.46-2.73 5.44-5.33 5.73.42.36.79 1.08.79 2.18v3.24c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .7Z"/></svg>
+        GitHub
+      </a>
     </nav>
   </div>
 </header>
 
-<main class="wrap">
+<main id="main">
+  <section class="hero" id="top">
+    <canvas id="signal-field" aria-hidden="true"></canvas>
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="shell hero-layout">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span class="live-dot"></span> Composable GEO visibility agent</p>
+        <h1>Measure the answer.<br><span>Not the API.</span></h1>
+        <p class="hero-lead">open-geo drives the real, logged-in AI interface, traces where your brand enters the answer, and hands the evidence to any downstream agent as a versioned JSON artifact.</p>
 
-  <h1>open-geo — a GEO visibility tracker that reads the rendered AI answer</h1>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/Pupok462/open-geo#quick-start">
+            <span>Install the skill</span>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg>
+          </a>
+          <a class="button button-ghost" href="https://github.com/Pupok462/open-geo/blob/main/pipeline/INTERFACES.md">Inspect the contract</a>
+        </div>
 
-  <p class="lead"><strong>open-geo is a GEO (generative engine optimization) visibility tracker: it
-  measures whether your brand shows up in AI answers by reading the <em>rendered</em> answer a
-  logged-in user actually sees.</strong> Capture runs through an agent in a real, logged-in browser,
-  not the engine's API and not a headless scrape, because those do not match the answer a person is
-  shown. It covers Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek, and
-  reports an honest funnel that says when a run cannot be trusted instead of guessing.</p>
+        <div class="command-card" data-command>
+          <span class="command-prompt">$</span>
+          <code>/open-geo questions.csv google example.com --brand "Example" --n-worker 3</code>
+          <button type="button" class="copy-button" aria-label="Copy open-geo command" data-copy>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6" y="6" width="9" height="10" rx="2"/><path d="M4 13H3a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy</span>
+          </button>
+        </div>
 
-  <ul class="badges">
-    <li>Composable agent skill</li>
-    <li>Python 3.11</li>
-    <li>MIT licensed</li>
-    <li>Local SQLite history</li>
-    <li>EN · RU · ZH · AR</li>
-  </ul>
+        <ul class="hero-facts" aria-label="Project facts">
+          <li><strong>7</strong><span>live-validated engines</span></li>
+          <li><strong>0</strong><span>data APIs required</span></li>
+          <li><strong>1</strong><span>portable JSON handoff</span></li>
+        </ul>
+      </div>
 
-  <div class="cta">
-    <a class="primary" href="https://github.com/Pupok462/open-geo">Get it on GitHub</a>
-    <a href="https://github.com/Pupok462/open-geo#quick-start">Quick start</a>
-    <a href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md">Changelog</a>
-  </div>
+      <div class="hero-visual reveal" data-tilt data-tilt-strength="7">
+        <div class="visual-frame">
+          <div class="visual-status">
+            <span><i></i> LIVE CAPTURE</span>
+            <span>RUN / 042</span>
+          </div>
+          <div class="core-orbit" aria-hidden="true">
+            <div class="orbit orbit-one"><span>query</span></div>
+            <div class="orbit orbit-two"><span>sources</span></div>
+            <div class="orbit orbit-three"><span>citations</span></div>
+            <div class="core-sphere"><span>brand</span></div>
+          </div>
+          <div class="signal-label label-a"><span>01</span> answer rendered</div>
+          <div class="signal-label label-b"><span>12</span> sources found</div>
+          <div class="signal-label label-c"><span>09</span> citations verified</div>
+          <div class="signal-label label-d"><span>+</span> artifact emitted</div>
+          <div class="visual-footer">
+            <span>REAL BROWSER</span>
+            <span>LOGGED-IN SURFACE</span>
+            <span>NO HEADLESS SUBSTITUTE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-marquee" aria-hidden="true">
+      <div>
+        <span>GOOGLE AI OVERVIEW</span><i></i><span>CHATGPT SEARCH</span><i></i><span>CLAUDE SEARCH</span><i></i><span>GEMINI</span><i></i><span>YANDEX ALICE</span><i></i><span>DEEPSEEK</span><i></i><span>PERPLEXITY</span><i></i>
+        <span>GOOGLE AI OVERVIEW</span><i></i><span>CHATGPT SEARCH</span><i></i><span>CLAUDE SEARCH</span><i></i><span>GEMINI</span><i></i><span>YANDEX ALICE</span><i></i><span>DEEPSEEK</span><i></i><span>PERPLEXITY</span><i></i>
+      </div>
+    </div>
+  </section>
 
-  <h2 id="at-a-glance">At a glance</h2>
+  <section class="section system-section" id="system">
+    <div class="shell">
+      <div class="section-heading reveal">
+        <p class="section-index">01 / THE SYSTEM</p>
+        <h2>One run.<br><span>A complete evidence trail.</span></h2>
+        <p>Not a synthetic visibility score. A chain of inspectable records from the rendered answer to the final artifact.</p>
+      </div>
 
-  <table>
-    <tbody>
-      <tr><th>What it is</th><td>A GEO / AI-visibility data-collection agent for a brand or URL, packaged as a composable skill</td></tr>
-      <tr><th>How it measures</th><td>An agent reads the <strong>rendered</strong> AI answer in a real, logged-in browser</td></tr>
-      <tr><th>Engines covered</th><td>Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated</td></tr>
-      <tr><th>What it reports</th><td>Answer coverage → visibility in sources → visibility in citations, plus positions, source-to-citation conversion, brand-mention rate, qualitative sentiment and a top-domains leaderboard</td></tr>
-      <tr><th>Deliverables</th><td>Always: a versioned JSON artifact for another agent workflow. Optional: a local dashboard and themed PDF from the same SQLite history</td></tr>
-      <tr><th>Operating model</th><td>An on-demand audit the agent completes for you, not a 24/7 hosted monitor</td></tr>
-      <tr><th>Requirements</th><td>An agent host with visible-browser control and a browser logged in to the engine. No data API, no paid keys</td></tr>
-      <tr><th>License</th><td>MIT</td></tr>
-    </tbody>
-  </table>
+      <div class="bento-grid">
+        <article class="bento bento-browser reveal" data-tilt data-tilt-strength="3">
+          <div class="card-kicker">REAL SURFACE</div>
+          <h3>The agent sees what the user sees.</h3>
+          <p>A visible, logged-in browser. Source panels, inline citation chips and answer text — captured from the interface people actually use.</p>
+          <div class="browser-mini" aria-hidden="true">
+            <div class="browser-bar"><i></i><i></i><i></i><span>ai-engine.example/search</span></div>
+            <div class="browser-answer">
+              <span class="answer-line line-a"></span>
+              <span class="answer-line line-b"></span>
+              <span class="answer-line line-c"></span>
+              <div class="citation-chip">open-geo <b>1</b></div>
+              <span class="answer-line line-d"></span>
+            </div>
+          </div>
+        </article>
 
-  <h2 id="how-it-works">How it works</h2>
+        <article class="bento bento-funnel reveal">
+          <div class="card-kicker">NESTED FUNNEL</div>
+          <h3>Every metric keeps its denominator honest.</h3>
+          <div class="funnel-visual" aria-label="Example visibility funnel: 30 queries, 22 answers, 9 sources, 7 citations">
+            <div class="funnel-layer funnel-query"><span>30</span><small>queries</small></div>
+            <div class="funnel-layer funnel-answer"><span>22</span><small>answers</small></div>
+            <div class="funnel-layer funnel-source"><span>09</span><small>sources</small></div>
+            <div class="funnel-layer funnel-cite"><span>07</span><small>citations</small></div>
+          </div>
+          <code class="funnel-rule">cited ≤ in_sources ≤ answered ≤ queries</code>
+        </article>
 
-  <ol class="steps">
-    <li><strong>A readiness audit runs first.</strong> A deterministic, non-LLM check of whether an
-    AI engine can read the target domain at all: HTTPS and reachability, a homepage that returns
-    200, <code>robots.txt</code> not blocking the engine's search crawler, content present in raw
-    HTML. Hard blockers stop the run before a single token is spent; everything else is advisory
-    and ships with a concrete fix.</li>
-    <li><strong>Capture reads the rendered answer.</strong> For each query, an agent follows a
-    per-engine playbook in a visible, logged-in Chrome, expands the sources panel and the inline
-    citation chips, normalizes domains, and emits one validated record.</li>
-    <li><strong>Scoring is plain arithmetic.</strong> Records land in a local SQLite database and
-    are scored per lens (general, branded, comparative) plus an aggregate row. Every number traces
-    to one formula in the published contract.</li>
-    <li><strong>You always get a portable JSON artifact.</strong> It is the versioned handoff for
-    another research, SEO, reporting, or content agent. Dashboard and PDF are optional, local,
-    in four languages, and built from the same scored run. The PDF is a
-    standalone document rather than a summary of the dashboard: every query grouped by how the
-    brand ended up in the answer, a separate list of the answers the brand was absent from, the
-    readiness audit with its fixes, and a glossary of every formula.</li>
-  </ol>
+        <article class="bento bento-artifact reveal">
+          <div class="card-kicker">PORTABLE OUTPUT</div>
+          <h3>The result is a contract, not chat prose.</h3>
+          <p>Every run emits <code>open-geo.run-artifact.v1</code> for another agent to consume directly.</p>
+          <pre class="json-window" aria-label="JSON artifact example"><span>{</span>
+  <b>"schema_version"</b>: <em>"open-geo.run-artifact.v1"</em>,
+  <b>"run"</b>: { <b>"engine"</b>: <em>"google"</em>, <b>"status"</b>: <em>"done"</em> },
+  <b>"metrics"</b>: { <b>"all"</b>: { <b>"visibility_in_citations"</b>: <mark>0.32</mark> } },
+  <b>"results"</b>: [ <span>...</span> ],
+  <b>"audit"</b>: { <b>"blocked"</b>: <mark>false</mark> }
+<span>}</span></pre>
+        </article>
 
-  <p><img src="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/dashboard-en.png"
-    alt="The open-geo dashboard: KPI cards with run-over-run deltas, a breakdown by query lens, and a top-domains leaderboard"
-    width="1600" height="900" loading="lazy"></p>
+        <article class="bento bento-workflow reveal">
+          <div class="card-kicker">COMPOSABLE</div>
+          <h3>Drops into any agent workflow that can call a skill and read JSON.</h3>
+          <div class="workflow-map" aria-hidden="true">
+            <div class="workflow-node source-node"><span>research</span><span>SEO</span><span>content</span></div>
+            <div class="workflow-line"></div>
+            <div class="workflow-core"><span>open</span><strong>geo</strong></div>
+            <div class="workflow-line"></div>
+            <div class="workflow-node target-node"><span>report</span><span>brief</span><span>action</span></div>
+          </div>
+        </article>
 
-  <h2 id="metrics">What it measures</h2>
+        <article class="bento bento-guardrails reveal">
+          <div class="card-kicker">GUARDRAILS</div>
+          <h3>If the run cannot be trusted, the system says so.</h3>
+          <ul class="check-list">
+            <li><span class="check pass"></span><strong>Rendered answer</strong><small>confirmed</small></li>
+            <li><span class="check pass"></span><strong>Source panel</strong><small>parsed</small></li>
+            <li><span class="check pass"></span><strong>Citation ranks</strong><small>validated</small></li>
+            <li><span class="check warn"></span><strong>Thin evidence</strong><small>flagged, never guessed</small></li>
+          </ul>
+        </article>
 
-  <p>The counts nest, so each step is a subset of the one before it:
-  <code>cited ≤ in sources ≤ answered ≤ queries</code>. A model can only cite what it retrieved, so
-  citations are a subset of sources. The denominator for visibility is answer-present queries: you
-  can only be visible where an answer actually rendered.</p>
+        <article class="bento bento-local reveal">
+          <div class="card-kicker">LOCAL HISTORY</div>
+          <h3>SQLite history stays inspectable.</h3>
+          <p>Per-brand, per-engine runs. Deltas, repeat groups and optional PDF/dashboard views are built from the same scored records.</p>
+          <div class="history-chart" aria-hidden="true">
+            <svg viewBox="0 0 460 160" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#c7ff4a" stop-opacity=".32"/>
+                  <stop offset="1" stop-color="#c7ff4a" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path class="chart-area" d="M0 130 C55 120 65 70 120 84 S195 145 235 90 S312 24 350 56 S414 100 460 30 L460 160 L0 160 Z"/>
+              <path class="chart-line" d="M0 130 C55 120 65 70 120 84 S195 145 235 90 S312 24 350 56 S414 100 460 30"/>
+              <circle cx="460" cy="30" r="5"/>
+            </svg>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
 
-  <table>
-    <thead><tr><th>Metric</th><th>Meaning</th><th>Direction</th></tr></thead>
-    <tbody>
-      <tr><td>Answer coverage</td><td>Share of queries that produced an AI answer at all</td><td>higher is better</td></tr>
-      <tr><td>Visibility in sources</td><td>Of answered queries, share where your target made it into the relied-on sources</td><td>higher is better</td></tr>
-      <tr><td>Visibility in citations</td><td>Of answered queries, share where your target is cited in the answer</td><td>higher is better</td></tr>
-      <tr><td>Average source position</td><td>Average best rank among sources, over queries where it appears</td><td>lower is better</td></tr>
-      <tr><td>Average citation position</td><td>Average best rank among citations, over queries where it is cited</td><td>lower is better</td></tr>
-      <tr><td>Relative citation</td><td>Source-to-citation conversion: of queries where you were retrieved, the share actually cited</td><td>higher is better</td></tr>
-      <tr><td>Brand mention rate</td><td>Share of answers whose text names the brand, linked or not — an adjacent axis, not a funnel stage</td><td>higher is better</td></tr>
-    </tbody>
-  </table>
+  <section class="section signal-section" id="signal">
+    <div class="shell">
+      <div class="section-heading split-heading reveal">
+        <div>
+          <p class="section-index">02 / THE SIGNAL</p>
+          <h2>Seven engines.<br><span>One measurement contract.</span></h2>
+        </div>
+        <p>Engine-specific playbooks adapt to each interface. The capture shape and scoring rules stay stable.</p>
+      </div>
 
-  <p>There is deliberately <strong>no composite index, no share-of-voice index and no numeric
-  sentiment</strong>. Sentiment stays a short qualitative note, and competitive context is a
-  top-domains leaderboard of plain frequencies and positions.</p>
+      <div class="engine-stage reveal">
+        <div class="engine-radar" aria-hidden="true">
+          <div class="radar-ring ring-1"></div>
+          <div class="radar-ring ring-2"></div>
+          <div class="radar-ring ring-3"></div>
+          <div class="radar-axis axis-x"></div>
+          <div class="radar-axis axis-y"></div>
+          <div class="radar-core"><span>target</span><strong>example.com</strong></div>
+          <span class="engine-dot engine-google">Google <i></i></span>
+          <span class="engine-dot engine-chatgpt">ChatGPT <i></i></span>
+          <span class="engine-dot engine-claude">Claude <i></i></span>
+          <span class="engine-dot engine-gemini">Gemini <i></i></span>
+          <span class="engine-dot engine-yandex">Yandex <i></i></span>
+          <span class="engine-dot engine-deepseek">DeepSeek <i></i></span>
+          <span class="engine-dot engine-perplexity">Perplexity <i></i></span>
+        </div>
+        <div class="engine-copy">
+          <p class="mono-label">LIVE-VALIDATED PLAYBOOKS</p>
+          <h3>The interface can change. The evidence contract does not.</h3>
+          <p>Each engine is driven through a natural-language capture playbook instead of brittle hard-coded selectors. A UI change is updated in markdown; downstream data remains predictable.</p>
+          <div class="engine-tags">
+            <span>google</span><span>chatgpt_search</span><span>claude_search</span><span>gemini</span><span>yandex_neuro</span><span>deepseek</span><span>perplexity</span>
+          </div>
+          <a class="text-link" href="https://github.com/Pupok462/open-geo/tree/main/engines">Explore engine playbooks <span>↗</span></a>
+        </div>
+      </div>
 
-  <h2 id="compare">How open-geo compares</h2>
+      <div class="metrics-heading reveal">
+        <p class="mono-label">THE VISIBILITY FUNNEL</p>
+        <h3>No magic 0–100 score. Seven legible signals.</h3>
+      </div>
+      <div class="metrics-grid">
+        <article class="metric-card reveal"><span class="metric-number">01</span><h4>Answer coverage</h4><p>Did a grounded answer render at all?</p><strong>answers / queries</strong></article>
+        <article class="metric-card reveal"><span class="metric-number">02</span><h4>Source visibility</h4><p>Did the engine retrieve your target?</p><strong>in sources / answers</strong></article>
+        <article class="metric-card reveal"><span class="metric-number">03</span><h4>Citation visibility</h4><p>Did the answer actually cite your target?</p><strong>cited / answers</strong></article>
+        <article class="metric-card reveal"><span class="metric-number">04</span><h4>Source position</h4><p>Where did your best source placement land?</p><strong>lower is better</strong></article>
+        <article class="metric-card reveal"><span class="metric-number">05</span><h4>Citation position</h4><p>Where did your best inline citation land?</p><strong>lower is better</strong></article>
+        <article class="metric-card reveal"><span class="metric-number">06</span><h4>Source → citation</h4><p>How often did retrieval turn into citation?</p><strong>cited / in sources</strong></article>
+        <article class="metric-card reveal metric-accent"><span class="metric-number">07</span><h4>Brand mention</h4><p>Did the prose name the brand, linked or not?</p><strong>mentions / answers</strong></article>
+      </div>
+    </div>
+  </section>
 
-  <p>Three different shapes solve "am I visible in AI answers?", and they are not interchangeable.
-  This is about what each shape is built for.</p>
+  <section class="section product-section">
+    <div class="shell">
+      <div class="product-layout">
+        <div class="product-copy reveal">
+          <p class="section-index">03 / THE OUTPUT</p>
+          <h2>Data first.<br><span>Presentation when you want it.</span></h2>
+          <p>The default run starts no servers. It returns the JSON artifact and stops. When a human needs the story, the same history can render as a dashboard or a themed PDF.</p>
+          <ul class="product-list">
+            <li><span>01</span> Portable JSON for agent-to-agent handoff</li>
+            <li><span>02</span> Local dashboard with run-over-run history</li>
+            <li><span>03</span> Standalone PDF with every query and fix</li>
+            <li><span>04</span> English, Russian, Chinese and Arabic UI</li>
+          </ul>
+        </div>
+        <div class="dashboard-stage reveal" data-tilt data-tilt-strength="4">
+          <div class="dashboard-halo" aria-hidden="true"></div>
+          <figure class="dashboard-frame">
+            <div class="frame-top"><span>open-geo / dashboard</span><span>LOCALHOST</span></div>
+            <img src="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/dashboard-en.png" alt="open-geo dashboard with visibility funnel metrics, lens breakdown, sentiment and a top-domains leaderboard" width="1600" height="900" loading="lazy">
+          </figure>
+          <div class="float-panel float-panel-a"><span>visibility_in_citations</span><strong>32%</strong><i>+7.4%</i></div>
+          <div class="float-panel float-panel-b"><span>source → citation</span><strong>78%</strong><i>stable</i></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <table>
-    <thead>
-      <tr><th></th><th>open-geo</th><th>Hosted monitoring</th><th>DIY API / scraping</th></tr>
-    </thead>
-    <tbody>
-      <tr><th>What it reads</th><td>The rendered answer inside a real, logged-in browser session</td><td>A vendor-operated capture pipeline</td><td>Whatever the API or fetched HTML returns</td></tr>
-      <tr><th>Engine coverage</th><td>Seven engines, including Yandex Alice and DeepSeek; adding one is a markdown playbook</td><td>Set by the vendor's roadmap</td><td>Whatever you build and keep building</td></tr>
-      <tr><th>Operating model</th><td>An on-demand audit you trigger and supervise</td><td>Continuous monitoring over large prompt sets</td><td>Whatever you schedule</td></tr>
-      <tr><th>Scale</th><td>Tens to low hundreds of queries per run</td><td>Thousands of prompts, hands-off</td><td>Bounded by budget and rate limits</td></tr>
-      <tr><th>Where results live</th><td>Local SQLite history + portable JSON artifact; optional dashboard/PDF</td><td>The vendor's cloud</td><td>Wherever you put them</td></tr>
-      <tr><th>When data is shaky</th><td>A grounded-answer gate and a nested funnel; a run is flagged, never guessed</td><td>Vendor-defined</td><td>Yours to design</td></tr>
-    </tbody>
-  </table>
+  <section class="section workflow-section" id="workflow">
+    <div class="shell">
+      <div class="section-heading split-heading reveal">
+        <div>
+          <p class="section-index">04 / THE WORKFLOW</p>
+          <h2>Ask once.<br><span>The agent does the run.</span></h2>
+        </div>
+        <p>No manual clone, Python setup, API server or dashboard launch. The installed skill prepares its runtime and owns the orchestration.</p>
+      </div>
 
-  <p><strong>The trade-off is deliberate: fidelity over volume.</strong> open-geo is supervised, it
-  spends inference, and it does not scale to thousands of prompts a day. In exchange, every number
-  traces to an answer a logged-in person could actually have been shown. If you need continuous
-  coverage across a large prompt set, a hosted monitor is the right shape.</p>
+      <div class="steps-grid">
+        <article class="step-card reveal">
+          <span class="step-index">01</span>
+          <div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 9l2 2-2 2M12 14h4"/></svg></div>
+          <h3>Invoke the skill</h3>
+          <p>Give it a question set, engine, target, brand and worker count — directly or from a parent agent workflow.</p>
+        </article>
+        <article class="step-card reveal">
+          <span class="step-index">02</span>
+          <div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M3 12h2M19 12h2"/></svg></div>
+          <h3>Audit before spend</h3>
+          <p>A deterministic readiness gate catches hard blockers before browser capture and returns concrete remediation.</p>
+        </article>
+        <article class="step-card reveal">
+          <span class="step-index">03</span>
+          <div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></div>
+          <h3>Capture the surface</h3>
+          <p>Parallel workers drive the logged-in engine, return validated records and clean up their own browser tabs.</p>
+        </article>
+        <article class="step-card reveal">
+          <span class="step-index">04</span>
+          <div class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7zM15 3v5h5M10 13h6M10 17h6"/></svg></div>
+          <h3>Consume the artifact</h3>
+          <p>The parent workflow reads one stable JSON document instead of scraping chat prose or querying SQLite internals.</p>
+        </article>
+      </div>
 
-  <h2 id="install">Get started</h2>
+      <div class="quickstart reveal">
+        <div class="quickstart-copy">
+          <p class="mono-label">QUICK START</p>
+          <h3>Install. Ask. Get evidence.</h3>
+          <p>The only manual prerequisite is a browser session already logged in to the AI engine you want to measure.</p>
+        </div>
+        <div class="terminal" aria-label="Plugin installation commands">
+          <div class="terminal-bar"><span></span><span></span><span></span><b>agent terminal</b></div>
+          <div class="terminal-body">
+            <p><i>$</i> /plugin marketplace add Pupok462/open-geo</p>
+            <p><i>$</i> /plugin install open-geo@open-geo-marketplace</p>
+            <p class="terminal-output">✓ open-geo v0.4.1 installed</p>
+            <p><i>$</i> /open-geo:open-geo questions.csv google example.com \</p>
+            <p class="terminal-indent">--brand "Example" --n-worker 3 --output data</p>
+            <p class="terminal-output accent-output">→ reports/run-42.json</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <p>Install the skill, then ask the agent for the measurement. The first run prepares its
-  Python runtime automatically; no manual clone, setup command, API server, or dashboard launch is required:</p>
+  <section class="section compare-section" id="compare">
+    <div class="shell">
+      <div class="section-heading reveal">
+        <p class="section-index">05 / THE TRADE-OFF</p>
+        <h2>Fidelity over volume.<br><span>Deliberately.</span></h2>
+        <p>open-geo is not pretending to be the right shape for every measurement job.</p>
+      </div>
 
-<pre><code>/plugin marketplace add Pupok462/open-geo
-/plugin install open-geo@open-geo-marketplace</code></pre>
+      <div class="compare-grid">
+        <article class="compare-card featured reveal">
+          <div class="compare-top"><span>open-geo</span><b>REAL SURFACE</b></div>
+          <h3>Defensible point-in-time audit</h3>
+          <ul>
+            <li>Rendered answer in your logged-in browser</li>
+            <li>Portable local evidence and transparent formulas</li>
+            <li>Tens to low hundreds of queries per run</li>
+            <li>Flags uncertainty instead of filling gaps</li>
+          </ul>
+        </article>
+        <article class="compare-card reveal">
+          <div class="compare-top"><span>Hosted tracker</span><b>SCALE</b></div>
+          <h3>Continuous high-volume monitoring</h3>
+          <ul>
+            <li>Vendor-operated capture pipeline</li>
+            <li>Cloud history and dashboards</li>
+            <li>Thousands of prompts, hands-off</li>
+            <li>Best when breadth matters most</li>
+          </ul>
+        </article>
+        <article class="compare-card reveal">
+          <div class="compare-top"><span>DIY API scraper</span><b>CONTROL</b></div>
+          <h3>Whatever you build and maintain</h3>
+          <ul>
+            <li>API or fetched HTML surface</li>
+            <li>Your own storage and scoring</li>
+            <li>Bounded by budget and rate limits</li>
+            <li>You own every parser and failure mode</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
 
-  <p>Then ask naturally, or invoke the namespaced skill against your own question set:</p>
+  <section class="section faq-section" id="faq">
+    <div class="shell faq-layout">
+      <div class="faq-intro reveal">
+        <p class="section-index">06 / FAQ</p>
+        <h2>Questions before<br><span>the first run.</span></h2>
+        <p>Everything else — code, playbooks, formulas and known limitations — is public in the repository.</p>
+        <a class="text-link" href="https://github.com/Pupok462/open-geo">Open the repository <span>↗</span></a>
+      </div>
+      <div class="faq-list">
+        <details class="reveal">
+          <summary>What exactly does open-geo measure?<span></span></summary>
+          <p>Whether a rendered AI answer appeared, whether the target entered the source set, whether the answer cited it, its best positions, source-to-citation conversion, brand mentions and qualitative sentiment.</p>
+        </details>
+        <details class="reveal">
+          <summary>Can another agent call it as a workflow step?<span></span></summary>
+          <p>Yes. That is the primary integration boundary in v0.4.1. Any downstream workflow that can invoke the skill and read JSON can consume <code>open-geo.run-artifact.v1</code> directly.</p>
+        </details>
+        <details class="reveal">
+          <summary>Does it require an API key or hosted account?<span></span></summary>
+          <p>No external data API or paid data key. It needs a supported agent host with visible-browser control and a browser session already logged in to the target engine.</p>
+        </details>
+        <details class="reveal">
+          <summary>Why not use headless scraping?<span></span></summary>
+          <p>Because the surface returned to an API or anonymous scraper can differ from the answer shown to a logged-in person. open-geo measures the rendered product surface and refuses to silently substitute another one.</p>
+        </details>
+        <details class="reveal">
+          <summary>Does the default mode start a dashboard?<span></span></summary>
+          <p>No. <code>--output data</code> is the default. It exports JSON and starts no FastAPI or Vite process. Dashboard, PDF and both remain explicit optional outputs.</p>
+        </details>
+        <details class="reveal">
+          <summary>Can it measure a repository or docs section?<span></span></summary>
+          <p>Yes. The target accepts a whole domain or a hierarchical URL prefix such as <code>github.com/user/repo</code>, with path-segment-aware matching.</p>
+        </details>
+      </div>
+    </div>
+  </section>
 
-<pre><code>/open-geo:open-geo questions.csv google example.com --brand "Example" --n-worker 3</code></pre>
-
-  <p class="muted">Plugin skills are namespaced, so the plugin-installed command is
-  <code>/open-geo:open-geo</code>. The default data mode starts no servers and returns
-  <code>open-geo.run-artifact.v1</code>. The remaining prerequisite is a visible browser session
-  logged in to the market you want to track.</p>
-
-  <h2 id="faq">Frequently asked questions</h2>
-
-  <div class="faq">
-
-    <h3>What is GEO (generative engine optimization)?</h3>
-    <p>GEO is the practice of getting a brand surfaced and cited inside AI-generated answers, rather
-    than ranked in a list of links. It is also called AEO (answer engine optimization). The
-    measurement problem differs from SEO: there is no rank position to read, so what you track is
-    whether an answer retrieved you, whether it cited you, and where in the answer you landed.</p>
-
-    <h3>Is there a GEO or AI-visibility tracker for Claude Code?</h3>
-    <p>Yes — open-geo is one. It installs as an agent skill, performs the full capture on request,
-    and returns a versioned JSON artifact that another agent workflow can consume directly.</p>
-
-    <h3>Which AI engines can open-geo track?</h3>
-    <p>Seven today: Google AI Overview, ChatGPT with web search, Claude with web search, Google
-    Gemini, Yandex Alice / Нейро, DeepSeek with web search, and Perplexity — each one live-validated
-    against the real interface. Each engine is a natural-language playbook, so adding
-    one means writing a markdown file rather than a parser.</p>
-
-    <h3>Can I track brand visibility in Yandex Alice or DeepSeek?</h3>
-    <p>Yes, both are supported engines. They matter because Russian- and Chinese-market answer
-    engines are commonly left out of Western tooling, and each has quirks the playbook handles:
-    Yandex mixes paid promo cards in with sources, which open-geo deliberately keeps out of sources
-    and citations, and DeepSeek numbers its retrieved set the way Perplexity does.</p>
-
-    <h3>Does open-geo use the engine's API or the real UI?</h3>
-    <p>The real UI. An agent drives a visible, logged-in Chrome and reads the answer as it was
-    rendered to a person: the sources panel, the inline citation chips, the answer text. API and
-    headless reads do not match what a logged-in user is actually shown, so they measure a surface
-    nobody sees.</p>
-
-    <h3>Is open-geo an audit or 24/7 monitoring?</h3>
-    <p>An audit the agent runs on demand. A run is supervised, spends inference, and measures the questions
-    you chose. To repeat it, wrap the command in Claude Code's <code>/loop</code>, or use
-    <code>--repeat</code> to capture the same set several times and read the min–max spread.</p>
-
-    <h3>How is open-geo different from a hosted AI-visibility monitoring service?</h3>
-    <p>It trades volume for fidelity: it reads the rendered answer in your own logged-in browser,
-    keeps history locally, and flags a run it cannot vouch for instead of guessing — at the cost of
-    scale and of being hands-on. A hosted monitor is the better fit when you need thousands of
-    prompts tracked continuously without supervision.</p>
-
-    <h3>Can I track a GitHub repo or a URL prefix instead of a whole domain?</h3>
-    <p>Yes. The target accepts a domain such as <code>example.com</code> or a URL prefix such as
-    <code>github.com/user/repo</code>, so you can measure a single repo, a docs section or a
-    subfolder. Prefix matching is conservative: a link that only names the domain is not counted as
-    a match when the target has a path.</p>
-
-    <h3>Do I need any paid API keys to run open-geo?</h3>
-    <p>No external data API and no paid keys. You need a supported agent host with visible-browser
-    control and a browser already logged in to the engine and market you want to track.</p>
-
-    <h3>Is open-geo free and open source?</h3>
-    <p>Yes — MIT-licensed, with no data API or paid key in the loop. Running it does spend your own
-    Claude Code inference.</p>
-
-  </div>
-
-  <h2 id="about">About</h2>
-
-  <p>open-geo is an open-source project built around one insight: measuring AI visibility through an
-  API or a headless browser does not match the answer a logged-in person is actually shown, so the
-  measurement has to happen on the real, rendered surface. The full methodology, the capture
-  playbooks and the metric contract are public and auditable in the repository.</p>
-
-  <p><a href="https://github.com/Pupok462/open-geo/issues" id="contact">Contact and issues</a> ·
-  <a href="https://github.com/Pupok462/open-geo/blob/main/pipeline/INTERFACES.md">Metric contract</a> ·
-  <a href="https://github.com/Pupok462/open-geo/blob/main/engines/README.md">Engine playbooks</a></p>
-
+  <section class="final-cta">
+    <div class="final-grid" aria-hidden="true"></div>
+    <div class="shell final-cta-inner reveal">
+      <p class="mono-label">THE ANSWER IS THE INTERFACE</p>
+      <h2>Stop estimating visibility.<br><span>Capture it.</span></h2>
+      <p>Open source. MIT licensed. Built for agents that need evidence they can hand to the next agent.</p>
+      <div class="hero-actions final-actions">
+        <a class="button button-primary" href="https://github.com/Pupok462/open-geo">Get open-geo on GitHub</a>
+        <a class="button button-ghost" href="https://github.com/Pupok462/open-geo/releases/tag/v0.4.1">Read the v0.4.1 release</a>
+      </div>
+    </div>
+  </section>
 </main>
 
-<footer class="site">
-  <div class="wrap">
-    <span>MIT licensed.</span>
-    <span>Last updated <time datetime="2026-08-18">18 August 2026</time>.</span>
-    <span><a href="https://github.com/Pupok462/open-geo">github.com/Pupok462/open-geo</a></span>
-    <span><a href="llms.txt">llms.txt</a></span>
+<footer class="site-footer">
+  <div class="shell footer-grid">
+    <div>
+      <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><span></span></span><span>open-geo</span></a>
+      <p>Measure the rendered AI answer. Return the evidence.</p>
+    </div>
+    <div class="footer-links">
+      <div><span>Project</span><a href="https://github.com/Pupok462/open-geo">GitHub</a><a href="https://github.com/Pupok462/open-geo/blob/main/CHANGELOG.md">Changelog</a><a href="https://github.com/Pupok462/open-geo/issues">Issues</a></div>
+      <div><span>Method</span><a href="https://github.com/Pupok462/open-geo/blob/main/pipeline/INTERFACES.md">Metric contract</a><a href="https://github.com/Pupok462/open-geo/tree/main/engines">Engine playbooks</a><a href="llms.txt">llms.txt</a></div>
+    </div>
   </div>
+  <div class="shell footer-bottom"><span>MIT licensed · v0.4.1</span><span>Last updated <time datetime="2026-08-19">19 August 2026</time></span></div>
 </footer>
 
+<div class="copy-toast" role="status" aria-live="polite" data-toast>Command copied</div>
+<script src="app.js?v=0.4.1" defer></script>
 </body>
 </html>
