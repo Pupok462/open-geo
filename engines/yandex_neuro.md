@@ -27,7 +27,8 @@
 
 ## Inputs you are given (per invocation)
 
-- `query` — the exact string to type into Alice. Send it verbatim.
+- `query` — the exact string to put to Alice. Send it **verbatim** (via the URL, not the
+  composer — step 1).
 - `lens` — one of `general` | `branded` | `comparative` (already decided
   upstream; copy it through, do not re-classify).
 - **target brand `name`** — e.g. `iXBT` (for `brand_in_answer_text`).
@@ -69,48 +70,62 @@ or any other string.
 > - ad / promo card label **"Промо"** with a **"Перейти"** ("Go") button (e.g. ozon.ru,
 >   market.yandex.ru, advertiser product cards) — **NOT a source; exclude it (see steps 3–4).**
 >
+> ### The React-fiber read is the primary route on this engine
+> Everything a capture needs — the **complete sources list** *and* **every citation,
+> including the members hidden behind `+N`** — sits in the page's React props and comes
+> out of **one `javascript_tool` call with zero clicking** (step 3). Clicking the UI is
+> now the **fallback**, not the plan: the **"Источники" button is genuinely unreliable**
+> (4 opens in ~10 attempts across run 29; 0 opens in 5 clicks on 2026-08-24 with the pointer
+> verified to be over the button — see the live audit at the bottom), while the fiber data is there whether
+> or not a panel ever opens. This **replaces** the click-every-chip / open-the-panel
+> procedure that steps 3–4 used to prescribe.
+>
 > **Three tools, three jobs:**
-> - **Read the prose + see which domains are cited → `get_page_text`.** Unlike Google
->   (where `get_page_text` silently drops the AI block), on Alice the answer **IS** the
->   page's main content, so `get_page_text` returns the **full prose** with each inline
->   chip's **domain text and `+N` counter inline** (e.g. `fluidwave.com +1`), and it
->   clearly marks **"Промо"** ad cards. Use it for `answer_text_md`, to enumerate the
->   cited domains in order, and to spot the ads you must exclude. (It does **not** give
->   `href`s or the hidden `+N` domains — use the next tool for those.)
-> - **Confirm grounding + read chips/panel visually → `computer` (action=screenshot).**
+> - **`sources` + `citations` → `javascript_tool` over the React fiber.** One call
+>   returns the panel list and the full chip sequence with their source ids (step 3).
+> - **Prose, cited domains in order, `+N` counters, "Промо" markers → `get_page_text`.**
+>   Unlike Google (where `get_page_text` silently drops the AI block), on Alice the answer
+>   **IS** the page's main content, so `get_page_text` returns the **full prose** with each
+>   inline chip's **domain text and `+N` counter inline** (e.g. `fluidwave.com +1`), and it
+>   clearly marks **"Промо"** ad cards. Use it for `answer_text_md` — **and as the
+>   mandatory cross-check on the script's output** (see the verification box in step 4).
+> - **Confirm grounding + see anything you must see → `computer` (action=screenshot).**
 >   A screenshot shows whether the answer is **grounded** (inline source chips and/or
->   the "Источники" button present), and lets you read chip placement and the panel.
-> - **Collect source/citation `href`s → `read_page(filter="interactive")`** (plus `find`).
->   It returns the source/citation elements as links/menuitems with real `href`s — e.g. a
->   single-source chip `link "rg.ru"` href=`https://rg.ru/2025/05/05/…`, and sources-panel
->   `menuitem "multivarka.pro"` href=`https://multivarka.pro/article/…`. **`href`s are
->   frequently DIRECT** (no Yandex redirect wrapper) — unwrap only if one *is* wrapped.
-> - **Every URL you need is already on the Alice page — read its `href` from the tree.
->   NEVER navigate to a cited/source website** (it wastes calls and trips the source
->   site's own CAPTCHA). A correct capture is **~6–12 tool calls with ZERO navigation
->   away from `yandex.ru/alice`.** If a click accidentally leaves Alice or opens a new
->   tab to a source/ad site, **close that tab / go back immediately** and re-read via
->   `read_page` — never proceed on, read, or "study" a source site.
-> - **Expand before collecting.** Click the **"Источники"** button to open the sources
->   popover, and click each **`+N` chip badge** to reveal its hidden citations — **then
->   re-run `read_page(filter="interactive")`** to gather all revealed links.
-> - **The "Источники" panel opens IN PLACE (a popover) — scroll it to the bottom.**
->   `read_page` often exposes only the first few source cards at a time. The header
->   **"На основе N источников"** tells you how many to expect — after opening the panel,
->   **scroll the popover down and re-read until no new cards appear**, collecting **all N**.
+>   the "Источники" button present) and is the only way to check a computed rect.
+> - `read_page(filter="interactive")` still works for **single** chips (they are real `A`
+>   elements with direct hrefs) and for the panel when it happens to be open, but it is
+>   viewport-limited and virtualized — it is no longer the collection path.
+> - **Every URL you need is already on the Alice page — read it from the fiber or from a
+>   `href` in place. NEVER navigate to a cited/source website** (it wastes calls and trips
+>   the source site's own CAPTCHA). A correct capture is **~5–8 tool calls with ZERO
+>   navigation away from `yandex.ru/alice`.** If a click accidentally leaves Alice or opens
+>   a new tab to a source/ad site, **close that tab / go back immediately** — never proceed
+>   on, read, or "study" a source site.
 
 ### 1. Open a FRESH Alice chat and submit the query
 - **Start a NEW chat for every query.** Alice is a **chat** — a previous question's
-  answer stays in context and would poison the next query. Per `(query, lens)`, either
-  **navigate** to `https://yandex.ru/alice/` (a clean, empty chat) **or** click the
-  **"Новый чат"** compose / "+" icon (top-left). Confirm the input box
-  (**"Спросите о чём угодно"** — "ask anything") is empty/centered before typing.
-- Click the input box and **type the `query` verbatim**. ⚠️ **Submit with the send ARROW, not
-  `Return`** (verified live 2026-08-12): pressing Return opened the autocomplete suggestion list and
-  left the query **unsent**, exactly as already documented for Perplexity. Confirm the query actually
-  went through before you start waiting on an answer that was never asked for.
-  (Equivalently you may reach Alice from a Yandex search by clicking the **"Алиса AI"**
-  tab, but a fresh `yandex.ru/alice/` chat is the deterministic entry.)
+  answer stays in context and would poison the next query.
+- **Do NOT type the query. Navigate it in.** Typing is the weakest link on this engine
+  (dropped spaces, a server-synced shared draft, `Return` that does not submit). The
+  deterministic entry, verified live on 2026-08-24:
+  1. `navigate` to `https://yandex.ru/search/?text=<urlencoded query>`
+  2. one `javascript_tool` call that reads the **"Алиса AI"** tab's anchor and assigns it:
+     ```js
+     const a = [...document.querySelectorAll('a')]
+       .find(x => /алиса/i.test(x.textContent || ''));
+     location.href = a.href; 'go'
+     ```
+  3. wait, then **confirm the tab settled on `https://yandex.ru/alice/chat/<id>/`.**
+
+  The query arrives **verbatim in a fresh chat**, bypassing the composer entirely.
+- **Assign `location.href` — do not click the "Алиса AI" tab by coordinates.** In run 29
+  the coordinate click failed twice and once left the worker on the **SERP with an inline
+  quick answer**: a *different surface with a different generation*. A capture taken there
+  is a wrong measurement that looks perfectly well-formed. Always verify the URL is
+  `/alice/chat/<id>/` before reading anything.
+- If you ever must fall back to typing: `cmd+a` + `Backspace`, type, **verify the box in a
+  screenshot**, then submit with the send **ARROW** — `Return` opens the autocomplete
+  suggestion list and leaves the query **unsent** (still true on 2026-08-24).
 - Keep the **session's** locale/login as-is. Do **not** open incognito, do **not** log
   out, do **not** switch Yandex account, and do **not** change the model/persona
   (ignore "Промптхаб" / "Персонажи") — the answer and its grounding depend on the
@@ -160,69 +175,127 @@ Three distinct states:
 > ad card alone is NOT grounding** — promo cards are advertising, not retrieved sources
 > (see steps 3–4); if the only "links" are promo cards, it is still state (a).
 
-### 3. Extract `sources` — the full relied-on set (the "Источники" panel)
-- `sources` is Alice's **relied-on / retrieved set** — and it **MUST include every
-  domain you cite in step 4** (citations ⊆ sources; see the box after step 4). The
-  authoritative list is the **"Источники" panel**: click the **"Источники"** button to
-  open the **"На основе N источников"** popover.
-- **EXPAND + SCROLL the popover, then collect via `read_page(filter="interactive")`.**
-  The popover is **scrollable** and `read_page` typically surfaces only the first **3–4**
-  source `menuitem`s at a time. The **"На основе N источников"** header says how many to
-  expect — **scroll the popover down and re-run `read_page(filter="interactive")`
-  repeatedly until no new cards appear**, capturing the **complete** set of N. **Do not
-  stop at the first few visible cards** — under-capturing here makes genuine citations
-  look like they are missing from the panel.
-- **EXCLUDE ad / promo cards.** Embedded **"Промо"** product cards with a **"Перейти"**
-  button (e.g. `ozon.ru`, `market.yandex.ru`, advertiser sites) are **advertising, not
-  retrieved sources** — they do **not** belong in `sources` (or `citations`). Only count
-  entries listed inside the **"Источники"** panel (and inline citation chips, step 4).
-- Record links in **display order** (panel order). **Duplicate domains are allowed** —
-  keep every occurrence (the same site can be listed twice with different pages, e.g.
-  `robotobzor.ru` appearing at two positions). Do **not** dedupe and do **not** reorder.
-- For each, build a `Link`: `{ "rank": <1-based position>, "url": "<full URL>",
-  "domain": "<normalize_domain(url)>" }`. `rank` starts at **1** and matches array
-  position exactly.
-- Prefer the **real destination URL**. The `href`s from
-  `read_page(filter="interactive")` are **frequently DIRECT** (e.g.
-  `https://multivarka.pro/article/…`) — when so, no unwrapping is needed. If a link **is**
-  wrapped in a Yandex redirect (`/clck/`, `yandex.ru/…&url=…`, a tracker), unwrap to the
-  underlying target. If you genuinely cannot unwrap, store what you have and still
-  normalize its domain. **Never navigate to a source site** to fetch a URL — every URL is
-  already on the Alice page; read its `href` in place.
+### 3. Extract `sources` and the chip map — ONE `javascript_tool` call over the React fiber
+- `sources` is Alice's **relied-on / retrieved set** — the same list the **"Источники"**
+  panel renders — and it **MUST include every domain you cite in step 4** (citations ⊆
+  sources; see the box after step 4).
+- **Read it from the React fiber, not from the panel.** The fiber above the answer block
+  carries **`memoizedProps.sources`**: an array of `{ url, title, isRKN }` **in panel
+  order**. This *is* the panel — verified against real, opened, screenshotted panels on
+  three run-29 queries (same count, same order) and re-verified on 2026-08-24. It is
+  present **whether or not the panel ever opens**, which matters because the panel
+  frequently does not (see the live audit).
+- The same call also returns **every inline chip in prose order** with its **1-based ids**
+  into that array, which is what step 4 needs. Run it once, on a **settled** answer:
 
-### 4. Extract `citations` — the inline attached chips in the prose
-- These are the **inline badges/chips** sitting next to statements in the answer — small
-  pills carrying a favicon + a domain, e.g. **`rg.ru`**, **`multivarka.pro`**, or a
-  **`+N`** form like **`ixbt.com +1`**. `get_page_text` lists them inline with the prose
-  (great for **order** and **which domains**); pull their link `href`s from
-  **`read_page(filter="interactive")`** / `find`.
-- **Two chip forms (mirror Google):**
-  - a **single-source chip** is a **`link`** with a direct `href` — read it directly.
-  - a **`+N` chip** is a **badge** that **expands on click** into a popover of the **N+1**
-    underlying links (the named domain **plus N more**). **Click the `+N` badge via
-    `computer` `left_click` on its `ref`** (from `read_page`/`find`), **then re-run
-    `read_page(filter="interactive")`** and record **each** revealed link as its own
-    `Link`. Never collapse a `+N` into one entry.
-- **EXCLUDE ad / promo cards** here too — a "Промо" card's "Перейти" link is advertising,
-  not a citation.
-- Order them as they appear in the prose (top-to-bottom). **Duplicates allowed** — if the
-  same link is cited twice, list it twice.
-- Same `Link` shape and same redirect handling as step 3 (`href`s are usually already
-  direct; unwrap only when wrapped). `rank` is 1-based by position **within `citations`**
-  (independent of `sources` ranks). **Never navigate to a cited website** — read its
-  `href` in place; if a click leaves Alice, **go back** and re-read.
+```js
+const K  = el => Object.keys(el).find(k => k.startsWith('__reactFiber$'));
+const up = (el, pred, max) => {                    // walk the fiber up from a DOM element
+  let f = el[K(el)], d = 0;
+  while (f && d < max) { const p = f.memoizedProps; if (p && pred(p)) return p; f = f.return; d++; }
+  return null;
+};
+
+// 1. the sources array — the «Источники» panel, opened or not
+let sources = null;
+for (const el of document.querySelectorAll('*')) {
+  if (!K(el)) continue;
+  const p = up(el, q => Array.isArray(q.sources) && q.sources.length, 6);
+  if (p) { sources = p.sources; break; }
+}
+
+// 2. every inline chip, in prose order, with its 1-based ids into `sources`
+const hasIds = q => Array.isArray(q.sourceIds) || (q.sourceId !== undefined && q.hostname);
+const cand   = [...document.querySelectorAll('*')].filter(el => K(el) && up(el, hasIds, 10));
+const set    = new Set(cand);
+const chips  = cand
+  .filter(el => { let p = el.parentElement; while (p) { if (set.has(p)) return false; p = p.parentElement; } return true; })
+  .map(el => {
+    const p = up(el, hasIds, 10);
+    return { ids: (p.sourceIds ? [...p.sourceIds] : [p.sourceId]).sort((a, b) => a - b),
+             label: (el.innerText || '').trim() };
+  });
+
+JSON.stringify({ sources: sources.map((s, i) => ({ id: i + 1, url: s.url, title: s.title })), chips });
+```
+
+- **What the ids mean.**
+  - Ids are **1-based positions in `sources`**. `sources[id - 1]` is the link.
+  - **`id === 0` means "not a source" — that is the Промо card.** Verified 2026-08-24: the
+    promo advertiser's link renders as a footnote-shaped chip carrying `sourceId: 0`, while
+    the `sources` array held only the organic entries. **Drop every chip whose id is 0**;
+    never look it up in `sources`.
+  - A **`+N` group** carries `sourceIds` (plural, shallow in the fiber). A **single chip**
+    carries `sourceId` (singular, deeper — next to `url` / `hostname` / `title`) and is also
+    a real `A` with a direct href, so it can be spot-checked without the fiber.
+  - **Array order is not render order.** The popover renders members **sorted by id
+    ascending**; the chip's own label shows the domain of the **first id in array order**.
+    Measured: `sourceIds = [6, 3]` rendered `medesk.ru` (3) above `rechka.ai` (6) and was
+    labelled `rechka.ai +1`. Sort ascending — that reproduces what a human would read.
+- **Two pitfalls in the script itself (both cost a real run):**
+  - **Filter by element ancestry, never by value.** A chip's inner icon span inherits the
+    same props through the fiber walk, so a naive scan returns every group twice. The
+    filter above drops any element that has an already-matched ancestor.
+    **Do not "collapse consecutive duplicates" instead** — six adjacent single chips
+    pointing at the same source are **six citations** (measured 2026-08-24), and
+    consecutive-dedupe reports one.
+  - **Do not key on class names.** `FuturisFootnoteGroup` / `FuturisFootnote` are what they
+    are called today; the script above keys on React props precisely so it survives the
+    rename.
+- Build `sources` from the array **in order**: for each entry a `Link`
+  `{ "rank": <1-based position>, "url": "<full URL>", "domain": "<normalize_domain(url)>" }`.
+  Keep **duplicate domains** — the same site can be listed twice with different pages.
+  Do **not** dedupe, do **not** reorder.
+- **The array already excludes Промо.** Confirmed at scale: promo cards rendered on 9 of 20
+  run-29 queries, and **no promo entry ever appeared in `sources`**. You still exclude promo
+  chips by their `id === 0` (previous bullet) and you still keep promo copy out of
+  `answer_text_md`.
+- ⚠️ **Do NOT filter `yandex.ru` hosts.** Filtering the promo redirect wrapper
+  `yabs.yandex.ru` with a rule like `/(^|\.)yandex\.ru$/` **silently deletes real organic
+  sources**: run 29 saw **`direct.yandex.ru`** as a genuine source on queries 6 and 8, and
+  **`yandex.ru/maps/org/...`** on queries 12 and 20. Exclude promo by **`id === 0` / the
+  "Промо" label**, never by host. (A Maps *org card rendered as a UI block* is still not a
+  source; a `yandex.ru/maps/org/...` entry **inside the sources array** is.)
+
+> **Fallback when the fiber read comes back empty.** `sources === null` means the fiber
+> shape drifted (or the answer is not grounded — check with `get_page_text` first; an empty
+> script result is **never** evidence that the answer cited nothing). Only then fall back to
+> the UI: try the **"Источники"** button (expect it to fail — see the live audit), and click
+> each chip to read its popover. **The popover DOES render real anchors with `href`s** — two
+> per card (title + domain label, same href), so consecutive-dedupe them there. If the panel
+> never opens, build `sources` = unique cited links in first-appearance order, which keeps
+> `citations ⊆ sources` but **drops retrieved-but-uncited sources**: report such a row as a
+> flagged undercount, since a panel-only appearance of the target cannot be ruled out.
+
+### 4. Extract `citations` — the inline chips, expanded through the chip map
+- The chips from step 3 **are** the citations, already in prose order. For each chip, in
+  order, emit **one `Link` per id** — a `+N` chip therefore contributes **N+1** links, its
+  hidden members included, with **no clicking at all**. Ids are already sorted ascending,
+  which is the order the popover shows.
+- `url` = `sources[id - 1].url`; `domain` = `normalize_domain(url)`. `rank` is 1-based by
+  position **within `citations`** (independent of `sources` ranks).
+- **Skip chips with `id === 0`** (Промо). **Duplicates are kept** — if the same link is
+  cited twice, list it twice.
+- **Never navigate to a cited website** — every URL comes from the `sources` array.
+
+> **⚠️ Verification is mandatory — the fast path is not a trusted path**
+> (`engines/FAST_PATH.md`). Before you use the script's output, read the answer with
+> `get_page_text` and check the **chip sequence** it prints inline in the prose against the
+> `chips` array: same **count**, same **order**, same **domain labels**, same **`+N`
+> counters** (a chip with `ids.length = k` must read `+{k-1}`). Also check
+> `max(id) <= sources.length`. Run 29: **20 of 20 queries matched**; the 2026-08-24 re-check
+> matched **21 of 21 chips** on one answer, including six identical adjacent `medesk.ru`
+> chips and a `[6,3]` group.
+> **Agreement → use the script's output. Disagreement → discard it, read with the agent,
+> and report the drift.** Never reconcile the two by picking whichever looks nicer.
 
 > **`citations` ⊆ `sources` — citations are a SUBSET of sources, not an independent
-> channel.** `sources` is Alice's **relied-on / retrieved set** (the "Источники" panel);
-> `citations` are the inline chips marking which source(s) back specific sentences. The
-> model can only cite what it retrieved, so **every cited domain is also a source.**
-> Therefore: **`sources` MUST INCLUDE every cited domain.** Collect the panel fully
-> (step 3) **and** the chips (step 4); then if any chip domain is **not** already present
-> in `sources`, **add it to `sources`** (fold the cited link in) so the invariant holds.
-> Concretely: **any domain in `citations` MUST also appear in `sources`**, and a non-empty
-> `target_citation_ranks` therefore implies a non-empty `target_source_ranks`. (In
-> practice the cited domains all appear in the "Источники" panel — if one seems missing,
-> you under-captured the panel; scroll and re-read, step 3.)
+> channel.** `sources` is Alice's **relied-on / retrieved set**; `citations` are the inline
+> chips marking which source(s) back specific sentences. With the id map this invariant is
+> **structural** — every citation is looked up *inside* `sources` — so it can only break if
+> you hand-edit one of the two arrays. Concretely: **any domain in `citations` MUST also
+> appear in `sources`**, and a non-empty `target_citation_ranks` therefore implies a
+> non-empty `target_source_ranks`.
 
 ### 5. Derive `domain` and match the TARGET
 - Compute every `Link.domain` with **`normalize_domain`** semantics
@@ -238,8 +311,15 @@ Three distinct states:
   unavailable (domain-only chip) or is a redirect wrapper
   (`normalize_domain(url) ≠ link.domain`), it is **NOT** a match — never silently
   over-credit. (Yandex URLs are direct, so redirect wrappers are rare here.)
-- **Exclude promotional/ad links** (Промо-карточки — `ozon.ru`, `market.yandex.ru`, etc.)
-  from `sources`/`citations` before matching — these are ads, not organic sources.
+- **Exclude promotional/ad links** (Промо-карточки) from `sources`/`citations` before
+  matching — these are ads, not organic sources. Identify them by **`id === 0` in the chip
+  map** (step 3) or by the **"Промо"** label, **never by host pattern**: a `yandex.ru`
+  filter deletes real sources (see the ⚠️ bullet in step 3).
+- **A promo card can point at the TARGET domain — exclude it anyway.** Run 29 query 14
+  carried a promo card for `lp.zabota.tech`, the target's own domain. It was correctly kept
+  out, and `lp.zabota.tech` still counted normally on queries 15 and 17 where it appeared as
+  a legitimate organic source. Paid placement is not visibility; counting it inflates the
+  brand's own score with its own ad spend.
 
 ### 6. Compute `target_source_ranks` and `target_citation_ranks`
 - Both arrays are computed **deterministically** by
@@ -306,8 +386,23 @@ Three distinct states:
 - **Exclude advertising.** Yandex injects **"Промо"** product/advertiser cards (with a
   **"Перейти"** button) into Alice answers. These are **ads, not retrieved sources** — keep
   them out of `sources`, `citations`, and `answer_text_md`. Only the **"Источники"** panel
-  and the **inline citation chips** are real grounding. (This is the main Yandex-specific
-  trap; Google's overview does not interleave ads this way.)
+  (= the fiber `sources` array) and the **inline citation chips** are real grounding. (This
+  is the main Yandex-specific trap; Google's overview does not interleave ads this way.)
+  The array itself already excludes promo, and promo chips carry `id === 0` — exclude by
+  **that**, not by host: `direct.yandex.ru` and `yandex.ru/maps/org/...` occur as **genuine**
+  organic sources (step 3).
+- ⚠️ **Account memory contaminates sequential queries — `--n-worker 1` does not fix it.**
+  One worker per account removes *cross-worker* contamination, but Alice also personalises
+  from **earlier queries in the same chunk**, even though each query gets a fresh chat. Run
+  29, query 11: «Это напрямую связано с вашими запросами про RFM», «это отвечает на ваш
+  вопрос про отзывы», «Учитывая ваши прошлые вопросы про автоматизацию в медицинском центре
+  и CRM». With the usual `general → branded` ordering, the **branded** answers — the ones
+  the whole measurement is about — are the contaminated ones. Countermeasures, in order of
+  preference: (1) **shuffle the lens order** so branded queries are not all downstream of
+  the general ones; (2) clear the account's Alice history / use a memory-free session
+  between queries; (3) if neither is possible, **say so in the worker's status line** so the
+  run is read as personalised rather than clean. An answer that references *other queries*
+  is evidence of contamination — capture it as it rendered, and flag it.
 - **Selectors drift — read semantically.** Everything above ("Источники", "+N" chips,
   "Промо" cards, "Новый чат") is a **landmark hint**. Identify blocks by **meaning and
   rendered text**, not fixed CSS/XPath. **Labels are locale-dependent** — match on intent
@@ -330,12 +425,12 @@ Three distinct states:
 brand `name = "iXBT"`, target `domain = "https://www.ixbt.com"` (→ normalizes to
 `ixbt.com`). Market: default RU account (Russian / Russia).
 
-Alice returned a **grounded** answer. The "Источники" panel listed **10 sources**
-(duplicates kept — `robotobzor.ru` appeared twice), with `ixbt.com` at **source position
-3**; `ixbt.com` was also an **inline `+N` chip** that expanded to include it, at
-**citation position 3**; and the brand name "iXBT" was **not** spelled out in the prose
-(linked only). A "Промо" `ozon.ru` card was present and was **excluded**. Resulting single
-object:
+Alice returned a **grounded** answer. The fiber `sources` array held **10 entries**
+(= what the "Источники" panel would render; duplicates kept — `robotobzor.ru` appeared
+twice), with `ixbt.com` at **source position 3**; `ixbt.com` was also carried by an inline
+`+N` chip (`sourceIds` including id `3`), landing at **citation position 3**; and the brand
+name "iXBT" was **not** spelled out in the prose (linked only). A "Промо" `ozon.ru` card was
+present, carried `sourceId: 0`, and was **excluded**. Resulting single object:
 
 ```json
 {
@@ -398,6 +493,9 @@ object:
 > Observed independently by all three capture workers on the same run. These are **input-integrity**
 > findings: each one can produce a confident, well-formed capture of the **wrong query** — the failure
 > mode this project exists to prevent.
+>
+> ⚠️ **Four claims in this section were corrected by run 29 (2026-08-24)** — they are marked inline
+> below. Read the 2026-08-24 audit at the bottom for what replaced them.
 
 ### ⚠️ ORCHESTRATOR: prefer `--n-worker 1` on this engine
 
@@ -416,9 +514,12 @@ Not for quota reasons (that is Perplexity) — for **cross-worker contamination 
 
 ### Typing is the weak link — two verified workarounds
 
-- **Skip typing entirely:** navigate to `https://yandex.ru/search/?text=<query>` and click the
+- **Skip typing entirely:** navigate to `https://yandex.ru/search/?text=<query>` and go to the
   **«Алиса AI»** tab. This submits the exact query verbatim into a fresh chat, bypassing the composer,
   the shared draft, and the space-dropping bug at once. Preferred entry when it is available.
+  ⚠️ **Corrected 2026-08-24: do not *click* the tab — assign `location.href` from its anchor.** The
+  coordinate click failed twice in run 29 and once landed the worker on the **SERP inline quick
+  answer**, a different surface with a different generation (step 1).
 - If you do type: type → **verify** → clear → retype. `computer type` drops spaces on the **first**
   typing attempt after page load. A query sent without spaces is a silently-wrong measurement.
 
@@ -428,9 +529,13 @@ Not for quota reasons (that is Perplexity) — for **cross-worker contamination 
   while the tab had already navigated to `/alice/chat/<id>/`; screenshots went stale mid-run. Fix:
   read the chat id from tab context and **`navigate` to the chat URL again** (the trick already
   documented for Gemini), sometimes twice. One answer stuck mid-stream completed only after a reload.
-- **The «Источники» button often needs 2–4 clicks**, and the panel can appear seconds later. On **3 of
-  20 queries it never opened at all** despite real clicks, synthetic pointer sequences and a fresh tab.
-  Fallback used: `sources` = unique cited links in first-appearance order, which keeps
+- ⚠️ **WITHDRAWN — "the «Источники» button often needs 2–4 clicks" understates it badly.** Run 29
+  opened the panel on **4 attempts out of ~10**, and a 2026-08-24 re-check failed **5 times out of 5** —
+  clicking both the computed rect centre and the button position read off a screenshot, with
+  `elementFromPoint` confirming the pointer sat on `BUTTON.FuturisSourcesButton`. See the 2026-08-24 audit for the
+  full list of what does not work. The panel is no longer on the critical path — read the fiber (step 3).
+  When it *is* closed, its markup is simply **absent from the DOM**, so "no panel nodes" says nothing
+  about the answer. Historical fallback, still valid when the fiber read fails: `sources` = unique cited links in first-appearance order, which keeps
   `citations ⊆ sources` **but drops retrieved-but-uncited sources** — report such rows as a flagged
   undercount, since a **panel-only appearance of the target cannot be ruled out** there (in this run
   the target appeared **only** in the panel on one query, so the risk is real, not theoretical).
@@ -452,15 +557,116 @@ with the same href** (domain label + title) — consecutive-dedupe them. Still a
 trusted path** (`FAST_PATH.md`): every worker cross-checked script output against `get_page_text` chip
 order and `+N` counts before using it.
 
-**`+N` popup cards carry no `href`** — group members are reachable only as domain labels, so a
-href-diff after the click returns `[]` even with the popup visibly open. Enumerate group members by
-**reading card text**, and map a group member to a URL via its entry in the «Источники» panel.
+⚠️ **WRONG — "`+N` popup cards carry no `href`" is withdrawn.** Re-checked live on 2026-08-24: the
+popover a `+N` chip opens renders **real anchors with real `href`s** — two per card (title + domain
+label, same href), matching the sources array exactly. Run 29 read 5 URLs including `zabota.tech/` out
+of the `klientiks.ru +4` popover. What genuinely carries no href is the **`SPAN.FuturisFootnoteGroup`
+chip itself** (and none of its ancestors) — that is hard limit #3 in `FAST_PATH.md`, and it stands.
+The href-diff that returned `[]` was measuring the wrong nodes.
 
 ### Промо exclusion — confirmed at scale
 
 Promo cards appeared on **~12 of 20** queries (lantox.ru, profi.ru, miin.ru, genosys.ru, nadpo.ru,
 uom-education.online, avdoshenkoschool.com, imin.ru, mizomed.ru, fr-ekolaser.ru, genotek.ru, ddma.me,
-edprodpo.com) and were excluded. Their links are **`yabs.yandex.ru` redirect wrappers**, so filtering
-`yandex.ru` hosts drops them automatically. Two adjacent traps: a promo advertiser's domain may **also**
+edprodpo.com) and were excluded. Their links are **`yabs.yandex.ru` redirect wrappers**.
+⚠️ **WRONG — "so filtering `yandex.ru` hosts drops them automatically" is withdrawn and harmful.**
+Run 29 found `direct.yandex.ru` as a **genuine organic source** (queries 6, 8) and
+`yandex.ru/maps/org/...` likewise (queries 12, 20); a `/(^|\.)yandex\.ru$/` filter deletes them
+silently. Exclude promo by **`id === 0` in the chip map / the "Промо" label**, never by host.
+Two adjacent traps: a promo advertiser's domain may **also**
 appear legitimately inside the panel (`biogotchi.genotek.ru` did) — keep the panel entry; and
 **Yandex Maps organisation cards** (universities, clinics) are org cards, **not sources** — exclude them.
+
+---
+
+## Live audit — 2026-08-24 (run 29: «Забота 2.0» / `zabota.tech`, 20 queries, `--n-worker 1`)
+
+> Everything below was measured on the live surface: by the run-29 capture worker across 20 queries,
+> and re-verified independently on 2026-08-24 on a fresh answer (query «как выбрать CRM для частной
+> клиники», 9 sources, 21 chips) before being written here. Where it contradicts the 2026-08-17 audit,
+> that section is marked ⚠️ inline and **this one wins**.
+
+### 1. The «Источники» panel is unreliable — treat it as optional, not as the source of truth
+
+- Run 29: the panel opened on **4 attempts out of ~10**. The 2026-08-24 re-check: **0 opens in 5
+  clicks** — at the computed rect centre and at the button position read off a screenshot, with
+  `document.elementFromPoint` confirming the pointer was over `BUTTON.FuturisSourcesButton`.
+- **Nothing reliably opens it.** Verified not to work: real `computer left_click` on computed
+  coordinates, clicks on a `read_page` `ref`, full synthetic pointer sequences
+  (`pointerover/enter/move` + `mouseover/enter/move` + `pointerdown/mousedown/pointerup/mouseup/click`),
+  `Enter` on the focused button, and calling the React `onClick` prop directly. (The `ref`, `Enter` and
+  `onClick` variants are the run-29 worker's; the 2026-08-24 re-check covered real coordinate clicks.)
+- **While it is closed, the panel's markup is not in the DOM at all** — so "the DOM has no panel" is
+  not evidence about the answer, only about the panel.
+- The **chip popovers behave differently and open fine** on a real click (first try in the re-check).
+  The unreliability is specific to the «Источники» button.
+- The old "2–4 clicks" figure is **withdrawn**. So is the panel-scrolling procedure — that was a
+  `read_page` limitation, not a page one.
+
+### 2. React fiber replaces both the panel and every chip click
+
+- The fiber above the answer block carries **`memoizedProps.sources` = `[{ url, title, isRKN }, …]`**,
+  and **that array is the «Источники» panel** — verified against panels that did open and were
+  screenshotted on run-29 queries 1, 2 and 4 (same count, same order), and again on 2026-08-24.
+- Each inline chip carries its ids into that array: a **`+N` group** has **`sourceIds`** (plural,
+  ~2 fiber hops up), a **single chip** has **`sourceId`** (singular, ~7 hops up, next to
+  `url`/`hostname`/`title`). Ids are **1-based**; **`0` = not a source** and is what the **Промо**
+  card's link carries.
+- The popover renders group members **sorted by id ascending**, while the chip's label shows the
+  **first id in array order** — measured: `sourceIds = [6, 3]` → popover `medesk.ru` (3) then
+  `rechka.ai` (6), label `rechka.ai +1`. Sort ascending.
+- Net effect: **the complete source list and all citations, `+N` members included, come out of one
+  `javascript_tool` call with zero clicks.** The click-through procedure in the old steps 3–4 is gone.
+- **Known script trap:** exclude **descendant** elements (a chip's icon span inherits the same props
+  through the fiber walk and doubles every group). Do **not** substitute "collapse consecutive
+  duplicates" — the 2026-08-24 answer had **six identical adjacent `medesk.ru` chips**, which that
+  shortcut would report as one.
+- **Verification held:** script chip sequence vs. `get_page_text` chip domains and `+N` counters —
+  **20/20 queries** in run 29, **21/21 chips** in the re-check.
+
+### 3. `+N` — both earlier formulations were wrong
+
+- The chip itself is a `SPAN.FuturisFootnoteGroup` with **no href on it or any ancestor** — hard limit
+  #3 in [`FAST_PATH.md`](FAST_PATH.md) is correct.
+- **But the popover it opens renders real anchors with `href`s** (two per card: title + domain label,
+  same href). The 2026-08-17 note "popup cards carry no href" is **withdrawn**. Run 29 read 5 URLs,
+  `zabota.tech/` among them, out of the `klientiks.ru +4` popover.
+- Neither matters for a normal capture any more: the fiber gives the same URLs without opening
+  anything. The popover is the fallback path.
+
+### 4. Query entry: navigate, never type, never click the tab
+
+- `Return` still does not submit the composer.
+- Typing is unnecessary: `https://yandex.ru/search/?text=<q>` → assign `location.href` from the
+  **«Алиса AI»** tab's anchor → the query lands **verbatim in a fresh chat**, deterministically.
+- **Clicking that tab by coordinates is the failure mode**: it failed twice in run 29 and once left the
+  worker on the **SERP inline quick answer** — a different surface with a different generation, i.e. a
+  well-formed capture of the wrong thing. Confirm the URL is `/alice/chat/<id>/` before reading.
+
+### 5. Domain filtering: never blanket-filter `yandex.ru`
+
+`direct.yandex.ru` appeared as a **real organic source** on queries 6 and 8, and `yandex.ru/maps/org/…`
+on queries 12 and 20. The tempting rule `/(^|\.)yandex\.ru$/` — meant to drop the `yabs.yandex.ru`
+promo wrappers — **silently deletes those**. Exclude promo by chip `id === 0` / the "Промо" label.
+
+### 6. Промо exclusion works, including against the target's own domain
+
+Promo cards rendered on **9 of 20** queries, and **no promo entry ever appeared in the fiber `sources`
+array**. The instructive case: query 14's promo card pointed at **`lp.zabota.tech` — the target's own
+domain** — and was correctly excluded, while the same `lp.zabota.tech` counted normally on queries 15
+and 17, where it appeared as a legitimate organic source. Paid placement is not visibility.
+
+### 7. ⚠️ `--n-worker 1` does not stop self-contamination
+
+One worker per account fixes *cross-worker* leakage (2026-08-17), **not** contamination between
+**consecutive queries of the same chunk**, despite each query getting a fresh chat. Run 29, query 11:
+«Это напрямую связано с вашими запросами про RFM», «это отвечает на ваш вопрос про отзывы», «Учитывая
+ваши прошлые вопросы про автоматизацию в медицинском центре и CRM».
+
+With the usual `general → branded` ordering this lands specifically on the **branded** answers — the
+ones the measurement is about. Recommended: **shuffle lens order** and/or clear Alice history between
+queries; when neither is possible, **flag the run as personalised** in the worker's status line.
+
+> **Open item (not implemented):** a per-run warning field in the report — something like
+> "answers may be personalised by account memory" — so a reader of the PDF/dashboard sees this without
+> reading capture logs. Deliberately not added to `QueryCapture` here; it needs a schema decision.
