@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pipeline.db import get_conn, init_db
-from pipeline.schema import normalize_domain
+from pipeline.schema import matches_target, normalize_domain
 
 _LENS_ORDER = ["general", "branded", "comparative"]
 
@@ -98,7 +98,19 @@ def _compute_scope(results: list[sqlite3.Row]) -> dict[str, Any]:
     }
 
 
-def _row_links(result: sqlite3.Row, col: str) -> list[tuple[int, str]]:
+def _effective_link_target(url: str, domain: str) -> str:
+    """The string to match against the run's target, mirroring `target_ranks`.
+
+    The full URL is only trusted when its host agrees with the link's own
+    `domain` field; otherwise the (authoritative) domain is used and a
+    URL-prefix target simply will not match.
+    """
+    if url and domain:
+        return url if normalize_domain(url) == normalize_domain(domain) else domain
+    return url or domain
+
+
+def _row_links(result: sqlite3.Row, col: str) -> list[tuple[int, str, str]]:
     raw = result[col]
     if not raw:
         return []
@@ -108,34 +120,51 @@ def _row_links(result: sqlite3.Row, col: str) -> list[tuple[int, str]]:
         return []
     if not isinstance(items, list):
         return []
-    out: list[tuple[int, str]] = []
+    out: list[tuple[int, str, str]] = []
     for item in items:
         if not isinstance(item, dict):
             continue
-        domain = normalize_domain(str(item.get("domain") or item.get("url") or ""))
+        url_raw = str(item.get("url") or "")
+        domain_raw = str(item.get("domain") or "")
+        domain = normalize_domain(domain_raw or url_raw)
         if not domain:
             continue
         try:
             rank = int(item["rank"])
         except (KeyError, TypeError, ValueError):
             continue
-        out.append((rank, domain))
+        out.append((rank, domain, _effective_link_target(url_raw, domain_raw)))
     return out
 
 
-def _domain_best_ranks(links: list[tuple[int, str]]) -> dict[str, int]:
-    best: dict[str, int] = {}
-    for rank, domain in links:
-        if domain not in best or rank < best[domain]:
-            best[domain] = rank
+def _domain_best_ranks(
+    links: list[tuple[int, str, str]], target: str
+) -> dict[str, tuple[int, bool]]:
+    """Best rank per registrable domain + whether any of its links hit the target."""
+    best: dict[str, tuple[int, bool]] = {}
+    for rank, domain, effective in links:
+        hit = bool(target) and matches_target(effective, target)
+        prev = best.get(domain)
+        if prev is None:
+            best[domain] = (rank, hit)
+        else:
+            best[domain] = (min(prev[0], rank), prev[1] or hit)
     return best
 
 
 def _compute_domain_scope(
-    results: list[sqlite3.Row], brand_domain: str
+    results: list[sqlite3.Row], brand_target: str
 ) -> list[dict[str, Any]]:
+    """Per-domain leaderboard rows.
+
+    `brand_target` is the run's raw target (`ectem.ru` or `github.com/user/repo`);
+    `is_brand` is set on a domain only when one of its actual links matches that
+    target under `matches_target`, so a URL-prefix target does not brand every
+    link on the shared host.
+    """
     overview_rows = [r for r in results if int(r["overview_present"] or 0) == 1]
     acc: dict[str, dict[str, float]] = {}
+    brand_domains: set[str] = set()
 
     def bucket(domain: str) -> dict[str, float]:
         return acc.setdefault(
@@ -143,14 +172,20 @@ def _compute_domain_scope(
         )
 
     for r in overview_rows:
-        for domain, rank in _domain_best_ranks(_row_links(r, "sources_json")).items():
+        srcs = _domain_best_ranks(_row_links(r, "sources_json"), brand_target)
+        for domain, (rank, hit) in srcs.items():
             b = bucket(domain)
             b["app_s"] += 1
             b["sum_s"] += rank
-        for domain, rank in _domain_best_ranks(_row_links(r, "citations_json")).items():
+            if hit:
+                brand_domains.add(domain)
+        cits = _domain_best_ranks(_row_links(r, "citations_json"), brand_target)
+        for domain, (rank, hit) in cits.items():
             b = bucket(domain)
             b["app_c"] += 1
             b["sum_c"] += rank
+            if hit:
+                brand_domains.add(domain)
 
     rows: list[dict[str, Any]] = []
     for domain, b in acc.items():
@@ -159,7 +194,7 @@ def _compute_domain_scope(
         rows.append(
             {
                 "domain": domain,
-                "is_brand": 1 if domain == brand_domain else 0,
+                "is_brand": 1 if domain in brand_domains else 0,
                 "appearances_sources": app_s,
                 "appearances_citations": app_c,
                 "sum_min_source_rank": b["sum_s"],
@@ -190,7 +225,8 @@ def compute_run_domain_stats(
     brow = conn.execute(
         "SELECT domain FROM brands WHERE id = ?", (run["brand_id"],)
     ).fetchone()
-    brand_domain = normalize_domain(brow["domain"]) if brow is not None else ""
+    brand_target = str(brow["domain"]) if brow is not None else ""
+    brand_domain = normalize_domain(brand_target)
 
     results = conn.execute(
         "SELECT * FROM results WHERE run_id = ?", (run_id,)
@@ -201,10 +237,10 @@ def compute_run_domain_stats(
         by_lens.setdefault(r["lens"], []).append(r)
 
     out: dict[str, list[dict[str, Any]]] = {
-        "all": _compute_domain_scope(results, brand_domain)
+        "all": _compute_domain_scope(results, brand_target)
     }
     for lens in by_lens:
-        out[lens] = _compute_domain_scope(by_lens[lens], brand_domain)
+        out[lens] = _compute_domain_scope(by_lens[lens], brand_target)
     return out, brand_domain
 
 

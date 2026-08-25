@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`is_brand` in the top-domains leaderboard now follows URL-prefix targets.** The flag was set by
+  comparing registrable domains, so a target like `github.com/user/repo` branded *every* github.com
+  link in the answer space — a run whose only github.com source was a stranger's repo showed that row
+  as "you" while the funnel metrics correctly reported no match. `domain_stats.is_brand` is now
+  decided per link with `matches_target`, the same semantics as `target_ranks`. Registrable-domain
+  targets (`ectem.ru`) are unaffected.
+
 ## [0.4.1] — 2026-08-18
 
 open-geo can now act as a data-producing skill inside another agent workflow instead of requiring

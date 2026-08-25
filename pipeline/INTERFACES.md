@@ -270,7 +270,7 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 | `engine` | TEXT | denormalized |
 | `lens` | TEXT | a specific lens, or `"all"` for the cross-lens scope |
 | `domain` | TEXT | normalized registrable domain (`normalize_domain`); **every** domain seen in `sources`/`citations`, not just the brand |
-| `is_brand` | INTEGER | 0/1 — `1` when this row's `domain` (registrable domain) equals the registrable-domain part of the run's brand target. When the brand target is a URL prefix (`github.com/user/repo`), `is_brand=1` is set on the `github.com` row — broader than the prefix, but correct for the leaderboard which aggregates by registrable domain. The funnel metrics (§4) remain prefix-accurate via `target_ranks`. |
+| `is_brand` | INTEGER | 0/1 — `1` when at least one link folded into this row actually matches the run's brand target under `matches_target` (§1.1), i.e. the same URL-prefix semantics the funnel metrics use. For a registrable-domain target (`ectem.ru`) that is every link on the domain; for a URL-prefix target (`github.com/user/repo`) a `github.com` row carrying only strangers' repos stays `is_brand=0`. |
 | `appearances_sources` | INTEGER | # of overview-present queries in scope where the domain appears in `sources` (presence, counted once per query) |
 | `appearances_citations` | INTEGER | same, for `citations` |
 | `sum_min_source_rank` | REAL | Σ over those queries of `min(rank of domain in sources)` — kept so `period=all` rolls up `avg_source_position` by weighted sum |
@@ -691,12 +691,14 @@ one row (`is_brand=1`). Default leaderboard order: `appearances_sources` desc (t
 columns. No domain is dropped silently other than the explicit top-N cap the caller asks for.
 
 > **URL prefix and the leaderboard.** `domain_stats` aggregates by **registrable domain** (not
-> prefix). When the brand target is a URL prefix (`github.com/user/repo`), the leaderboard still
-> shows the `github.com` row as `is_brand=1` — broader than the prefix, but correct for this
-> "answer space" view. The per-run funnel metrics in `metrics` remain prefix-accurate (they use
-> `target_source_ranks` / `target_citation_ranks`, which are produced by `target_ranks` per §1.1).
-> The two views are complementary: funnel = "does your specific page get retrieved/cited?";
-> leaderboard = "what domains share the answer space?"
+> prefix), but `is_brand` is decided per link, with `matches_target` — the same semantics as the
+> funnel metrics. With the target `github.com/user/repo`, a `github.com` row built only from other
+> people's repos is `is_brand=0`; the row is flagged only once a link under the prefix lands in it.
+> Residual coarseness: when both land on the same host, the flagged row's *counts* still include
+> the foreign links, because the row is one registrable domain. The funnel metrics in `metrics`
+> stay exactly prefix-accurate (`target_source_ranks` / `target_citation_ranks` per §1.1). The two
+> views are complementary: funnel = "does your specific page get retrieved/cited?"; leaderboard =
+> "what domains share the answer space?"
 
 ---
 

@@ -233,7 +233,7 @@ def test_compute_domain_scope_normalizes_and_skips_bad_rows():
     assert by["acme.com"]["is_brand"] == 1
 
 
-def test_domain_stats_brand_with_url_prefix_is_brand_set_on_registrable_domain(empty_db_path):
+def test_domain_stats_url_prefix_target_brands_only_the_matching_link(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
         init_db(conn)
@@ -267,6 +267,153 @@ def test_domain_stats_brand_with_url_prefix_is_brand_set_on_registrable_domain(e
     assert "github.com" in by_domain
     assert by_domain["github.com"]["is_brand"] == 1
     assert by_domain["other.com"]["is_brand"] == 0
+
+
+def _prefix_run(db_path: str, target: str, caps: list[dict]) -> int:
+    """Run with an arbitrary brand target and hand-written source links."""
+    conn = get_conn(db_path)
+    try:
+        init_db(conn)
+        bid = get_or_create_brand(conn, "MyProject", target)
+        rid = create_run(conn, bid, "google")
+        for i, sources in enumerate(caps):
+            insert_capture(
+                conn,
+                rid,
+                QueryCapture.model_validate(
+                    {
+                        "query": f"q{i}",
+                        "lens": "general",
+                        "engine": "google",
+                        "captured_at": "2026-07-03T10:00:00Z",
+                        "overview_present": True,
+                        "sources": sources,
+                        "citations": [],
+                        "target_source_ranks": [],
+                        "target_citation_ranks": [],
+                        "brand_in_answer_text": False,
+                        "sentiment": None,
+                    }
+                ),
+            )
+        conn.commit()
+        aggregate_run(conn, rid)
+    finally:
+        conn.close()
+    return rid
+
+
+def test_domain_stats_url_prefix_target_ignores_foreign_link_on_same_host(empty_db_path):
+    """A stranger's repo on github.com is not the brand (regression: run 33)."""
+    rid = _prefix_run(
+        empty_db_path,
+        "github.com/user/repo",
+        [
+            [
+                {"rank": 1, "url": "https://github.com/other/oneglanse", "domain": "github.com"},
+                {"rank": 2, "url": "https://other.com/x", "domain": "other.com"},
+            ]
+        ],
+    )
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["github.com"]["appearances_sources"] == 1
+    assert by_domain["github.com"]["is_brand"] == 0
+    assert by_domain["other.com"]["is_brand"] == 0
+
+
+def test_domain_stats_url_prefix_target_brands_host_once_any_link_matches(empty_db_path):
+    """Mixed host: the row is the brand's as soon as one link is under the prefix."""
+    rid = _prefix_run(
+        empty_db_path,
+        "github.com/user/repo",
+        [
+            [{"rank": 1, "url": "https://github.com/other/oneglanse", "domain": "github.com"}],
+            [{"rank": 1, "url": "https://github.com/user/repo/blob/main/README.md",
+              "domain": "github.com"}],
+        ],
+    )
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["github.com"]["appearances_sources"] == 2
+    assert by_domain["github.com"]["is_brand"] == 1
+
+
+def test_domain_stats_url_prefix_target_needs_full_segment_match(empty_db_path):
+    """`/user/repo-fork` is a different repo than `/user/repo`."""
+    rid = _prefix_run(
+        empty_db_path,
+        "github.com/user/repo",
+        [[{"rank": 1, "url": "https://github.com/user/repo-fork", "domain": "github.com"}]],
+    )
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["github.com"]["is_brand"] == 0
+
+
+def test_domain_stats_registrable_target_brands_any_path_on_the_domain(empty_db_path):
+    """Unchanged behaviour for a plain domain target: every URL on it is the brand."""
+    rid = _prefix_run(
+        empty_db_path,
+        "ectem.ru",
+        [
+            [
+                {"rank": 1, "url": "https://www.ectem.ru/catalog/item/42?utm=x", "domain": "ectem.ru"},
+                {"rank": 2, "url": "https://competitor.ru/", "domain": "competitor.ru"},
+            ],
+            [{"rank": 1, "url": "https://ectem.ru/", "domain": "ectem.ru"}],
+        ],
+    )
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["ectem.ru"]["appearances_sources"] == 2
+    assert by_domain["ectem.ru"]["is_brand"] == 1
+    assert by_domain["competitor.ru"]["is_brand"] == 0
+
+
+def test_domain_stats_is_brand_falls_back_to_domain_when_url_disagrees(empty_db_path):
+    """A url whose host contradicts `domain` is not trusted for prefix matching."""
+    rid = _prefix_run(
+        empty_db_path,
+        "github.com/user/repo",
+        [[{"rank": 1, "url": "https://redirect.example/out?to=github", "domain": "github.com"}]],
+    )
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["github.com"]["is_brand"] == 0
+
+
+def test_domain_stats_brand_flag_survives_citation_only_match(empty_db_path):
+    conn = get_conn(empty_db_path)
+    try:
+        init_db(conn)
+        bid = get_or_create_brand(conn, "MyProject", "github.com/user/repo")
+        rid = create_run(conn, bid, "google")
+        insert_capture(
+            conn,
+            rid,
+            QueryCapture.model_validate(
+                {
+                    "query": "q",
+                    "lens": "general",
+                    "engine": "google",
+                    "captured_at": "2026-07-03T10:00:00Z",
+                    "overview_present": True,
+                    "sources": [
+                        {"rank": 1, "url": "https://github.com/other/x", "domain": "github.com"}
+                    ],
+                    "citations": [
+                        {"rank": 1, "url": "https://github.com/user/repo", "domain": "github.com"}
+                    ],
+                    "target_source_ranks": [],
+                    "target_citation_ranks": [],
+                    "brand_in_answer_text": False,
+                    "sentiment": None,
+                }
+            ),
+        )
+        conn.commit()
+        aggregate_run(conn, rid)
+    finally:
+        conn.close()
+
+    by_domain, _ = _stats(empty_db_path, rid, "all")
+    assert by_domain["github.com"]["is_brand"] == 1
 
 
 if __name__ == "__main__":  # pragma: no cover
