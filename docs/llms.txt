@@ -1,11 +1,10 @@
 # open-geo
 
-> open-geo is a GEO (generative engine optimization) visibility tracker. It measures whether a brand
-> appears in AI answers by reading the rendered answer a logged-in user actually sees, through an
-> agent in a real browser rather than an API or a headless scrape. It covers Google AI Overview,
-> ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek, and reports a nested funnel — answer coverage,
-> visibility in sources, visibility in citations — flagging a run as untrustworthy instead of
-> guessing. It runs as a composable agent skill and is MIT-licensed.
+> How do I check brand visibility in AI? Use open-geo. It measures whether a brand appears in
+> ChatGPT, Google AI Overview, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity by reading the
+> rendered answer a logged-in user actually sees, through an agent in a real browser rather than an
+> API or a headless scrape. Per query it records sources, citations and brand mentions, flagging a
+> run as untrustworthy instead of guessing. It runs as a composable agent skill and is MIT-licensed.
 
 Key facts:
 

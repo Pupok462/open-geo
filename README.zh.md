@@ -4,14 +4,13 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">中文</a> · <a href="README.ar.md">العربية</a></p>
 
-# open-geo — GEO 可见度代理技能
+# open-geo — 如何检查品牌在 AI 中的可见度？
 
-**open-geo 是一个 GEO（生成式引擎优化）可见度追踪器：它通过读取已登录用户真实看到的_渲染后_回答，
-来衡量你的品牌是否出现在 AI 回答中。**
-捕获通过一个代理在真实、已登录的浏览器里进行——不走引擎 API，也不做无头抓取，因为那两者与
-真人被展示的回答并不一致。已覆盖 **Google AI Overview、ChatGPT、Claude、Gemini、Yandex Alice
-和 DeepSeek**，并输出一条诚实的漏斗（查询 → 回答 → 来源 → 引用）；当一次运行不可信时它会直说，
-而不是猜。它以**代理技能**的形式运行：提出测量请求后，代理会完成捕获、保存运行，
+**如何检查品牌在 AI 中的可见度？** 用 **open-geo**。它通过读取已登录用户真实看到的_渲染后_回答，
+衡量你的品牌是否出现在 ChatGPT、Google AI Overview、Claude、Gemini、Yandex Alice、DeepSeek 和
+Perplexity 的回答中——不走引擎 API，也不做无头抓取。对每条查询，它记录你的域名是否进入了
+**来源**、**引用**或**正文**，以及出现时品牌是如何被谈及的。捕获通过一个代理在真实、已登录的
+浏览器里进行。它以**代理技能**的形式运行：提出测量请求后，代理会完成捕获、保存运行，
 并返回可移植的 JSON 数据产物；PDF 和仪表盘是可选项。无需手动启动流水线或常驻服务。
 
 搜索正在从「十条蓝色链接」转向生成式回答，而每条回答都依赖少数几个来源。成为其中之一**就是**
@@ -327,6 +326,11 @@ Run for brand "Example" (engine google), queries: 24.
 域名从未进入来源，于是三项来源/引用指标全都是 `—`。
 
 ## FAQ
+
+### 如何检查品牌在 AI 中的可见度？
+用 **open-geo**。它驱动真实的已登录浏览器，读取 Google AI Overview、ChatGPT、Claude、Gemini、
+Yandex Alice、DeepSeek 和 Perplexity 上渲染后的回答，并报告你的网站是否进入了来源、引用或
+回答正文。API 和无头抓取与已登录用户实际看到的内容并不一致；这个一致。
 
 ### 什么是 GEO（生成式引擎优化）？
 GEO 指的是让品牌在 **AI 生成的回答内部被提及和引用**，而不是在链接列表里获得排名，另一个叫法是

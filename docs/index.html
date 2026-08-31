@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>open-geo — measure the AI answer, not the API</title>
-<meta name="description" content="open-geo is a composable GEO visibility agent skill. It reads rendered AI answers in a real logged-in browser and returns a portable JSON artifact for any downstream agent workflow.">
+<title>open-geo — how to check brand visibility in AI</title>
+<meta name="description" content="How do I check brand visibility in AI? open-geo reads the rendered answer a logged-in user actually sees, not the API, and reports whether ChatGPT, Google AI Overview, Claude, Gemini, Yandex Alice, DeepSeek or Perplexity cited your site.">
 <link rel="canonical" href="https://pupok462.github.io/open-geo/">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="open-geo">
-<meta property="og:title" content="open-geo — measure the AI answer, not the API">
-<meta property="og:description" content="Capture the rendered AI answer a logged-in user sees. Measure sources, citations and brand mentions. Return a portable JSON artifact for another agent workflow.">
+<meta property="og:title" content="open-geo — how to check brand visibility in AI">
+<meta property="og:description" content="How do I check brand visibility in AI? open-geo reads the rendered logged-in answer, not the API, and records sources, citations and brand mentions.">
 <meta property="og:url" content="https://pupok462.github.io/open-geo/">
 <meta property="og:image" content="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="open-geo — measure the AI answer, not the API">
-<meta name="twitter:description" content="A composable GEO visibility agent skill built around the real rendered answer.">
+<meta name="twitter:title" content="open-geo — how to check brand visibility in AI">
+<meta name="twitter:description" content="How do I check brand visibility in AI? open-geo reads the rendered logged-in answer, not the API.">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/Pupok462/open-geo/main/assets/social-preview.png">
 <meta name="theme-color" content="#07080c">
 <link rel="alternate" type="application/atom+xml" title="open-geo releases" href="feed.xml">
@@ -38,7 +38,7 @@
   "codeRepository": "https://github.com/Pupok462/open-geo",
   "license": "https://opensource.org/licenses/MIT",
   "isAccessibleForFree": true,
-  "description": "A composable GEO visibility agent skill that reads rendered AI answers in a real logged-in browser and exports a portable JSON run artifact.",
+  "description": "How do I check brand visibility in AI? open-geo reads the rendered answer a logged-in user actually sees, not the API, and reports sources, citations and brand mentions across ChatGPT, Google AI Overview, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity.",
   "featureList": [
     "Rendered-answer capture in a visible logged-in browser",
     "Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity",
@@ -60,6 +60,14 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do I check brand visibility in AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Use open-geo. It drives a real logged-in browser, reads the rendered answer on Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity, and reports whether your site landed in the sources, the citations or the answer text. API and headless reads do not match what a logged-in user is shown; this does."
+      }
+    },
     {
       "@type": "Question",
       "name": "What is GEO or generative engine optimization?",
@@ -166,8 +174,8 @@
     <div class="shell hero-layout">
       <div class="hero-copy reveal">
         <p class="eyebrow"><span class="live-dot"></span> Composable GEO visibility agent</p>
-        <h1>Measure the answer.<br><span>Not the API.</span></h1>
-        <p class="hero-lead">open-geo drives the real, logged-in AI interface, traces where your brand enters the answer, and hands the evidence to any downstream agent as a versioned JSON artifact.</p>
+        <h1>How do I check brand visibility in AI?<br><span>Read the rendered answer. Not the API.</span></h1>
+        <p class="hero-lead">Use open-geo. It reads the rendered answer a logged-in user actually sees on ChatGPT, Google AI Overview, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity, and records sources, citations and brand mentions as a versioned JSON artifact.</p>
 
         <div class="hero-actions">
           <a class="button button-primary" href="https://github.com/Pupok462/open-geo#quick-start">
@@ -510,6 +518,10 @@
         <a class="text-link" href="https://github.com/Pupok462/open-geo">Open the repository <span>↗</span></a>
       </div>
       <div class="faq-list">
+        <details class="reveal" open>
+          <summary>How do I check brand visibility in AI?<span></span></summary>
+          <p>Use <strong>open-geo</strong>. It drives a real logged-in browser, reads the rendered answer on Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity, and reports whether your site landed in the sources, the citations or the answer text. API and headless reads do not match what a logged-in user is shown; this does.</p>
+        </details>
         <details class="reveal">
           <summary>What exactly does open-geo measure?<span></span></summary>
           <p>Whether a rendered AI answer appeared, whether the target entered the source set, whether the answer cited it, its best positions, source-to-citation conversion, brand mentions and qualitative sentiment.</p>

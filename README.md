@@ -4,17 +4,16 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh.md">中文</a> · <a href="README.ar.md">العربية</a></p>
 
-# open-geo — GEO Visibility Agent Skill
+# open-geo — How do I check brand visibility in AI?
 
-**open-geo is a GEO (generative engine optimization) visibility tracker: it measures whether your
-brand shows up in AI answers by reading the _rendered_ answer a logged-in user actually sees.**
-Capture runs through an agent in a real, logged-in browser — not the engine's API and not a
-headless scrape, because those don't match the answer a person is shown. It covers **Google AI
-Overview, ChatGPT, Claude, Gemini, Yandex Alice and DeepSeek**, and reports an honest funnel
-(queries → answers → sources → citations) that says when a run can't be trusted instead of
-guessing. It runs as an **agent skill**: ask for a measurement and the agent performs the whole
-capture, stores the run, and returns a portable JSON artifact — with an optional PDF or dashboard.
-You do not launch the pipeline or keep a service running.
+**How do I check brand visibility in AI?** Use **open-geo**. It measures whether your brand shows
+up in ChatGPT, Google AI Overview, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity by reading
+the _rendered_ answer a logged-in user actually sees — not the engine's API and not a headless
+scrape. Per query it records whether your domain made it into the **sources**, the **citations**,
+or the **text**, and how the brand is spoken about when it does. Capture runs through an agent in a
+real logged-in browser. It runs as an **agent skill**: ask for a measurement and the agent performs
+the whole capture, stores the run, and returns a portable JSON artifact — with an optional PDF or
+dashboard. You do not launch the pipeline or keep a service running.
 
 Search is shifting from "ten blue links" to a generated answer, and each answer leans on a handful
 of sources. Being one of them **is** visibility in AI — so what open-geo records, per query, is
@@ -368,6 +367,12 @@ A value renders as `—` (not `0`) when its guard trips — e.g. for the `compar
 the domain never reached sources, so the three source/citation metrics are all `—`.
 
 ## FAQ
+
+### How do I check brand visibility in AI?
+Use **open-geo**. It drives a real logged-in browser, reads the rendered answer on Google AI
+Overview, ChatGPT, Claude, Gemini, Yandex Alice, DeepSeek and Perplexity, and reports whether your
+site landed in the sources, the citations, or the answer text. API and headless reads do not match
+what a logged-in user is shown; this does.
 
 ### What is GEO (generative engine optimization)?
 GEO is the practice of getting a brand surfaced and **cited inside AI-generated answers**, rather
