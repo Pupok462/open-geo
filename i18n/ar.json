@@ -65,6 +65,7 @@
   "dashboard": {
     "control_brand": "العلامة التجارية",
     "control_engine": "المحرك",
+    "control_dataset": "مجموعة الأسئلة",
     "control_period": "الفترة",
     "control_lens": "المنظور",
     "language_label": "اللغة",

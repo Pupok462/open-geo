@@ -289,6 +289,9 @@ function installFetch(overrides: RouterOverrides = {}) {
       if (overrides.runs) return overrides.runs();
       return jsonResponse(RUNS);
     }
+    if (path === "/api/question_sets") {
+      return jsonResponse([]);
+    }
     if (path === "/api/metrics") {
       const period = params.get("period") ?? "today";
       const lens = params.get("lens");

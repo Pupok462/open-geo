@@ -12,6 +12,18 @@ export type Run = {
   n_queries: number;
   n_ok: number;
   n_failed: number;
+  question_set?: string | null;
+  question_set_hash?: string | null;
+};
+
+export type QuestionSet = {
+  question_set_hash: string;
+  question_set: string;
+  n_queries: number;
+  n_runs: number;
+  latest_run_id: number;
+  latest_run_at: string;
+  n_ok: number;
 };
 
 type Num = number | null | undefined;
@@ -220,13 +232,33 @@ const qs = (params: Record<string, string | number | undefined>): string => {
 export const api = {
   brands: () => getJSON<Brand[]>("/api/brands"),
   engines: (brandId: number) => getJSON<string[]>(`/api/engines${qs({ brand_id: brandId })}`),
-  runs: (brandId: number, engine?: string) =>
-    getJSON<Run[]>(`/api/runs${qs({ brand_id: brandId, engine })}`),
-  metrics: (brandId: number, engine: string, period: "today" | "all", lens?: string) =>
-    getJSON<MetricsResponse>(`/api/metrics${qs({ brand_id: brandId, engine, period, lens })}`),
-  timeseries: (brandId: number, engine: string, lens: string, bucket: "run" | "week" = "run") =>
+  runs: (brandId: number, engine?: string, questionSetHash?: string) =>
+    getJSON<Run[]>(
+      `/api/runs${qs({ brand_id: brandId, engine, question_set_hash: questionSetHash })}`,
+    ),
+  questionSets: (brandId: number, engine: string) =>
+    getJSON<QuestionSet[]>(
+      `/api/question_sets${qs({ brand_id: brandId, engine })}`,
+    ),
+  metrics: (
+    brandId: number,
+    engine: string,
+    period: "today" | "all",
+    lens?: string,
+    questionSetHash?: string,
+  ) =>
+    getJSON<MetricsResponse>(
+      `/api/metrics${qs({ brand_id: brandId, engine, period, lens, question_set_hash: questionSetHash })}`,
+    ),
+  timeseries: (
+    brandId: number,
+    engine: string,
+    lens: string,
+    bucket: "run" | "week" = "run",
+    questionSetHash?: string,
+  ) =>
     getJSON<TimeseriesResponse>(
-      `/api/timeseries${qs({ brand_id: brandId, engine, lens, bucket })}`,
+      `/api/timeseries${qs({ brand_id: brandId, engine, lens, bucket, question_set_hash: questionSetHash })}`,
     ),
   results: (runId: number, lens?: string) =>
     getJSON<ResultsResponse>(`/api/results${qs({ run_id: runId, lens })}`),
@@ -237,9 +269,10 @@ export const api = {
     lens?: string,
     limit = 15,
     sort: "sources" | "citations" = "sources",
+    questionSetHash?: string,
   ) =>
     getJSON<CompetitorsResponse>(
-      `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit, sort })}`,
+      `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit, sort, question_set_hash: questionSetHash })}`,
     ),
   audit: (brandId: number, engine?: string) =>
     getJSON<AuditResponse>(`/api/audit${qs({ brand_id: brandId, engine })}`),
@@ -247,6 +280,12 @@ export const api = {
     getJSON<EngineMatrixResponse>(
       `/api/engine_matrix${qs({ brand_id: brandId, period, lens })}`,
     ),
-  reportUrl: (brandId: number, engine: string, period: "today" | "all", lang?: string) =>
-    `${API_BASE}/api/report${qs({ brand_id: brandId, engine, period, lang })}`,
+  reportUrl: (
+    brandId: number,
+    engine: string,
+    period: "today" | "all",
+    lang?: string,
+    questionSetHash?: string,
+  ) =>
+    `${API_BASE}/api/report${qs({ brand_id: brandId, engine, period, lang, question_set_hash: questionSetHash })}`,
 };

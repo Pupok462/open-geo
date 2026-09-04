@@ -33,6 +33,13 @@ poisons the audit's credibility (moat #3). Cut a line for any of:
 - **Off-thesis** — it would read as a false low-visibility result (e.g. asks for something the product
   is not, so the brand's absence is expected and misleading), or drifts off the product's real needs.
 - **Keyword-stuffed / unnatural** — reads like an SEO key, not a person talking to an assistant.
+- **Unmeasured line** — the `signal` carries neither a demand-provider `scope` string (a
+  `demand/` pull: region, period, pull date) nor a stated reason why no ruler applies to that line
+  (METHODOLOGY §3, demand gate). You do not re-pull the number yourself; judge the *claim*: a bare
+  "wordstat: 1200" with no scope, or a figure with no provider behind it, is unmeasured.
+- **Presence-only line carrying a volume claim** — the `signal` says `presence only, no volume`
+  (autocomplete) but the line is argued as if demand were measured. Presence is a real signal and
+  keeps the line eligible; overstating it is not.
 
 ## What you return
 A JSON array, one entry per input line, in input order:

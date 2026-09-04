@@ -7,10 +7,14 @@
 > Phase A under it; a skeptic sub-agent (`harvest-skeptic`) executes Phase C. The output shape and
 > the `harvest.build` CLI are specified in `pipeline/INTERFACES.md §6`.
 
-Harvesting is **agentic, not an algorithm**. There is no Wordstat/embeddings pipeline: agents
-gather real demand the way the capture side reads real answers — grounded in what people actually
-do, adapted by natural-language method, not by selectors or scrapers. The result is a
-`query,lens` CSV plus a `<name>_rationale.md` explaining, per segment, *why these queries*.
+Harvesting is **agentic, not an algorithm**. Nothing here is an embeddings or keyword-tool
+pipeline: agents gather real demand the way the capture side reads real answers — grounded in what
+people actually do, adapted by natural-language method, not by selectors or scrapers. Keyword volume
+is read the same way — as one observable signal an agent looks at and reasons about, never as the
+generator of the set — but it is **fetched from the platforms' own APIs** (`demand/`, INTERFACES §8),
+not by driving a keyword tool in a browser: a number that can be re-pulled head-lessly, in a loop,
+by a user with no logged-in session. The result is a `query,lens` CSV plus a `<name>_rationale.md`
+explaining, per segment, *why these queries*.
 
 ---
 
@@ -53,6 +57,38 @@ sources to gather via web search / fetch:
   comparisons are really searched.
 - **Marketplace/listing/price pages** relevant to the category; region-specific sources for
   non-English slices.
+- **Demand APIs** (`demand/`) — Wordstat for Russian, Google Ads Keyword Planner / Bing Webmaster
+  for everything else, autocomplete everywhere. **Required for every candidate**; see the gate below.
+
+**Demand gate — every candidate, measured through `demand/`.** A line does not ship until a demand
+provider has been *asked* about it and the answer is recorded with its scope. Never a browser, never
+a number typed from memory.
+
+1. **Know what you can measure before you start.** `python -m demand.doctor --geo <cc>` names the
+   providers live for this locale (`wordstat` for RU/CIS and any Russian-language slice,
+   `google_ads` / `bing` worldwide, `suggest` everywhere) and prints exactly what is missing for the
+   rest. Its `verdict` decides which of the two gates below you are working under.
+2. **Look up the root phrase of the need, not the conversational sentence.** Assistants receive long
+   natural prompts no keyword tool will ever show; what you confirm is that the *underlying demand*
+   exists.
+   ```bash
+   .venv/bin/python -m demand.lookup --geo ru --lang ru --phrase "<root>" --related 10
+   .venv/bin/python -m demand.expand --seed "<root>" --geo us --lang en --n 60
+   ```
+3. **Paste the provider's `scope` string into `signal` verbatim** and its `source_url` into
+   `source_url`. The scope already carries region, period and pull date — e.g.
+   `wordstat api: «контроль качества продаж» — 1 240 показов/мес, Россия, за последние 30 дней
+   (снято 2026-08-25)`. Do not paraphrase it; the point is that the figure is re-pullable.
+4. **Volume gate (a ruler answered).** Zero or near-zero on the root ⟹ drop the candidate, or reword
+   it to a root that does have volume. A low but non-zero number is fine when the intent is
+   commercially sharp — say so in `note` rather than silently keeping it.
+5. **Presence gate (no ruler for this locale).** When `doctor` reports presence-only, a candidate may
+   rest on the autocomplete signal — but the `signal` must say so (the provider's scope string ends
+   in `presence only, no volume`). This is a weaker line, and the skeptic (§6, Phase C) weighs it as
+   such. It is still an *observed* signal; an unmeasured guess is not.
+6. **Young-brand exception.** A `branded` or `comparative` line may rest on a non-volume signal
+   (forum thread, comparison article, review page) when the brand is too young to have measurable
+   volume — state that explicitly in `signal` instead of shipping an unverified line.
 
 A candidate with **no** signal is dropped or reworded to a found real pattern. Each `QuestionCandidate`
 carries its `signal` + `source_url` (INTERFACES §6.1); each rationale segment names the signals seen.
@@ -130,5 +166,8 @@ survives the skeptic.** (This is the trust discipline of moat #3 applied to the 
 - [ ] `branded` names the brand; `comparative` contains a comparison.
 - [ ] No meaning-level duplicates; intent diversity within each lens.
 - [ ] Every line rests on an observable signal (reflected in the rationale).
+- [ ] Every line passed the demand gate (§3) — a `demand/` provider's `scope` string in `signal`
+      (region, period, pull date), or an explicit reason why no ruler applies to it.
+- [ ] No hand-typed volume anywhere: every figure came out of a `demand.*` call.
 - [ ] Balance ≈ target split with the intended `general`-tilt.
 - [ ] Every line survived the skeptic; `harvest.build` reported `errors: []`.

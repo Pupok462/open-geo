@@ -2,13 +2,18 @@
 
 Builds the `<questions.csv>` an open-geo run consumes. **Agentic, not an algorithm** — recon
 sub-agents gather real, signal-backed user queries under a natural-language methodology, mirroring
-the capture side, instead of a Wordstat/embeddings pipeline. Opt-in: a user's own hand-made CSV is
-equally valid.
+the capture side, instead of an embeddings/keyword-tool pipeline. The one deterministic half is the
+**demand measurement** (`demand/`, INTERFACES §8): volume comes from the platforms' own APIs, with
+its scope, so a signal is re-pullable instead of read off a browser tab. Opt-in: a user's own
+hand-made CSV is equally valid.
 
 ## Pieces
 - `METHODOLOGY.md` — **authority** for the process (the harvest counterpart of `engines/<engine>.md`):
   the iron reality rule, lens invariants, segment taxonomy, the three phases, balance.
 - `schema.py` — `QuestionCandidate` (pydantic v2) + `normalize_query` / `contains_brand`.
+- `../demand/` — the measured half: `demand.doctor` / `demand.lookup` / `demand.expand` supply the
+  volume behind a candidate's `signal`; `demand.core` commits a whole measured core through this
+  same `harvest.build` path (INTERFACES §8).
 - `build.py` — `python -m harvest.build --out <csv> [--brand "<name>"]`: reads a JSON array of
   `QuestionCandidate` on STDIN, validates, dedups, guards the lens/brand invariants, writes the
   `query,lens` CSV, prints a JSON summary. Contract: `pipeline/INTERFACES.md §6`.

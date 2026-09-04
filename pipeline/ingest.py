@@ -140,6 +140,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Repeat-run group tag stamped on the new run (with --new-run only).",
     )
     parser.add_argument(
+        "--question-set",
+        help="Human label of the question set (with --new-run only), e.g. CSV basename.",
+    )
+    parser.add_argument(
         "--db",
         default="data/aeo.db",
         help="SQLite DB path (default: data/aeo.db).",
@@ -152,6 +156,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.group_id and not args.new_run:
         _err("ingest: --group-id is only valid with --new-run")
         return 2
+    if args.question_set and not args.new_run:
+        _err("ingest: --question-set is only valid with --new-run")
+        return 2
 
     conn = get_conn(args.db)
     try:
@@ -162,7 +169,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                 _err("ingest: --new-run requires --brand, --domain and --engine")
                 return 2
             brand_id = get_or_create_brand(conn, args.brand, args.domain)
-            run_id = create_run(conn, brand_id, args.engine, group_id=args.group_id)
+            run_id = create_run(
+                conn,
+                brand_id,
+                args.engine,
+                group_id=args.group_id,
+                question_set=args.question_set,
+            )
             _err(f"ingest: created run {run_id} for brand {brand_id} ({args.engine})")
             print(json.dumps({"run_id": run_id}, ensure_ascii=False))
             return 0

@@ -533,6 +533,37 @@ mid-run never loses already-captured work:
   completed run); `2` when neither or both of `--engine` / `--engines` are given. Progress and
   the resolved run context go to STDERR.
 
+### 3.7 `python -m pipeline.run --resume-check | --pending | --finalize | --sentiments`
+
+Run-control queries the orchestrator needs between the big steps. Each mode prints
+**exactly one JSON value on STDOUT** (human noise on STDERR), so the skill never has to
+inline Python to ask the database a question.
+
+- `--resume-check --brand "<name>" --domain <domain-or-url-prefix> --engine <e> --csv <questions.csv>`
+  → `{"run_id", "resumable", "run_at", "n_captured", "n_missing"}`. `run_id` is the newest
+  run of this brand+engine still in `status='running'` (or `null`). `resumable` is **true
+  only when the unfinished run's captured keys are a subset of THIS CSV** — a run captured
+  from a different question set is reported with `resumable: false` so the orchestrator
+  starts fresh instead of blending two sets under one `run_id` (§2.1). The CSV is read only
+  when an unfinished run exists.
+- `--pending --run-id <N> --csv <questions.csv>`
+  → `{"run_id", "n_total", "n_captured", "n_pending", "pending": [[query, lens], …]}`.
+  The `(query, lens)` rows of the CSV not yet stored for that run, **in file order**,
+  de-duplicated. This is what STEP 2 splits into worker chunks on a resume.
+- `--finalize --run-id <N> --n-queries <A> --n-ok <B> [--n-failed <C>] --status done|failed`
+  → echoes the written row. `--n-failed` defaults to `A − B`. Only terminal statuses are
+  accepted: the orchestrator must never leave a run in `running`, and `ingest` never sets
+  status itself (§2.1/§3.2).
+- `--sentiments --run-id <N>`
+  → `[{"lens", "query", "sentiment"}, …]` ordered by lens. The input for the per-lens
+  qualitative roll-up written back through §3.4.
+
+Both CSV-reading modes validate the header (`query,lens`) and every `lens` value against
+`general | branded | comparative`, failing loudly rather than silently skipping a row.
+
+**Exit codes:** `0` on success; `1` on an unknown `run_id` or an unreadable/invalid CSV;
+`2` when a mode is missing its required flags.
+
 ---
 
 ## 4. Metric definitions & formulas
@@ -724,8 +755,9 @@ cap = QueryCapture.model_validate_json(some_json_string)  # raises ValidationErr
 **agentic, not a deterministic algorithm**: a written methodology (`harvest/METHODOLOGY.md`,
 the harvest counterpart of `engines/<engine>.md`) executed by **recon sub-agents** that ground
 every candidate query in an **observable demand signal**, then a synthesis + adversarial-skeptic
-pass. This mirrors the capture side (sub-agents + natural-language playbook) rather than the old
-Wordstat/embeddings pipeline. It is a **subsystem beside the main command**, invoked from the
+pass. This mirrors the capture side (sub-agents + natural-language playbook) rather than an
+embeddings/keyword-tool pipeline; the demand numbers those sub-agents cite come from the official
+APIs in **§8**, not from a browser. It is a **subsystem beside the main command**, invoked from the
 skill's question-sourcing step (SKILL STEP A.5); the capture contract (§1) is **unchanged** — the
 harvest's only hand-off to the run is the CSV.
 
@@ -892,3 +924,93 @@ the section states the blocker list and the audit's `checked_at` date, so the re
 treatment and not only the diagnosis. Like the
 funnel metrics, the audit is **data** — its check titles/remediation are English canon and the
 UI chrome around it is localized via the i18n layer (`--lang`).
+
+---
+
+## 8. The demand contract — `DemandStat` + `SemanticCore` → `questions.csv` (Feature 1b)
+
+**Demand measurement** is the deterministic half of question harvesting (§6): *how much is this
+actually searched, and where does that number come from?* It is answered by the search platforms'
+own APIs (`demand/`), not by an agent reading a logged-in keyword tool in a browser. The agentic
+half is unchanged — the angles, the phrasing, the skeptic pass still come from
+`harvest/METHODOLOGY.md`. What changed is that the evidence under a Russian (or any) line is now a
+**reproducible API pull with its scope**, obtainable head-less, in a loop, and by a user who has no
+Yandex session in their browser.
+
+**The refusal rule.** No provider ever invents a number. A locale with no configured ruler yields
+`status="unavailable"` (or an autocomplete `presence` signal explicitly marked as volume-less) —
+never a plausible figure. Everything downstream is allowed to *drop* a line for lack of evidence;
+nothing is allowed to *manufacture* the evidence.
+
+### 8.1 Providers and their rulers
+
+| provider | metric | measures | credentials |
+|---|---|---|---|
+| `wordstat` | `impressions_per_month` | Yandex shows/month, last 30 days, per region | free (Yandex Cloud API key, or the legacy beta OAuth token); 1000 calls/day |
+| `google_ads` | `avg_monthly_searches` | Keyword Planner 12-month average, per country+language | free developer token (Basic access) + OAuth refresh token |
+| `bing` | `impressions_4w` | Bing Webmaster weekly impressions, last 4 weeks summed | free API key (verify any site you own) |
+| `suggest` | `suggest_presence` | the phrase is a real autocomplete entry — **no volume** | none |
+
+Rulers are **never normalized into each other**: an impression count and an average-monthly-search
+count measure different things, and averaging them would invent precision no source has. A row
+always states which ruler produced it.
+
+### 8.2 `DemandStat` — one phrase, one provider
+
+`demand/schema.py :: DemandStat` (pydantic v2). Fields: `phrase`, `status`
+(`ok|zero|unavailable|error`), `provider`, `geo`, `language`, `volume`, `metric`, `period`,
+**`scope`**, `source_url`, `related[]`, `cached`, `reason`.
+
+**`scope` is the hand-off.** It is the number *with* its region, period and pull date, written to be
+pasted verbatim into a `QuestionCandidate.signal` (§6.1) — e.g.
+`wordstat api: «речевая аналитика» — 1 719 показов/мес, Россия, за последние 30 дней (снято 2026-08-25)`.
+Provenance travels with the figure instead of being re-typed by an agent.
+
+CLIs (all print JSON on stdout, never abort a batch on one bad row):
+
+- `python -m demand.doctor [--geo ru] [--json]` — which providers are configured, what each covers
+  here, quota used today, and the exact steps to obtain a missing credential. **Run this first**;
+  its `verdict` tells you whether this locale can produce volume at all.
+- `python -m demand.lookup --geo <cc|ww> --lang <code> --phrase … [--related N] [--provider …]` —
+  demand for a batch of phrases; falls forward through the locale's providers, then to autocomplete
+  presence, recording *why* each provider was skipped.
+- `python -m demand.expand --seed … [--n 60] [--deep] [--min-volume N]` — a seed's real
+  neighbourhood, volume where a ruler exists, sorted volume-first.
+
+Cache: `data/demand_cache.db` (SQLite, 7-day TTL, per-provider daily counters). `--ttl-days 0`
+forces a live pull.
+
+### 8.3 `SemanticCore` — the measured core and its hand-off
+
+`demand/core.py :: SemanticCore` is what a core-building agent commits when it is done:
+
+```
+SemanticCore { brand, domain, market, generated_at, geos[], languages[],
+               clusters[ CoreCluster ], questions_csv, rationale_md, totals, notes[] }
+CoreCluster  { name, intent (informational|commercial|navigational|comparative),
+               lens (general|branded|comparative), geo, language,
+               phrases[ CorePhrase ] (≥1), questions[] (≥1), note? }
+CorePhrase   { phrase, provider, volume, metric, scope, source_url }
+```
+
+`python -m demand.core --out <core.json> --questions-out <questions.csv> --brand … --domain …`
+reads a `SemanticCore` object on **stdin** and:
+
+- **enforces the measurement gate** — a cluster with no `CorePhrase` carrying both a `provider` and
+  a `scope` is an **error row** and ships no questions. Unmeasured demand cannot mint a question;
+  that is the entire point of routing the harvest through the APIs.
+- picks each cluster's **anchor** (the highest-volume measured phrase, else any measured one) and
+  stamps its `scope`/`source_url` onto every question the cluster produced, as
+  `QuestionCandidate.signal` / `source_url`, with `segment` = the cluster name.
+- commits through **`harvest.build`** (§6.2) — so the lens/brand invariants, the normalized dedup
+  and the CSV shape are the *same* code path a hand-built harvest uses. `questions.csv` stays
+  exactly the run's input contract (§3); nothing downstream changes.
+- writes `core.json` (with `questions_csv` recorded inside it) and prints
+  `{core, questions_csv, brand, domain, clusters, written, by_lens, coverage, errors}`.
+  `coverage` reports `{phrases, measured, with_volume, presence_only, unmeasured, total_volume}` —
+  how much of the core rests on a number versus on presence alone.
+
+**Hand-off to a run.** `core.json` is the unambiguous carrier between the core-building agent and
+the measurement run: the consumer reads `questions_csv` (plus `brand`/`domain`) from it and enters
+the normal STEP A.5 fast path — a harvested CSV and a hand-made one remain indistinguishable to
+STEP 1 onward.

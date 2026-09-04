@@ -180,82 +180,31 @@ engine cannot even read. This is the **Domain GEO-Audit Gate** (ROADMAP Feature 
 
 ## STEP A.5 — SOURCE THE QUESTIONS (bring-your-own vs harvest a grounded set)
 
-Run this **after STEP A and STEP 0**, **before STEP 1**. Goal: end up with a real `<questions.csv>` on disk.
-It is the operator entry point for **question harvesting** (Feature 1) — the process authority is
-`harvest/METHODOLOGY.md`, the contract is `pipeline/INTERFACES.md §6`. Harvesting is **agentic**
-(recon sub-agents under the methodology), not an algorithm, and it is **opt-in**.
+Run this **after STEP A and STEP 0**, **before STEP 1**. Goal: end up with a real
+`<questions.csv>` on disk.
 
 1. **FAST PATH / bring-your-own — a real CSV is already resolved.** If STEP A resolved
-   `<questions.csv>` to a path that **exists and has data rows**, this step is a **no-op** — use that
-   file and go straight to STEP 1. (A user's own hand-made `query,lens` CSV is a first-class input;
-   loops/headless always take this path.)
+   `<questions.csv>` to a path that **exists and has data rows**, this step is a **no-op** —
+   use that file and go straight to STEP 1. (A user's own hand-made `query,lens` CSV is a
+   first-class input; loops/headless always take this path.)
+
+   **Hand-off from a core build.** If you were handed a `core.json` instead (INTERFACES §8 —
+   written by `demand.core`, typically by the `semantic-core` skill), read `questions_csv`,
+   `brand` and `domain` out of it and take this same fast path. The CSV it points at is an
+   ordinary `query,lens` file; nothing downstream distinguishes it. Mention the core's
+   `totals.coverage` in the run summary so the operator knows how much of the set rests on
+   measured volume.
 
 2. **GENERATE PATH — the user chose "Generate a set" (or no CSV is resolved).** Harvest one:
+   **read `./references/harvest.md` now and follow it** — it carries the full procedure
+   (segment planning, the `harvest-worker` fan-out, the demand gate, the skeptic pass,
+   `harvest.build`, the rationale file, and the human review gate). Harvesting is **agentic**
+   and **opt-in**; the process authority is `harvest/METHODOLOGY.md`, the contract is
+   `pipeline/INTERFACES.md §6`.
 
-   a. **Collect harvest inputs** (reuse what STEP A already has — brand, domain, `--lang`). Ask only
-      for what is missing, via `AskUserQuestion`:
-      - **market / category** (free text) and **known competitors** (free text seed; recon extends).
-      - **how many** questions — presets `20 / 36 / 60` (+ custom). Default split is a deliberate
-        **`general`-tilt** derived from the count (for ~36: `16 / 10 / 10`); offer to override the
-        general/branded/comparative split.
-      - **language(s) of the queries** — default to `--lang`, but note the **query language is the
-        language people really ask in**, independent of the deliverable `--lang`; a distinct-language
-        slice goes to its own file (`<name>_<code>.csv`). Do **not** machine-translate for coverage.
-
-   b. **Plan the segments** from the inputs (METHODOLOGY §5) — the "different angles" on the product
-      (demand primary/secondary, supply if two-sided, category/discovery, branded-reputation,
-      comparative-rivals, regional slice). A two-sided product adds a supply segment; a single-sided
-      one may not. Keep the plan to the segments the product actually has.
-
-   c. **Phase A — fan-out grounded recon.** Spawn **one `harvest-worker` sub-agent per segment**
-      (Task tool), **in parallel**. Its full contract lives in `../../agents/harvest-worker.md` —
-      do not restate it. Give each a self-contained brief:
-      - the **full text of `harvest/METHODOLOGY.md`** (authoritative process + iron reality rule);
-      - the **product context** (brand, domain, market, competitors);
-      - its **one segment** + dominant lens(es), its **worker index** (for its unique temp file
-        `/tmp/open_geo_harvest_<idx>.json`), the target **15–25 candidates**, and the language(s);
-      - authority pointers: `pipeline/INTERFACES.md §6` and `harvest/schema.py :: QuestionCandidate`.
-      > A harvest worker **grounds every candidate in an observable signal, returns a
-      > `QuestionCandidate` JSON pool, and cleans up its own browser tabs** — it never writes
-      > `questions.csv`, never touches `data/aeo.db`, never balances or trims (that is your Phase B).
-
-   d. **Phase B — synthesize (you, the orchestrator).** Merge all pools; **dedup by meaning** (not
-      just text); drop anything without a real signal or violating its lens (METHODOLOGY §3/§4);
-      **balance** to the target split with the `general`-tilt, maximizing intent diversity within
-      each lens; split any non-primary-language slice into its own list.
-
-   e. **Phase C — adversarial skeptic.** Spawn **1–2 `harvest-skeptic` sub-agents** (Task tool;
-      contract in `../../agents/harvest-skeptic.md`) with the thesis + the final `{query, lens}`
-      list. They return **KEEP/CUT verdicts**. Apply the cuts, backfill each with the next-strongest
-      distinct Phase-A candidate, until every shipped line survives.
-
-   f. **Commit to CSV** via the build CLI (INTERFACES §6.2). Write your final candidate array (each a
-      `QuestionCandidate` with `query,lens,segment,signal,source_url`) to a UTF-8 temp file, then:
-      ```bash
-      .venv/bin/python -m harvest.build --out <name>_questions.csv --brand "<name>" \
-        < /tmp/open_geo_harvest_final.json
-      ```
-      Read stdout `{"out","written","by_lens","dropped_dups","errors"}`. **`errors` must be empty** —
-      fix any flagged row (usually a mislabeled lens: general-with-brand or branded-without-brand) and
-      re-run until `errors: []`. For a separate-language slice, call `harvest.build` again with its own
-      `--out <name>_<code>.csv`.
-
-   g. **Write `<name>_rationale.md`** — per segment: who we catch, on which observable signals (from
-      the workers' `signal`/`source_url`), why this lens; plus the competitors that surfaced. This is
-      the provenance the CSV omits (see `gonka_questions_rationale.md` for the shape). Keep it in the
-      language of the audit's stakeholders.
-
-   h. **REVIEW GATE (human-in-the-loop).** Show a short summary — total, `by_lens`, and the full query
-      list — and ask (`AskUserQuestion`): **Apply** (use this CSV for the run), **Edit** (you open
-      `<name>_questions.csv`, the user tweaks rows / you adjust per their notes, then re-run
-      `harvest.build` to re-validate — `errors: []` before proceeding), or **Discard** (fall back to
-      bring-your-own: re-offer file selection / a path). On **Apply/Edit**, set `<questions.csv>` to
-      the written path and proceed to STEP 0. This gate is deliberate — never skip straight to capture
-      on a generated set without the operator seeing it (moat #3, trust).
-
-> **Boundary.** Harvesting only produces the CSV; nothing downstream changes. The capture contract
-> (§1), the run, ingest/aggregate are untouched — STEP 1 onward treats a harvested CSV exactly like a
-> hand-made one.
+> **Boundary.** Harvesting only produces the CSV; nothing downstream changes. The capture
+> contract (§1), the run, ingest/aggregate are untouched — STEP 1 onward treats a harvested
+> CSV exactly like a hand-made one.
 
 ---
 
@@ -265,24 +214,11 @@ First check for an **unfinished run to resume** — a previous run of this brand
 left `status='running'` by a crash (INTERFACES §2.1). Look before creating anything:
 
 ```bash
-.venv/bin/python -c "
-import csv, json
-from pipeline.db import (get_conn, init_db, get_or_create_brand,
-                         find_unfinished_run, get_captured_keys)
-conn = get_conn('data/aeo.db'); init_db(conn)
-bid = get_or_create_brand(conn, '<name>', '<domain>')
-rid = find_unfinished_run(conn, bid, '<engine>')
-out = {'run_id': rid, 'resumable': False, 'run_at': None, 'n_captured': 0}
-if rid is not None:
-    row = conn.execute('SELECT run_at FROM runs WHERE id = ?', (rid,)).fetchone()
-    with open('<questions.csv>', newline='', encoding='utf-8') as fh:
-        wanted = {(r['query'].strip(), r['lens'].strip()) for r in csv.DictReader(fh)}
-    captured = get_captured_keys(conn, rid)
-    out.update(run_at=row['run_at'], n_captured=len(captured),
-               resumable=captured <= wanted, n_missing=len(wanted - captured))
-print(json.dumps(out))
-"
+.venv/bin/python -m pipeline.run --resume-check \
+  --brand "<name>" --domain <domain> --engine <engine> --csv <questions.csv>
 ```
+
+**stdout:** `{"run_id", "resumable", "run_at", "n_captured", "n_missing"}` (INTERFACES §3.7).
 
 - **`run_id` non-null and `resumable` true → the unfinished run holds a subset of THIS
   question set.** Offer to **resume** it (reuse that `run_id`; STEP 2 captures only the rows
@@ -307,21 +243,9 @@ print(json.dumps(out))
 - If creation errors or stdout is not parseable JSON with a `run_id`, stop and report it
   (in `--lang`). Nothing downstream can proceed without `run_id`.
 
-### Repeats (`--repeat R`, R > 1)
-
-The whole point is R **independent** captures of the same CSV, grouped so readers can see
-mean + spread instead of trusting one noisy run (INTERFACES §2.1). Flow:
-
-1. Mint one group tag for the whole invocation — `grp_<YYYYMMDD-HHMM>_<engine>` is fine.
-2. For each repeat `i = 1..R` **sequentially**: create its run with
-   `python -m pipeline.ingest --brand … --domain … --engine … --new-run --group-id <tag>`,
-   then execute STEPS 2–5b for that run exactly as for a single run (full CSV each time —
-   do NOT dedupe across repeats; a repeat IS the same question asked again).
-3. Resume semantics are **per repeat**: a crashed repeat is found by `find_unfinished_run`
-   and finished into its own run; already-`done` repeats of the group are never re-captured.
-4. Deliverables (STEP 6) run **once, after the last repeat**. The dashboard detects the
-   group automatically (latest run carries the `group_id`) and shows the mean + min–max
-   spread; nothing extra to pass.
+**Repeats (`--repeat R`, R > 1)** — R independent captures of the same CSV under one
+`group_id`, so readers see mean + spread instead of one noisy run (INTERFACES §2.1).
+Read `./references/deliverables.md` for the flow; `R=1` (the default) needs nothing extra.
 
 ---
 
@@ -341,19 +265,15 @@ mean + spread instead of trusting one noisy run (INTERFACES §2.1). Flow:
      `engines/chatgpt_search.md`, `engines/claude_search.md`, `engines/yandex_neuro.md`,
      `engines/gemini.md`, `engines/deepseek.md` and `engines/perplexity.md` ship today;
      passing any other engine id needs its playbook written first.)*
-3. **If resuming an existing run** (STEP 1 returned one), drop rows already captured —
-   read the captured keys and keep only the missing `(query, lens)`:
+3. **If resuming an existing run** (STEP 1 returned one), capture only what is still
+   missing — the pending rows come back in file order:
    ```bash
-   .venv/bin/python -c "
-   import json
-   from pipeline.db import get_conn, get_captured_keys
-   conn = get_conn('data/aeo.db')
-   print(json.dumps(sorted(list(t) for t in get_captured_keys(conn, <run_id>))))
-   "
+   .venv/bin/python -m pipeline.run --pending --run-id <run_id> --csv <questions.csv>
    ```
-   Subtract those from `rows`. If **nothing** remains, skip capture entirely and jump to
-   STEP 4.2 (finalize) → STEP 5. (Ingest is idempotent, so re-capturing a stored row is
-   harmless — skipping just saves a browser hit.)
+   **stdout:** `{"run_id", "n_total", "n_captured", "n_pending", "pending": [[query, lens], …]}`
+   (INTERFACES §3.7). Use `pending` as `rows`. If **nothing** remains, skip capture entirely
+   and jump to STEP 4.2 (finalize) → STEP 5. (Ingest is idempotent, so re-capturing a stored
+   row is harmless — skipping just saves a browser hit.)
 4. Split the rows to capture into `min(N, len(rows))` contiguous chunks of roughly equal
    size, where `N = --n-worker`. Each chunk keeps its rows' original `(query, lens)` pairs.
 
@@ -361,14 +281,18 @@ mean + spread instead of trusting one noisy run (INTERFACES §2.1). Flow:
 
 ## STEP 3 — FAN-OUT CAPTURE (one `capture-worker` subagent per chunk)
 
-Spawn **N = `--n-worker`** subagents of type **`capture-worker`** (Task tool), one per chunk, and
-run them **in parallel** — each drives its chunk concurrently in its own browser tab/context. A
-capture worker's only job is to **capture and RETURN data**; it never ingests, creates runs, starts
-servers, or writes the DB. Its full step-by-step contract lives in
-`../../agents/capture-worker.md` — do not restate it here. Give each `capture-worker` a
+Spawn **N = `--n-worker`** subagents of type **`capture-worker`** (Agent tool) — one per
+chunk, **all in one message so they run concurrently**, each driving its chunk in its own
+browser tab/context. `--n-worker` IS the run's real concurrency; raise it to go wider.
+
+A capture worker's only job is to **capture and RETURN data**; it never ingests, creates
+runs, starts servers, or writes the DB. Its full step-by-step contract — output fields, the
+no-DB and no-source-visit rules, per-worker temp-file self-validation, what to return —
+lives in `../../agents/capture-worker.md`; **do not restate it.** Give each worker a
 self-contained brief containing:
 
-- The **full text** of `engines/<engine>.md` (the capture playbook).
+- The **full text** of `engines/<engine>.md` (the capture playbook — authoritative for how
+  to drive this specific engine).
 - Its **chunk** of `(query, lens)` rows, and its **chunk index** (1..N) — used to name its
   validation temp file uniquely (`/tmp/open_geo_cap_<idx>.json`), since parallel workers share `/tmp`.
 - The **target `<domain>`**, the **`--brand` name**, and the **`<engine>` id**.
@@ -379,20 +303,7 @@ self-contained brief containing:
 > worker never writes to the DB and never starts a server. The orchestrator owns all DB
 > writes and the deliverables (steps 4 and 6).
 
-> The worker's full step-by-step contract — output fields, the no-DB and no-source-visit rules,
-> per-worker temp-file self-validation, what to return — lives in
-> `../../agents/capture-worker.md`. It is **engine-agnostic**; the injected `engines/<engine>.md`
-> playbook is authoritative for how to drive the specific engine, and `INTERFACES §1` for the
-> `QueryCapture` shape.
-
-### Parallelism — N workers run concurrently
-
-The skill spawns **N = `--n-worker`** capture sub-agents and runs them **in parallel**:
-step 2 splits the query rows into N chunks and each sub-agent drives its chunk
-**concurrently**, each in its own browser tab/context. `--n-worker` IS the run's real
-concurrency — raise it to go wider.
-
-- If Google shows a **reCAPTCHA / "unusual traffic"** challenge, the affected worker
+- If the engine shows a **reCAPTCHA / "unusual traffic"** challenge, the affected worker
   **stops** and surfaces it to the human (per the playbook) instead of solving or hammering
   it; the other workers keep going.
 
@@ -418,23 +329,15 @@ chunk** — incrementally, so a crash mid-run never loses already-captured work 
    worker — and re-send **only** the fixed objects to the same `--run-id`. Repeat until
    `errors` is empty (bounded retries; then report residual failures).
 
-2. **Finalize** counts + status. There is no "finalize" CLI; use the documented helper
-   `pipeline.db.update_run_counts` (INTERFACES §2) inline:
+2. **Finalize** counts + status (INTERFACES §3.7):
    ```bash
-   .venv/bin/python -c "
-   from pipeline.db import get_conn, update_run_counts
-   conn = get_conn('data/aeo.db')
-   update_run_counts(conn, run_id=<run_id>,
-                     n_queries=<total rows attempted>,
-                     n_ok=<rows accepted by ingest>,
-                     n_failed=<rows never accepted>,
-                     status='done')
-   "
+   .venv/bin/python -m pipeline.run --finalize --run-id <run_id> \
+     --n-queries <total rows attempted> --n-ok <rows accepted by ingest> --status done
    ```
-   `n_queries` = total `(query, lens)` rows attempted (from the **full CSV**, including a
-   resume's already-done rows); `n_ok` = rows captured (ingest keeps this live, =
-   `COUNT(results)`); `n_failed` = `n_queries − n_ok`. Set `status='done'` on success, or
-   `'failed'` if the run collapsed (playbook missing, engine unreachable for everything).
+   `--n-queries` = total `(query, lens)` rows attempted (from the **full CSV**, including a
+   resume's already-done rows); `--n-ok` = rows captured (ingest keeps this live, =
+   `COUNT(results)`); `--n-failed` defaults to the difference. Use `--status failed` if the
+   run collapsed (playbook missing, engine unreachable for everything).
    **Finalizing `status` is the orchestrator's job — `ingest` never sets it** (INTERFACES
    §2.1/§3.2); only runs with `status='done'` feed previous-run **deltas** and the
    `--period all` rollup (INTERFACES §4.1). **Never leave a run stuck in `status='running'`.**
@@ -468,17 +371,9 @@ persist it via `pipeline.lens_sentiment` (INTERFACES **§3.4**) into the `lens_s
 clobbers the synthesized prose.
 
 1. **Gather the per-query `sentiment`s grouped by lens** for this run. You already have them
-   from the STEP 4 captures; if not handy, read them back from `results` inline:
+   from the STEP 4 captures; if not handy, read them back (INTERFACES §3.7):
    ```bash
-   .venv/bin/python -c "
-   import json
-   from pipeline.db import get_conn
-   conn = get_conn('data/aeo.db')
-   rows = conn.execute(
-       'SELECT lens, sentiment FROM results WHERE run_id=? ORDER BY lens',
-       (<run_id>,)).fetchall()
-   print(json.dumps([dict(r) for r in rows], ensure_ascii=False))
-   "
+   .venv/bin/python -m pipeline.run --sentiments --run-id <run_id>
    ```
 2. **Write ONE short, neutral sentence per lens** that appears in the run (`general`,
    `branded`, `comparative`), plus an `all` synthesis across them. **Summarize ONLY what the
@@ -512,12 +407,6 @@ table, and the PDF report shows them as the lead line of its sentiment section.
 > are produced by the **orchestrator** once every capture is collected & ingested, the run
 > is finalized, and metrics are aggregated. A capture worker **never** exports the run,
 > starts a server, or generates a report.
->
-> The versioned JSON artifact is **always** produced. The **report** and **dashboard**
-> components are optional presentation layers and their entry points are
-> **verified working** (commands below are the real ones). They are intentionally **not in
-> INTERFACES** — their contracts live in their own dirs (`report/generate.py` and
-> `dashboard/README.md`). If you need detail beyond what's shown, read those.
 
 ### Always — portable JSON run artifact
 
@@ -534,79 +423,18 @@ the latest matching audit. This file is the handoff contract for other agents: d
 steps consume it instead of scraping the human summary, querying SQLite directly, or keeping
 the dashboard running.
 
-For `--repeat R` with `R > 1`, export **one artifact per completed run**. If the caller supplied
-`--artifact-out /path/name.json`, write `/path/name-run-<run_id>.json` for each repeat; otherwise
-use the normal `reports/run-<run_id>.json` names. Return the ordered list of absolute paths.
-
 For the default `--output data`, stop presentation work here and continue to STEP 7. No
 FastAPI/Vite process is started and no browser window needs to remain open after capture.
 
-### `--output dashboard` — or as part of `both`
+### `dashboard` · `pdf` · `both` — or `--repeat R > 1`
 
-Start the dashboard (FastAPI backend + Vite/React frontend) and print the **local URL**.
-The frontend selects brand/engine/period through its own UI controls (read from the API),
-so you do **not** scope brand/engine/period via the query string — **only the UI language**:
-hand the operator `http://localhost:5173/?lang=<lang>`, which seeds the dashboard's initial
-language from the run's `--lang` (the in-browser switcher still overrides it, and the choice
-persists in `localStorage`).
-
-```bash
-# Run BOTH in the background (they are long-running dev servers).
-# Background shells do NOT inherit the repo-root CWD, so use ABSOLUTE paths anchored at
-# <REPO> = the repository root (your working directory). Do NOT use a relative
-# `.venv/bin/python` or `cd dashboard/web` here — backgrounded, they fail (exit 127 /
-# wrong CWD). `--app-dir <REPO>` lets uvicorn import `dashboard.api` regardless of CWD.
-#
-# 1) API (read-only over data/aeo.db). PICK A FREE PORT — 8000 is often taken:
-OPEN_GEO_DB=<REPO>/data/aeo.db <REPO>/.venv/bin/python -m uvicorn dashboard.api:app \
-    --host 127.0.0.1 --port <PORT> --app-dir <REPO>
-
-# 2) Web (Vite dev server), pointed at the API's port. Use `npm --prefix` instead of `cd`
-#    (run `npm --prefix <REPO>/dashboard/web install` once if node_modules is missing):
-VITE_API_BASE=http://127.0.0.1:<PORT> npm --prefix <REPO>/dashboard/web run dev
-```
-
-- **Port caveat:** local port **8000 is often already occupied** by another service on
-  this machine. Pick a free port for the API (e.g. `8077`) and point the frontend at it via
-  `VITE_API_BASE` (CORS is open, so a cross-origin base works without the dev proxy):
-  ```bash
-  VITE_API_BASE=http://127.0.0.1:<PORT> npm --prefix <REPO>/dashboard/web run dev
-  ```
-- **Verify before handing off** (a backgrounded server can exit non-zero or the port can
-  clash): probe both before printing the URL —
-  ```bash
-  curl -s http://127.0.0.1:<PORT>/api/health
-  curl -s -o /dev/null -w '%{http_code}\n' http://localhost:5173/
-  ```
-  so you surface a *working* URL, not a hopeful one.
-- After both are up, print the **Vite dev URL** the operator should open —
-  `http://localhost:5173/?lang=<lang>` (the frontend's own controls drive brand/engine/period;
-  `?lang=<lang>` seeds the UI language from the run's `--lang`, and the switcher still
-  overrides). If `dashboard/` cannot be started, say so (in `--lang`) and skip gracefully
-  (still finish steps 5 and 7).
-
-### `--output pdf` — or as part of `both`
-
-```bash
-.venv/bin/python -m report.generate \
-  --brand "<name>" --domain <domain> --engine <engine> \
-  --period <period> --lang <lang> \
-  --out reports/<brand>_<date>.pdf [--db data/aeo.db]
-```
-
-- This is the real, built CLI. It prints progress/status to **stderr**; the **output path**
-  (`--out`) is what to surface to the operator. Pass `--lang <lang>` (the run's `--lang`,
-  default `en`) so the report renders in that language.
-- Use `<date>` = today (`YYYY-MM-DD`). Create `reports/` if missing. **Print the resulting
-  file path.** If the command fails, say so (in `--lang`) and skip gracefully.
-- **Combined multi-engine document (Feature 7):** when the operator asks for one document
-  across every engine the brand has runs on, swap `--engine <engine>` for
-  `--engines all` (or an explicit comma list) — one PDF: engines side-by-side table, then
-  a chapter per engine. Numbers are never blended across engines.
-
-### `--output both`
-
-The JSON artifact already exists; additionally start the dashboard and generate the PDF.
+**Read `./references/deliverables.md` and follow it.** It carries the verified commands and
+their caveats: the dashboard's two background servers (absolute paths, a free port, the
+`curl` health probe before you hand over a URL), `report.generate` including the combined
+`--engines all` document, and the per-repeat artifact naming. These presentation contracts
+intentionally live in their own dirs (`report/generate.py`, `dashboard/README.md`) rather
+than in INTERFACES. If a deliverable cannot be produced, say so (in `--lang`) and skip
+gracefully — still finish steps 5 and 7.
 
 ---
 
@@ -614,29 +442,12 @@ The JSON artifact already exists; additionally start the dashboard and generate 
 
 Read the **`lens="all"`** row from the `pipeline.aggregate` JSON captured in step 5 and
 print a short summary of headline metrics for this run, **in the `--lang` language** (default
-English). Cover:
-
-- **Answer coverage** (`overview_coverage`) — share of queries where a grounded,
-  source-backed answer rendered at all (an AI Overview on `google`; a web-search-backed
-  answer on the chat engines).
-- **Visibility in sources** (`visibility_in_sources`) — share of overview queries where the
-  target domain made it into `sources` (`n_in_sources / n_overviews`).
-- **Visibility in citations** (`visibility_in_citations`) — share of overview queries where
-  the domain is cited in the answer (`n_cited / n_overviews`).
-- **Average source position** (`avg_source_position`) — average best (`min`) rank of the
-  domain among sources (lower = better; `—` if the domain never appears in sources).
-- **Average citation position** (`avg_citation_position`) — average best (`min`) rank of the
-  domain among citations (lower = better; `—` if the domain is never cited).
-- **Relative citation** (`relative_citation`) — the **source→citation conversion**: of the
-  queries where the domain was in `sources`, the share where it was actually cited
-  (`n_cited / n_in_sources`; **higher = better**, `∈ [0, 1]`; `—` if the domain never appears
-  in sources). This is the last step of the visibility funnel
-  (`n_cited ≤ n_in_sources ≤ n_overviews ≤ n_queries`).
-- **Brand mention rate** (`brand_mention_rate`) — of the grounded answers, the share whose
-  prose mentions the brand **name**, linked or not (`n_brand_mentions / n_overviews`;
-  higher = better). An **adjacent axis, not a funnel stage** — an unlinked mention is
-  invisible to the link funnel, so do not read it as nested in sources/citations
-  (INTERFACES §4).
+English): **answer coverage** (`overview_coverage`), **visibility in sources**
+(`visibility_in_sources`), **visibility in citations** (`visibility_in_citations`),
+**average source / citation position** (lower = better), **relative citation**
+(`relative_citation` — the source→citation conversion, higher = better) and **brand mention
+rate** (`brand_mention_rate` — an adjacent axis, **not** a funnel stage). For the precise
+reading of any of them, see `./references/metrics.md` (authority: INTERFACES §4).
 
 Format as percentages where natural, and **note guard cases** (`null` → "no data" / "—", not
 `0`). End by pointing to the **absolute JSON artifact path**, then the dashboard URL and/or
@@ -660,19 +471,6 @@ Report: /absolute/path/reports/example_2026-08-18.pdf · Dashboard: http://local
 ```
 
 ---
-
-## COMPONENT DEPENDENCY MAP (where this skill leans on others)
-
-| step | calls | status |
-|---|---|---|
-| A.5 | `harvest-worker` + `harvest-skeptic` subagents under `harvest/METHODOLOGY.md`; `python -m harvest.build` | **Built** — Feature 1 (question harvesting); opt-in, contract in INTERFACES §6. Skipped when a CSV is supplied. |
-| 0 | `python -m audit.gate --domain <d> --engine <e>` (deterministic, non-LLM) | **Built** — Feature 2 (GEO-audit gate); runs before A.5, hard-stops a `blocked` domain (overridable with `--force`). Contract in INTERFACES §7, checks in `audit/CHECKS.md`. |
-| 1 | `python -m pipeline.ingest --new-run` | Contract in INTERFACES §3.1 |
-| 3 | `capture-worker` subagent (`../../agents/capture-worker.md`) driving `engines/<engine>.md` (workers **capture & return JSON** — no DB writes) | Capture contract §1; playbook file may be absent early |
-| 4 | `python -m pipeline.ingest --run-id` (orchestrator) + `pipeline.db.update_run_counts` | Incremental per-chunk ingest §3.2 (idempotent) + finalize helper §2 (call inline) |
-| 5 | `python -m pipeline.aggregate --run-id` | Contract in INTERFACES §3.3 |
-| 5b | `python -m pipeline.lens_sentiment --run-id` (orchestrator-written qualitative per-lens roll-up) | Contract in INTERFACES §3.4 |
-| 6 | `python -m pipeline.artifact --run-id …` always; optional `report.generate`; optional dashboard API + web | **Built** — artifact contract in INTERFACES §3.5; presentation contracts live in `report/` & `dashboard/` |
 
 Keep the run operator-friendly: parse JSON from stdout (never scrape logs), fail loudly (in
 `--lang`) on missing prerequisites, and never leave a run stuck in `status='running'`.

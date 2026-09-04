@@ -69,7 +69,8 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/health` | liveness + which DB is wired in |
 | GET  | `/api/brands` | `[{id, name, domain}]` |
 | GET  | `/api/engines?brand_id=` | distinct engines for a brand |
-| GET  | `/api/runs?brand_id=&engine=` | runs newest-first |
+| GET  | `/api/runs?brand_id=&engine=&question_set_hash=` | runs newest-first |
+| GET  | `/api/question_sets?brand_id=&engine=` | distinct question sets (hash + label) for the brand/engine |
 | GET  | `/api/metrics?brand_id=&engine=&period=today\|all&lens=` | metrics + read-time deltas + per-lens `sentiment_summary` |
 | GET  | `/api/timeseries?brand_id=&engine=&lens=&bucket=run\|week` | per-run points over time; `bucket=week` rolls completed runs up per ISO week (weighted) |
 | GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |

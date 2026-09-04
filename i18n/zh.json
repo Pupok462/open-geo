@@ -65,6 +65,7 @@
   "dashboard": {
     "control_brand": "品牌",
     "control_engine": "引擎",
+    "control_dataset": "问题集",
     "control_period": "周期",
     "control_lens": "视角",
     "language_label": "语言",

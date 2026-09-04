@@ -1,7 +1,7 @@
 {
   "name": "open-geo",
   "description": "Composable GEO visibility agent skill: capture rendered AI answers, measure a target's visibility/citation, and return a portable JSON run artifact with optional PDF/dashboard outputs.",
-  "version": "0.4.1",
+  "version": "0.5.1",
   "author": {
     "name": "open-geo contributors"
   },
@@ -22,6 +22,7 @@
   "agents": [
     "./.claude/agents/capture-worker.md",
     "./.claude/agents/harvest-worker.md",
-    "./.claude/agents/harvest-skeptic.md"
+    "./.claude/agents/harvest-skeptic.md",
+    "./.claude/agents/core-worker.md"
   ]
 }

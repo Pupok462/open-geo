@@ -8,6 +8,7 @@ from pipeline.db import (
     create_run,
     get_conn,
     get_or_create_brand,
+    set_run_question_set_hash,
     update_run_counts,
 )
 from report.generate import (
@@ -503,6 +504,23 @@ def test_completed_runs_only_runs_with_metrics_newest_first(seeded_db_path):
         conn.close()
 
 
+def test_completed_runs_filters_question_set_hash(empty_db_path):
+    conn = get_conn(empty_db_path)
+    try:
+        bid = get_or_create_brand(conn, "Example", "example.com")
+        first = create_run(conn, bid, ENGINE)
+        second = create_run(conn, bid, ENGINE)
+        for run_id, digest in ((first, "a" * 16), (second, "b" * 16)):
+            update_run_counts(conn, run_id, status="done")
+            set_run_question_set_hash(conn, run_id, digest)
+            _insert_metric(conn, run_id=run_id, brand_id=bid, lens="all")
+        conn.commit()
+        assert [int(r["id"]) for r in _completed_runs(conn, bid, ENGINE, "a" * 16)] == [first]
+        assert _completed_runs(conn, bid, ENGINE, "0" * 16) == []
+    finally:
+        conn.close()
+
+
 def test_completed_runs_excludes_runs_without_metrics(empty_db_path):
     conn = get_conn(empty_db_path)
     try:
@@ -792,6 +810,40 @@ def test_load_report_data_all_fills_history_oldest_to_newest(seeded_db_path):
         for _run_at, m in data.history:
             assert "all" in m
             assert all(isinstance(v, LensMetrics) for v in m.values())
+    finally:
+        conn.close()
+
+
+def test_load_report_data_all_filters_question_set_history(empty_db_path):
+    conn = get_conn(empty_db_path)
+    try:
+        bid = get_or_create_brand(conn, "Example", "example.com")
+        selected = create_run(conn, bid, ENGINE)
+        other = create_run(conn, bid, ENGINE)
+        for run_id, digest, n_queries in (
+            (selected, "a" * 16, 3),
+            (other, "b" * 16, 9),
+        ):
+            update_run_counts(conn, run_id, status="done")
+            set_run_question_set_hash(conn, run_id, digest)
+            _insert_metric(
+                conn,
+                run_id=run_id,
+                brand_id=bid,
+                lens="all",
+                n_queries=n_queries,
+                n_overviews=n_queries,
+            )
+        conn.commit()
+        data = load_report_data(
+            conn, "Example", "example.com", ENGINE, "all", "a" * 16
+        )
+        assert data.n_runs == 1
+        assert data.run_id == selected
+        assert data.metrics["all"].n_queries == 3
+        assert [run_at for run_at, _ in data.history] == [
+            conn.execute("SELECT run_at FROM runs WHERE id = ?", (selected,)).fetchone()["run_at"]
+        ]
     finally:
         conn.close()
 

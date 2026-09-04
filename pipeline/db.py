@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Iterable, Optional
 
 
 def _utcnow_iso() -> str:
@@ -58,7 +60,84 @@ _METRICS_MIGRATION_COLUMNS = {
     "brand_mention_rate": "REAL",
 }
 
-_RUNS_MIGRATION_COLUMNS = {"group_id": "TEXT"}
+_RUNS_MIGRATION_COLUMNS = {
+    "group_id": "TEXT",
+    "question_set": "TEXT",
+    "question_set_hash": "TEXT",
+}
+
+QUESTION_SET_HASH_LEN = 16
+
+
+def _normalize_question_field(value: str) -> str:
+    return unicodedata.normalize("NFC", str(value).strip())
+
+
+def question_set_digest(rows: Iterable[tuple[str, str]]) -> str:
+    """Identity of a question set: 16 hex chars over its `(query, lens)` pairs.
+
+    The pairs are normalized (`.strip()` + NFC), joined as `query\\tlens` lines,
+    sorted and newline-joined; the digest is the first 16 lowercase hex chars of
+    the SHA-256 of that UTF-8 text. Order of the input is irrelevant — the same
+    question set always hashes the same, whatever the CSV row order.
+    """
+    lines = sorted(
+        f"{_normalize_question_field(query)}\t{_normalize_question_field(lens)}"
+        for query, lens in rows
+    )
+    payload = "\n".join(lines).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:QUESTION_SET_HASH_LEN]
+
+
+def _identity_value(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _row_value(row: Any, key: str) -> Any:
+    if row is None:
+        return None
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return getattr(row, key, None)
+
+
+def run_identity(run_row: Any) -> tuple[Optional[str], Optional[str]]:
+    """Read `(question_set, question_set_hash)` off a `runs` row.
+
+    Accepts anything key-addressable (`sqlite3.Row`, `dict`) or attribute-shaped;
+    a missing column reads as `None` = identity unknown (every legacy run).
+    """
+    return (
+        _identity_value(_row_value(run_row, "question_set")),
+        _identity_value(_row_value(run_row, "question_set_hash")),
+    )
+
+
+def comparable(
+    a_label: Optional[str],
+    a_hash: Optional[str],
+    b_label: Optional[str],
+    b_hash: Optional[str],
+) -> str:
+    """Do two runs measure the same question set? `same` | `different` | `unknown`.
+
+    Hashes decide when both sides have one; otherwise two labels decide; anything
+    else is `unknown`, which callers MUST treat as today's behavior (legacy runs
+    carry no identity and must keep working). Only a `different` pair is refused.
+    """
+    a_label, a_hash = _identity_value(a_label), _identity_value(a_hash)
+    b_label, b_hash = _identity_value(b_label), _identity_value(b_hash)
+
+    if a_hash is not None and b_hash is not None:
+        return "same" if a_hash == b_hash else "different"
+    if a_hash is None and b_hash is None:
+        if a_label is not None and b_label is not None:
+            return "same" if a_label == b_label else "different"
+    return "unknown"
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -81,7 +160,9 @@ def init_db(conn: sqlite3.Connection) -> None:
             n_queries INTEGER NOT NULL DEFAULT 0,
             n_ok      INTEGER NOT NULL DEFAULT 0,
             n_failed  INTEGER NOT NULL DEFAULT 0,
-            group_id  TEXT
+            group_id  TEXT,
+            question_set      TEXT,
+            question_set_hash TEXT
         );
 
         CREATE TABLE IF NOT EXISTS results (
@@ -172,6 +253,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     _ensure_columns(conn, "metrics", _METRICS_MIGRATION_COLUMNS)
     _ensure_columns(conn, "runs", _RUNS_MIGRATION_COLUMNS)
     _ensure_results_unique_index(conn)
+    backfill_question_set_identity(conn)
     conn.commit()
 
 
@@ -238,14 +320,105 @@ def create_run(
     brand_id: int,
     engine: str,
     group_id: Optional[str] = None,
+    question_set: Optional[str] = None,
 ) -> int:
+    """Open a run. `question_set` is the human label of the set being measured.
+
+    The matching `question_set_hash` is NOT written here — no rows exist yet; it
+    is derived from what was actually captured, at finalize
+    (`set_run_question_set_hash`).
+    """
     cur = conn.execute(
-        "INSERT INTO runs (brand_id, engine, run_at, status, group_id) "
-        "VALUES (?, ?, ?, 'running', ?)",
-        (brand_id, engine, _utcnow_iso(), group_id),
+        "INSERT INTO runs (brand_id, engine, run_at, status, group_id, question_set) "
+        "VALUES (?, ?, ?, 'running', ?, ?)",
+        (brand_id, engine, _utcnow_iso(), group_id, question_set),
     )
     conn.commit()
     return int(cur.lastrowid)
+
+
+def set_run_question_set_hash(
+    conn: sqlite3.Connection, run_id: int, question_set_hash: Optional[str]
+) -> None:
+    conn.execute(
+        "UPDATE runs SET question_set_hash = ? WHERE id = ?",
+        (question_set_hash, run_id),
+    )
+    conn.commit()
+
+
+_KNOWN_QUESTION_SET_LABELS = (
+    ("astramed_questions.csv", "v1 · 08.08"),
+    ("astramed_questions_v2.csv", "v2 · Вордстат 17.08"),
+    ("astramed_questions_v3.csv", "v3 · разговорные 18.08"),
+    ("astramed_questions_v4.csv", "v4 · долголетие 03.09"),
+    ("core/astramed/astramed_questions_v4.csv", "v4 · долголетие 03.09"),
+)
+
+
+def _csv_question_keys(path: Path) -> list[tuple[str, str]]:
+    import csv
+
+    with path.open(newline="", encoding="utf-8-sig") as fh:
+        reader = csv.DictReader(fh)
+        keys: list[tuple[str, str]] = []
+        for row in reader:
+            query = (row.get("query") or "").strip()
+            lens = (row.get("lens") or "").strip()
+            if query and lens:
+                keys.append((query, lens))
+        return keys
+
+
+def _known_question_set_labels(repo_root: Optional[Path] = None) -> dict[str, str]:
+    root = repo_root or Path(__file__).resolve().parent.parent
+    out: dict[str, str] = {}
+    for rel, label in _KNOWN_QUESTION_SET_LABELS:
+        path = root / rel
+        if not path.is_file():
+            continue
+        try:
+            keys = _csv_question_keys(path)
+        except OSError:
+            continue
+        if keys:
+            out[question_set_digest(keys)] = label
+    return out
+
+
+def backfill_question_set_identity(
+    conn: sqlite3.Connection, repo_root: Optional[Path] = None
+) -> int:
+    """Stamp hash (and a known label) on runs that captured rows but have no identity.
+
+    Idempotent. Runs with zero result rows stay unlabeled. Returns how many
+    rows were updated.
+    """
+    if "question_set_hash" not in _table_columns(conn, "runs"):
+        return 0
+    labels = _known_question_set_labels(repo_root)
+    rows = conn.execute(
+        "SELECT id FROM runs WHERE status = 'done' "
+        "AND (question_set_hash IS NULL OR question_set_hash = '')"
+    ).fetchall()
+    updated = 0
+    for row in rows:
+        run_id = int(row["id"])
+        keys = get_captured_keys(conn, run_id)
+        if not keys:
+            continue
+        digest = question_set_digest(keys)
+        label = labels.get(digest)
+        conn.execute(
+            "UPDATE runs SET question_set_hash = ?, "
+            "question_set = COALESCE(NULLIF(question_set, ''), ?) "
+            "WHERE id = ?",
+            (digest, label, run_id),
+        )
+        updated += 1
+    if updated:
+        conn.commit()
+    return updated
 
 
 def update_run_counts(

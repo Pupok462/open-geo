@@ -150,7 +150,7 @@ def test_runs_newest_first_includes_running(make_client, dash_fixture_db_path):
     assert runs[0]["status"] == "running"
     expected = {"run_id", "run_at", "status", "engine", "n_queries", "n_ok", "n_failed"}
     for r in runs:
-        assert set(r.keys()) == expected
+        assert expected <= set(r.keys())
 
 
 def test_runs_engine_filter(make_client, dash_fixture_db_path):
@@ -849,7 +849,7 @@ def test_metrics_today_run_payload_fields(make_client, dash_fixture_db_path):
         "/api/metrics", params={"brand_id": example, "engine": ENGINE, "period": "today"}
     ).json()
     run = body["run"]
-    assert set(run) == {"run_id", "run_at", "status", "n_queries"}
+    assert {"run_id", "run_at", "status", "n_queries"} <= set(run)
     assert run["status"] == "done"
     assert set(body["prev_run"]) == {"run_id", "run_at", "status"}
 
@@ -1174,6 +1174,7 @@ def test_report_success_streams_pdf_with_argv_contract(make_client, dash_fixture
     assert argv[argv.index("--engine") + 1] == ENGINE
     assert argv[argv.index("--period") + 1] == "today"
     assert argv[argv.index("--db") + 1] == str(Path(dash_fixture_db_path))
+    assert "--question-set-hash" not in argv
     out_arg = argv[argv.index("--out") + 1]
     assert out_arg.endswith(".pdf")
     assert captured["timeout"] == 180
@@ -1197,6 +1198,40 @@ def test_report_returncode_zero_but_no_file_returns_500(make_client, dash_fixtur
     assert payload["status"] == "error"
     assert payload["message"] == "report.generate failed"
     assert "report.generate" in payload["command"]
+
+
+def test_report_passes_question_set_hash_to_cli(
+    make_client, dash_fixture_db_path, monkeypatch
+):
+    captured: dict = {}
+
+    class _Proc:
+        returncode = 0
+        stderr = ""
+        stdout = ""
+
+    def _fake_run(argv, **kwargs):
+        captured["argv"] = list(argv)
+        out = argv[argv.index("--out") + 1]
+        Path(out).write_bytes(b"%PDF-1.4\n% fake pdf for test\n")
+        return _Proc()
+
+    monkeypatch.setattr(api.subprocess, "run", _fake_run)
+    client = make_client(dash_fixture_db_path)
+    example = _example_id(client)
+    digest = "a" * 16
+    resp = client.post(
+        "/api/report",
+        params={
+            "brand_id": example,
+            "engine": ENGINE,
+            "period": "all",
+            "question_set_hash": digest,
+        },
+    )
+    assert resp.status_code == 200
+    argv = captured["argv"]
+    assert argv[argv.index("--question-set-hash") + 1] == digest
 
 
 def test_report_default_period_is_all(make_client, dash_fixture_db_path, monkeypatch):
@@ -1854,8 +1889,8 @@ def _add_group_runs(db_path: str, engine: str = "google") -> int:
             conn.execute("SELECT id FROM brands WHERE name = 'Example'").fetchone()["id"]
         )
         specs = [
-            ("2026-09-01T10:00:00+00:00", 10, 8, 4, 2, 2.0, 1.0, 6),
-            ("2026-09-01T12:00:00+00:00", 10, 10, 6, 4, 3.0, 2.0, 8),
+            ("2026-12-15T10:00:00+00:00", 10, 8, 4, 2, 2.0, 1.0, 6),
+            ("2026-12-15T12:00:00+00:00", 10, 10, 6, 4, 3.0, 2.0, 8),
         ]
         for run_at, nq, nov, nis, nc, sp, cp, nm in specs:
             cur = conn.execute(
@@ -1961,12 +1996,18 @@ def test_timeseries_week_bucket_rolls_up_iso_weeks(make_client, dash_fixture_db_
         assert p["run_id"] is None
         assert p["week"] and p["week"].count("-W") == 1
         assert p["n_runs"] >= 1
-    total_runs = sum(p["n_runs"] for p in weeks)
-    assert total_runs == len(run_points)
-    both = next(p for p in weeks if p["n_runs"] == 2)
+    assert sum(p["n_runs"] for p in weeks) == len(run_points)
+    assert sum(p["n_queries"] for p in weeks) == sum(
+        p["n_queries"] for p in run_points
+    )
+    both = next(p for p in weeks if p["week"] == "2026-W51")
+    assert both["n_runs"] == 2
     assert both["n_queries"] == 20
+    assert both["n_overviews"] == 18
     assert both["overview_coverage"] == pytest.approx(18 / 20)
     assert both["avg_source_position"] == pytest.approx((2.0 * 4 + 3.0 * 6) / 10)
+    assert both["avg_citation_position"] == pytest.approx((1.0 * 2 + 2.0 * 4) / 6)
+    assert both["brand_mention_rate"] == pytest.approx(14 / 18)
 
 
 def test_timeseries_invalid_bucket_400(make_client, dash_fixture_db_path):
@@ -2079,3 +2120,111 @@ def test_metrics_period_all_carries_the_group_key(make_client, dash_fixture_db_p
     ).json()
     assert "group" in payload
     assert payload["group"] is None
+
+
+def _capture_row(query: str, lens: str) -> dict:
+    return {
+        "query": query,
+        "lens": lens,
+        "engine": ENGINE,
+        "captured_at": "2026-09-03T10:00:00Z",
+        "overview_present": True,
+        "answer_text_md": "ok",
+        "sources": [],
+        "citations": [],
+        "target_source_ranks": [],
+        "target_citation_ranks": [],
+        "brand_in_answer_text": False,
+        "sentiment": None,
+        "screenshot_path": None,
+    }
+
+
+def test_question_sets_keep_two_csvs_apart(make_client, tmp_path):
+    from pipeline.aggregate import aggregate_run
+    from pipeline.db import (
+        create_run,
+        get_conn,
+        get_or_create_brand,
+        init_db,
+        question_set_digest,
+        set_run_question_set_hash,
+        update_run_counts,
+    )
+    from pipeline.ingest import ingest_batch
+
+    db = tmp_path / "qs.db"
+    conn = get_conn(str(db))
+    try:
+        init_db(conn)
+        brand_id = get_or_create_brand(conn, "Split", "split.example")
+        set_a = [("alpha query", "general")]
+        set_b = [("beta query", "general")]
+        hash_a = question_set_digest(set_a)
+        hash_b = question_set_digest(set_b)
+        run_a = create_run(conn, brand_id, ENGINE, question_set="set-a")
+        ingest_batch(conn, run_a, [_capture_row("alpha query", "general")])
+        update_run_counts(conn, run_a, n_queries=1, n_ok=1, n_failed=0, status="done")
+        set_run_question_set_hash(conn, run_a, hash_a)
+        aggregate_run(conn, run_a)
+        run_b = create_run(conn, brand_id, ENGINE, question_set="set-b")
+        ingest_batch(conn, run_b, [_capture_row("beta query", "general")])
+        update_run_counts(conn, run_b, n_queries=1, n_ok=1, n_failed=0, status="done")
+        set_run_question_set_hash(conn, run_b, hash_b)
+        aggregate_run(conn, run_b)
+    finally:
+        conn.close()
+
+    client = make_client(db)
+    brands = client.get("/api/brands").json()
+    bid = next(b["id"] for b in brands if b["name"] == "Split")
+    sets = client.get(
+        "/api/question_sets", params={"brand_id": bid, "engine": ENGINE}
+    ).json()
+    hashes = {row["question_set_hash"] for row in sets}
+    assert hashes == {hash_a, hash_b}
+
+    latest = client.get(
+        "/api/metrics",
+        params={"brand_id": bid, "engine": ENGINE, "period": "today"},
+    ).json()
+    assert latest["run"]["run_id"] == run_b
+
+    older = client.get(
+        "/api/metrics",
+        params={
+            "brand_id": bid,
+            "engine": ENGINE,
+            "period": "today",
+            "question_set_hash": hash_a,
+        },
+    ).json()
+    assert older["run"]["run_id"] == run_a
+    all_row = next(m for m in older["metrics"] if m["lens"] == "all")
+    assert all_row["n_queries"] == 1
+    assert all_row["overview_coverage_delta"] is None
+
+    blended = client.get(
+        "/api/metrics",
+        params={
+            "brand_id": bid,
+            "engine": ENGINE,
+            "period": "all",
+            "question_set_hash": hash_a,
+        },
+    ).json()
+    assert blended["n_runs"] == 1
+    blended_all = next(m for m in blended["metrics"] if m["lens"] == "all")
+    assert blended_all["n_queries"] == 1
+
+    missing = client.get(
+        "/api/metrics",
+        params={
+            "brand_id": bid,
+            "engine": ENGINE,
+            "period": "all",
+            "question_set_hash": "0" * 16,
+        },
+    ).json()
+    assert missing["n_runs"] == 0
+    assert missing["metrics"] == []

@@ -148,18 +148,19 @@ Perplexity 的回答中——不走引擎 API，也不做无头抓取。对每�
 
 2. **用自然语言请求：**
 
-   > 使用 `examples/questions.csv` 在 Google 上测量 `example.com`（品牌 "Example"），
+   > 使用 `examples/questions.csv` 在 Google 上测量 `github.com/Pupok462/open-geo`（品牌 "open-geo"），
    > 返回数据产物，不要启动仪表盘。
 
 3. **或者显式调用技能：**
 
    ```bash
-   /open-geo:open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3
+   /open-geo:open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3
    ```
 
-> **`examples/questions.csv` 只是占位样例**——一个虚构品牌的问题集，让首次运行开箱即用。正式判读前，请换成
-> **你自己的**查询：问题集是核心输入，它决定*测量什么*，报告的质量取决于你所提问题的质量。格式与如何挑选见
-> FAQ「我需要什么输入？」。
+> **`examples/questions.csv` 是真实问题集，不是占位样例**——15 个关于 open-geo 自身的问题（5 个 `general` /
+> 5 个 `branded` / 5 个 `comparative`），每一条都基于真实的自动补全信号或真实的 Google 抓取，因此首次运行即可
+> 测到真实结果。正式判读前，请换成**你自己的**查询：问题集是核心输入，它决定*测量什么*，报告的质量取决于你所提
+> 问题的质量。格式与如何挑选见 FAQ「我需要什么输入？」。
 
 > 插件技能带命名空间：通过插件安装后命令为 **`/open-geo:open-geo`**（从仓库克隆中使用时仍是
 > `/open-geo`）。首次运行会自动准备 Python 运行时。之后可用 `/plugin update open-geo` 获取新版本。
@@ -168,7 +169,7 @@ Perplexity 的回答中——不走引擎 API，也不做无头抓取。对每�
 观察漂移——例如做一次每周的判读：
 
 ```bash
-/loop 1w /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
+/loop 1w /open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3 --output both
 ```
 
 > 唯一一件 Claude 无法替你做的事：连接 **Claude-in-Chrome** 扩展，并把浏览器

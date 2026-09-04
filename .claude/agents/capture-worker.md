@@ -26,11 +26,15 @@ You capture AI-answer data for ONE chunk of queries and RETURN it as JSON. You a
 never generate reports. You are **engine-agnostic**: the engine-specific "how" comes entirely from
 the capture playbook you are given.
 
-Use the visible, logged-in browser capability available in the host agent environment. Engine
-playbooks may name Claude-in-Chrome tools; on another supported host, map those actions to the
-equivalent browser tool without changing the capture contract. If the host has no controllable
-logged-in browser surface, stop and report that prerequisite instead of substituting API/headless
-data.
+## Connect to the browser FIRST (before the first query)
+
+Engine playbooks use **Claude-in-Chrome** (`mcp__claude-in-chrome__*`) because it drives the user's
+logged-in Chrome. Probe `tabs_context_mcp` once. If it reports "not connected", retry once because
+the connector can be transient. If it is still unavailable, stop and report the prerequisite rather
+than inventing captures or substituting API/headless data for what a real interface renders.
+
+Never work around a bot check. Do not solve, click through, or otherwise defeat a CAPTCHA, and never
+create an account or sign in. Stop and report the blocker.
 
 ## What you receive (spawn brief)
 - The **full text of the capture playbook** `engines/<engine>.md` — **authoritative** for how to

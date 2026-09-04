@@ -7,6 +7,7 @@ import {
   type EngineMatrixResponse,
   type MetricRow,
   type MetricsResponse,
+  type QuestionSet,
   type ResultsResponse,
   type TimeseriesResponse,
 } from "./lib/api";
@@ -42,6 +43,8 @@ function Dashboard() {
   const [brandId, setBrandId] = useState<number | "">("");
   const [engines, setEngines] = useState<string[]>([]);
   const [engine, setEngine] = useState<string>("");
+  const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
+  const [questionSetHash, setQuestionSetHash] = useState<string>("");
   const [period, setPeriod] = useState<"today" | "all">("today");
   const [lens, setLens] = useState<string>("all");
   const [bucket, setBucket] = useState<"run" | "week">("run");
@@ -74,6 +77,8 @@ function Dashboard() {
   useEffect(() => {
     if (brandId === "") return;
     setEngine("");
+    setQuestionSets([]);
+    setQuestionSetHash("");
     api
       .engines(brandId)
       .then((es) => {
@@ -82,6 +87,21 @@ function Dashboard() {
       })
       .catch((e) => setError(String(e)));
   }, [brandId]);
+
+  useEffect(() => {
+    if (brandId === "" || !engine || engine === ALL_ENGINES) {
+      setQuestionSets([]);
+      setQuestionSetHash("");
+      return;
+    }
+    api
+      .questionSets(brandId, engine)
+      .then((sets) => {
+        setQuestionSets(sets);
+        setQuestionSetHash(sets[0]?.question_set_hash ?? "");
+      })
+      .catch((e) => setError(String(e)));
+  }, [brandId, engine]);
 
   const loadAll = useCallback(async () => {
     if (brandId === "" || !engine) return;
@@ -99,11 +119,12 @@ function Dashboard() {
         return;
       }
       setMatrix(null);
+      const hash = questionSetHash || undefined;
       const [r, m, ts, comp, aud] = await Promise.all([
-        api.runs(brandId, engine),
-        api.metrics(brandId, engine, period),
-        api.timeseries(brandId, engine, lens, bucket),
-        api.competitors(brandId, engine, period, lens, 15, competitorSort),
+        api.runs(brandId, engine, hash),
+        api.metrics(brandId, engine, period, undefined, hash),
+        api.timeseries(brandId, engine, lens, bucket, hash),
+        api.competitors(brandId, engine, period, lens, 15, competitorSort, hash),
         api.audit(brandId, engine),
       ]);
       setMetrics(m);
@@ -124,7 +145,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [brandId, engine, period, lens, bucket, competitorSort]);
+  }, [brandId, engine, period, lens, bucket, competitorSort, questionSetHash]);
 
   useEffect(() => {
     void loadAll();
@@ -147,7 +168,9 @@ function Dashboard() {
     setError(null);
     try {
       const engineParam = engine === ALL_ENGINES ? "all" : engine;
-      const res = await fetch(api.reportUrl(brandId, engineParam, period, lang), {
+      const res = await fetch(
+        api.reportUrl(brandId, engineParam, period, lang, questionSetHash || undefined),
+        {
         method: "POST",
       });
       if (!res.ok) {
@@ -223,6 +246,17 @@ function Dashboard() {
           onChange={setEngine}
           disabled={engines.length === 0}
         />
+        {questionSets.length > 0 && engine !== ALL_ENGINES && (
+          <FieldSelect
+            label={t("dashboard.control_dataset")}
+            value={questionSetHash}
+            options={questionSets.map((s) => ({
+              value: s.question_set_hash,
+              label: s.question_set,
+            }))}
+            onChange={setQuestionSetHash}
+          />
+        )}
         <Segmented<"today" | "all">
           label={t("dashboard.control_period")}
           value={period}

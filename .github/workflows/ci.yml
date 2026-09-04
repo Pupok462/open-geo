@@ -85,6 +85,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build production frontend
+        run: npm run build
+
       - name: Run tests with v8 coverage (fail under 95%)
         run: |
           set -o pipefail

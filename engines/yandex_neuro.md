@@ -509,7 +509,7 @@ Not for quota reasons (that is Perplexity) — for **cross-worker contamination 
   «вы интересовались превентивной медициной и нутрициологией» — drawn from a *different* worker's
   queries. Parallel chunks on one account are therefore **not independent samples**.
 - **Only the window's active tab receives key/mouse input.** With workers competing, `type` silently
-  dropped spaces (`ирина арбатская` → `иринаарбатская`), `cmd+a` intermittently failed, and one tab
+  dropped spaces (`example person` → `exampleperson`), `cmd+a` intermittently failed, and one tab
   received no mouse input at all for a stretch.
 
 ### Typing is the weak link — two verified workarounds

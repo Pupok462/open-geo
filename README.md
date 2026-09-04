@@ -165,19 +165,22 @@ No manual clone, `setup.sh`, Python command, API server, or dashboard launch is 
 
 2. **Ask naturally:**
 
-   > Measure `example.com` (brand "Example") on Google using `examples/questions.csv` and return
+   > Measure `github.com/Pupok462/open-geo` (brand "open-geo") on Google using `examples/questions.csv`
+   > and return
    > the data artifact. Do not start the dashboard.
 
 3. **Or invoke the skill explicitly:**
 
    ```bash
-   /open-geo:open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3
+   /open-geo:open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3
    ```
 
-> **`examples/questions.csv` is a placeholder** — a fictional brand's question set, there so the
-> first run works out of the box. For a real read, swap in **your own** queries: the question set is
-> the core input — it decides *what* gets measured, and the report is only as good as the questions
-> you ask. Format and how to choose them: [What input do I need?](#what-input-do-i-need).
+> **`examples/questions.csv` is a real set, not a filler** — 15 questions about open-geo itself
+> (5 `general` / 5 `branded` / 5 `comparative`), each grounded in a live autocomplete signal or an
+> actual Google capture, so the first run measures something true out of the box. For your own read,
+> swap in **your own** queries: the question set is the core input — it decides *what* gets measured,
+> and the report is only as good as the questions you ask. Format and how to choose them:
+> [What input do I need?](#what-input-do-i-need).
 
 > Plugin skills are namespaced, so the plugin-installed command is **`/open-geo:open-geo`**
 > (from a repo clone it stays plain `/open-geo`). The first run prepares its Python runtime
@@ -187,7 +190,7 @@ No manual clone, `setup.sh`, Python command, API server, or dashboard launch is 
 interval and watch the drift — e.g. a weekly read:
 
 ```bash
-/loop 1w /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
+/loop 1w /open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3 --output both
 ```
 
 > The one thing Claude can't do for you: connect the **Claude-in-Chrome** extension and log the
@@ -217,6 +220,25 @@ capture → metrics → artifact and hands the versioned JSON to you or the call
 | `--lang` | UI language of the deliverables — `en` (default) \| `ru` \| `zh` \| `ar`. |
 | `--force` | continue even when the pre-run GEO-audit gate returns `blocked` (it warns loudly instead of stopping). |
 | `--repeat R` | run the same question set **R** independent times under one group tag; the dashboard then shows the mean with a min–max spread instead of run-over-run deltas. Default `1`. |
+
+### Don't have the questions yet — `/semantic-core`
+
+A second skill builds the question set from **measured demand** and hands it to the run:
+
+```
+/semantic-core <domain> --brand "<name>" [--geo ru|us|ww|<cc>[,<cc>]] [--query-lang ru|en]
+               [--n 36] [--run <engine>] [--n-worker N] [--no-run]
+```
+
+It asks the search platforms' own APIs how much each root phrase is really searched — **Yandex
+Wordstat** for RU/CIS, **Google Ads Keyword Planner** and **Bing Webmaster** worldwide, plus
+Google/Yandex/Bing/DuckDuckGo autocomplete everywhere — clusters the demand by intent, writes the
+assistant-style questions each cluster justifies, and commits `core.json` + `questions.csv` before
+launching `/open-geo` on them. Every figure carries its scope (region, period, pull date) into the
+question's provenance, and a cluster nobody measured ships nothing. No browser, no manual keyword
+tool, no paid data vendor — the credentials are free and optional
+(`.venv/bin/python -m demand.doctor` tells you what is live and how to get the rest). See
+[`demand/README.md`](demand/README.md).
 
 What it does, end to end: creates a run → splits the queries across **parallel** capture workers
 (each drives the engine in your logged-in Chrome and returns one validated record per query) →
@@ -441,9 +463,22 @@ reputation, comparisons), a skeptic pass cuts anything invented or mislabeled, a
 observable signal), and fully **opt-in** — your own hand-made CSV is always a first-class input. The
 process is documented in [`harvest/METHODOLOGY.md`](harvest/METHODOLOGY.md).
 
+How much a phrase is searched is **measured through the platforms' own APIs**, not guessed and not
+read off a browser tab: Wordstat for Russian, Google Ads Keyword Planner / Bing Webmaster
+worldwide, autocomplete everywhere as the credential-free floor. Each figure travels with its scope
+(region, period, pull date) into the question's `signal`, so it can be re-pulled. When a locale has
+no configured ruler, the line is marked *presence only* — nothing is ever invented to fill the gap.
+For a full demand-first build (clusters, volumes, then the run) use **`/semantic-core`**.
+
 ### Do I need any paid API keys?
-No external data API and no paid keys. You need **Claude Code**, the **Claude-in-Chrome** extension
+No paid keys and no data vendor. You need **Claude Code**, the **Claude-in-Chrome** extension
 connected, and a **browser already logged in** to the engine / market you want to track.
+
+The keyword-demand side (`/semantic-core`, `demand/`) uses **free** APIs, all optional: a Yandex
+Wordstat API key for RU/CIS volume, a Google Ads developer token and/or a Bing Webmaster API key for
+worldwide volume. With none of them the core still builds on public autocomplete — real phrasings,
+explicitly without volume. `.venv/bin/python -m demand.doctor --geo <cc>` prints what is configured
+and the exact steps for what is not.
 
 ### Is there a cloud service or an account?
 No. open-geo is a local tool: every run is stored in a local **SQLite (WAL) database** at

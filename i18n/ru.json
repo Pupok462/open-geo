@@ -65,6 +65,7 @@
   "dashboard": {
     "control_brand": "Бренд",
     "control_engine": "Движок",
+    "control_dataset": "Набор запросов",
     "control_period": "Период",
     "control_lens": "Линза",
     "language_label": "Язык",

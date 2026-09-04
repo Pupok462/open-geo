@@ -1,31 +1,56 @@
 # Auto-generated. DO NOT EDIT MANUALLY.
 # Tracks the state of all config files for team conflict resolution.
 
-generated_at: 2026-08-18T21:52:47.938Z
+generated_at: 2026-09-04T14:10:29.778Z
 generated_by: vladimir
 lib_version: 0.32.0
 checksums:
-  agents/capture-worker.md: sha256:685a7558264ba9cc01e324010bcb1d7bbaf5072c3b6a2f5ccb02e9c1f3ab4c6a
-  agents/harvest-skeptic.md: sha256:aca9618837667087139341f8e23e9d2ef31460f69f29d444b5cce3ea77b94865
-  agents/harvest-worker.md: sha256:fed1992b17c83638c7ee237163c9988ae4d0312d3fd1d613f66ad1b89c667b0f
-  skills/open-geo/SKILL.md: sha256:fa8dd1a0718aaab2d314f32c036757603dfea2704ec33eb984cb7167c8b63f90
+  agents/capture-worker.md: sha256:d0b556e4e6ec200f9e0eca90581f313a152f82f23c86b47765dac0a7f02f87ce
+  agents/core-worker.md: sha256:1813032e95278d3b600f6c085790e59d570f7814d026580183958bcfe67c119b
+  agents/harvest-skeptic.md: sha256:ed5dac7d8f21a78f3d69329d29188a498f355ef74bae9981d2f765f6406c8069
+  agents/harvest-worker.md: sha256:d8efabcffac193966d33feefb12b4f958744b362f375caac17abec8debeda168
+  skills/open-geo/SKILL.md: sha256:8bda9528d9b49d84a86c0aaadd2a872f4da8c0a2e5d24854a57b2e640e8425f6
+  skills/open-geo/references/deliverables.md: sha256:839c51cab91b4fae16647f75ba485c356bfe157c5a04e7ffac21ecd528479bfc
+  skills/open-geo/references/harvest.md: sha256:ef4ad7cb38cf120c5c63596c63858d2073590b666a990c08d5308acaf4a5b394
+  skills/open-geo/references/metrics.md: sha256:eec0c8f307617531f9720d97370af679a50a264b67f0dd7758f569acfff1e3d1
+  skills/semantic-core/SKILL.md: sha256:3797fce0587b14273efd19489dc62c6ad9cf4e47e3dbc8e14f3485539665421c
 extends: {}
 packs: {}
 outputs:
-  .claude/agents/capture-worker.md: sha256:edb3ee0a2c096021a95846ef8f9d6523abde8aa1f78e3d412455119cd15c9a21
-  .claude/agents/harvest-skeptic.md: sha256:cdaaa3ecea4cd0b26002df61069e1332846a39f48980c21073ed52385eecb273
-  .claude/agents/harvest-worker.md: sha256:82bd44e5090f2592256d4361b5ed90fdf6aef3c8374fe3cf5f8314a953640535
-  .codex/agents/capture-worker.toml: sha256:7d0c26855ff6f6312395483567aff70da4cdbfb2f7ddad2b90720ddaace70efb
-  .codex/agents/harvest-skeptic.toml: sha256:307194f83a80ef11fd0576847c02a0717a56d6a712b26755a0ddca3835ce1af5
-  .codex/agents/harvest-worker.toml: sha256:8016dc25ea0b9479f802964b3cf45a9c1f7eafdfb647952ecf7adcc7da5cdec7
-  .cursor/agents/capture-worker.md: sha256:b1be2897a75991a82da6ed34ce260d74f08c80a9fba804a036af71ce7fb46887
-  .cursor/agents/harvest-skeptic.md: sha256:aca9618837667087139341f8e23e9d2ef31460f69f29d444b5cce3ea77b94865
-  .cursor/agents/harvest-worker.md: sha256:fed1992b17c83638c7ee237163c9988ae4d0312d3fd1d613f66ad1b89c667b0f
-  .gemini/agents/capture-worker.md: sha256:1777a93ee44890edecf5e36b9e996f16ce54364a871655563803b5f5ceebee6a
-  .gemini/agents/harvest-skeptic.md: sha256:911388a85bedef509c8ec013afefdc87dcb98a54cce045f1540eee6814c88142
-  .gemini/agents/harvest-worker.md: sha256:dffa1110e5e944feb4699662d61ddb8a0696eec40218d121a526eac94bf14112
-  .claude/skills/open-geo/SKILL.md: sha256:cddde43858cad62f7a52885b61402576791c53b69eb171f2fa9655110032a27a
-  .agents/skills/open-geo/SKILL.md: sha256:6ce6f752c4a1a390a42d084acc7d2fe5c553bf4bc67ab8db3cbc28b330698377
-  .cursor/skills/open-geo/SKILL.md: sha256:6a4cc0027a95793cbd8916419841a6dc4372fde62c779f73d356f9b47388a251
-  .gemini/skills/open-geo/SKILL.md: sha256:6a4cc0027a95793cbd8916419841a6dc4372fde62c779f73d356f9b47388a251
+  .claude/agents/capture-worker.md: sha256:79751e66bcde2ddc5b6fd8fec7a9fba1fef8cca546ec0c80d8d4335b09a6bf46
+  .claude/agents/core-worker.md: sha256:b3927873091320b396d97b78675c0e7254700cc224ab3fe012c008d137556aef
+  .claude/agents/harvest-skeptic.md: sha256:8a2b21871eb5218f1ac64b9e08a944529c94ae8b904598d77c6c8666f869f4a1
+  .claude/agents/harvest-worker.md: sha256:c38fa1108753742dfe06b7b60dd260ac69881a1fa712476b3690d72dfa822fee
+  .codex/agents/capture-worker.toml: sha256:fcfac7ba8edd8f8e3aafe6e66ae33f488888d828d2a97eea252fd71e383bef80
+  .codex/agents/core-worker.toml: sha256:2b06c51523a71ce336d9e90f2c0a6b8c04205b2aa45238a1df0eee7ad977fdcc
+  .codex/agents/harvest-skeptic.toml: sha256:3a67ddac939ebfeebcf9647859e862209aee432a4a4e4cc2f4bc4f9048f5fa8f
+  .codex/agents/harvest-worker.toml: sha256:33856a518816a8b0174bd25db2eecdcdcc750957c61696a38fccf16180710ca6
+  .cursor/agents/capture-worker.md: sha256:8f61479f5dd0b600f61ffa44a73a0360bd00137d04c01f8b99561b86499c5242
+  .cursor/agents/core-worker.md: sha256:86f3be2105f1f2bb833dc2b6543fecefc06dcf2eae827856d8c60403211e105a
+  .cursor/agents/harvest-skeptic.md: sha256:ed5dac7d8f21a78f3d69329d29188a498f355ef74bae9981d2f765f6406c8069
+  .cursor/agents/harvest-worker.md: sha256:7b0f4cccd7ee41baa68c0dfb073355106ebe5eb18288044c73a32beaded3dd8b
+  .gemini/agents/capture-worker.md: sha256:2096afa4253cdec960f50027481c4c36b81748945a9f2e3a0818d9c1ba30e7d3
+  .gemini/agents/core-worker.md: sha256:1fbb0a3f3043c99392afb4bd06736bb26aa4c020b15ee1929940efbef1baebae
+  .gemini/agents/harvest-skeptic.md: sha256:412f62d6a25366251e3f2a82e12bcce60d9b09f40ed89b78a011237d8ab7caa5
+  .gemini/agents/harvest-worker.md: sha256:5eb047fa37a9dfcf7b71458af9a995d8242defaea1c555961d02d00e1b1eb975
+  .claude/skills/open-geo/SKILL.md: sha256:2bb2d1cb0a747bfeabc8e2c089111362af726c3e080f74b3cb97d38bb315cdce
+  .claude/skills/open-geo/references/deliverables.md: sha256:839c51cab91b4fae16647f75ba485c356bfe157c5a04e7ffac21ecd528479bfc
+  .claude/skills/open-geo/references/harvest.md: sha256:5ccd0ed6e5fcb2598b41516b13632fdd90385b7ed56a27c83dd127dcfaec8670
+  .claude/skills/open-geo/references/metrics.md: sha256:eec0c8f307617531f9720d97370af679a50a264b67f0dd7758f569acfff1e3d1
+  .claude/skills/semantic-core/SKILL.md: sha256:a3ecf4a650030beb2a24338ac48fd1e3f0424da483c19dbd04b041e0e5dccbdc
+  .agents/skills/open-geo/SKILL.md: sha256:83e40c1ecffbd0f6c8458a1b643ba5493876b864fdd019fcdd728eacd970f1c0
+  .agents/skills/open-geo/references/deliverables.md: sha256:839c51cab91b4fae16647f75ba485c356bfe157c5a04e7ffac21ecd528479bfc
+  .agents/skills/open-geo/references/harvest.md: sha256:71d6c4613ade9c47287d2d85174182789c54449648da56b77204efeb0014a32e
+  .agents/skills/open-geo/references/metrics.md: sha256:eec0c8f307617531f9720d97370af679a50a264b67f0dd7758f569acfff1e3d1
+  .agents/skills/semantic-core/SKILL.md: sha256:aee8fac1e4f620ef61cfd135b9dcec2f87b84b3ea5c4bc90d550ef8300f2909a
+  .cursor/skills/open-geo/SKILL.md: sha256:ea4b938a23d527e009e23f8dbb7b9996de771d7a3c61e9fd6e31c02e23c26e25
+  .cursor/skills/open-geo/references/deliverables.md: sha256:839c51cab91b4fae16647f75ba485c356bfe157c5a04e7ffac21ecd528479bfc
+  .cursor/skills/open-geo/references/harvest.md: sha256:5ccd0ed6e5fcb2598b41516b13632fdd90385b7ed56a27c83dd127dcfaec8670
+  .cursor/skills/open-geo/references/metrics.md: sha256:eec0c8f307617531f9720d97370af679a50a264b67f0dd7758f569acfff1e3d1
+  .cursor/skills/semantic-core/SKILL.md: sha256:3e145532220ef3bbd542d4ceeac4640c905cf7b00140bad802f3a2ddd7e4ea3c
+  .gemini/skills/open-geo/SKILL.md: sha256:ea4b938a23d527e009e23f8dbb7b9996de771d7a3c61e9fd6e31c02e23c26e25
+  .gemini/skills/open-geo/references/deliverables.md: sha256:839c51cab91b4fae16647f75ba485c356bfe157c5a04e7ffac21ecd528479bfc
+  .gemini/skills/open-geo/references/harvest.md: sha256:5ccd0ed6e5fcb2598b41516b13632fdd90385b7ed56a27c83dd127dcfaec8670
+  .gemini/skills/open-geo/references/metrics.md: sha256:eec0c8f307617531f9720d97370af679a50a264b67f0dd7758f569acfff1e3d1
+  .gemini/skills/semantic-core/SKILL.md: sha256:3e145532220ef3bbd542d4ceeac4640c905cf7b00140bad802f3a2ddd7e4ea3c
   .gemini/settings.json: sha256:8c66e069201ec25354c644c88b683b285cfbee25f1c64d135ec50510c1cb1c0c

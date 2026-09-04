@@ -160,18 +160,20 @@
 
 2. **اطلب بلغة طبيعية:**
 
-   > قِس `example.com` (العلامة "Example") على Google باستخدام `examples/questions.csv`،
+   > قِس `github.com/Pupok462/open-geo` (العلامة "open-geo") على Google باستخدام `examples/questions.csv`،
    > وأعِد ملف البيانات من دون تشغيل لوحة المعلومات.
 
 3. **أو استدعِ المهارة صراحةً:**
 
    ```bash
-   /open-geo:open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3
+   /open-geo:open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3
    ```
 
-> **`examples/questions.csv` مجرّد عيّنة مبدئية** — مجموعة أسئلة لعلامة تجارية وهمية، موجودة ليعمل التشغيل
-> الأول مباشرةً. لقراءة حقيقية، استبدلها بـ**استعلاماتك أنت**: مجموعة الأسئلة هي المُدخَل الأساسي — فهي تحدّد
-> *ما الذي يُقاس*، والتقرير جيّد بقدر جودة الأسئلة التي تطرحها. الصيغة وكيفية اختيارها: انظر «ما المُدخَل الذي أحتاجه؟».
+> **`examples/questions.csv` مجموعة حقيقية وليست عيّنة مبدئية** — 15 سؤالًا عن open-geo نفسه
+> (5 `general` / 5 `branded` / 5 `comparative`)، كل سؤال مبنيّ على إشارة إكمال تلقائي حيّة أو على التقاط
+> فعليّ من Google، فيقيس التشغيل الأول شيئًا حقيقيًا مباشرةً. لقراءتك أنت، استبدلها بـ**استعلاماتك**:
+> مجموعة الأسئلة هي المُدخَل الأساسي — فهي تحدّد *ما الذي يُقاس*، والتقرير جيّد بقدر جودة الأسئلة التي
+> تطرحها. الصيغة وكيفية اختيارها: انظر «ما المُدخَل الذي أحتاجه؟».
 
 > مهارات الإضافات تحمل نطاق أسماء: الأمر المثبَّت عبر الإضافة هو **`/open-geo:open-geo`**
 > (ومن نسخة المستودع المستنسخة يبقى `/open-geo` كما هو). تُعِدّ الجولة الأولى بيئة Python
@@ -181,7 +183,7 @@
 فترات ومراقبة الانحراف — مثلًا قراءة أسبوعية:
 
 ```bash
-/loop 1w /open-geo examples/questions.csv google example.com --brand "Example" --n-worker 3 --output both
+/loop 1w /open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3 --output both
 ```
 
 > الأمر الوحيد الذي لا يستطيع Claude القيام به نيابةً عنك: توصيل إضافة **Claude-in-Chrome** وتسجيل دخول

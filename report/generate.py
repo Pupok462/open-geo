@@ -290,12 +290,22 @@ def _has_group_column(conn: sqlite3.Connection) -> bool:
     return "group_id" in cols
 
 
+def _has_question_set_column(conn: sqlite3.Connection) -> bool:
+    try:
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(runs)").fetchall()}
+    except sqlite3.OperationalError:
+        return False
+    return "question_set_hash" in cols
+
+
 def _aggregate_period_metrics(
     conn: sqlite3.Connection,
     brand_id: int,
     engine: str,
     run_ids: Optional[list[int]] = None,
 ) -> dict[str, LensMetrics]:
+    if run_ids == []:
+        return {}
     has_mentions = "n_brand_mentions" in _metrics_columns(conn)
     mention_select = (
         """,
@@ -521,23 +531,31 @@ def _load_results(conn: sqlite3.Connection, run_id: int) -> list[ResultRow]:
 
 
 def _load_competitors_period(
-    conn: sqlite3.Connection, brand_id: int, engine: str, lens: str = "all"
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    lens: str = "all",
+    run_ids: Optional[list[int]] = None,
 ) -> list[dict]:
+    if run_ids == []:
+        return []
+    sql = """
+        SELECT d.domain,
+               MAX(d.is_brand) AS is_brand,
+               SUM(d.appearances_sources) AS app_s,
+               SUM(d.appearances_citations) AS app_c,
+               SUM(d.sum_min_source_rank) AS sum_s,
+               SUM(d.sum_min_citation_rank) AS sum_c
+        FROM domain_stats d JOIN runs r ON r.id = d.run_id
+        WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND d.lens = ?
+    """
+    params: list[Any] = [brand_id, engine, lens]
+    if run_ids:
+        sql += f" AND d.run_id IN ({','.join('?' * len(run_ids))})"
+        params.extend(run_ids)
+    sql += " GROUP BY d.domain"
     try:
-        rows = conn.execute(
-            """
-            SELECT d.domain,
-                   MAX(d.is_brand) AS is_brand,
-                   SUM(d.appearances_sources) AS app_s,
-                   SUM(d.appearances_citations) AS app_c,
-                   SUM(d.sum_min_source_rank) AS sum_s,
-                   SUM(d.sum_min_citation_rank) AS sum_c
-            FROM domain_stats d JOIN runs r ON r.id = d.run_id
-            WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND d.lens = ?
-            GROUP BY d.domain
-            """,
-            (brand_id, engine, lens),
-        ).fetchall()
+        rows = conn.execute(sql, params).fetchall()
     except sqlite3.OperationalError as exc:
         if "no such table" in str(exc):
             return []
@@ -597,20 +615,24 @@ def _resolve_brand_id(conn: sqlite3.Connection, name: str, domain: str) -> Optio
 
 
 def _completed_runs(
-    conn: sqlite3.Connection, brand_id: int, engine: str
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    question_set_hash: Optional[str] = None,
 ) -> list[sqlite3.Row]:
-    rows = conn.execute(
-        """
+    sql = """
         SELECT r.id, r.run_at, r.status
         FROM runs r
         WHERE r.brand_id = ? AND r.engine = ?
           AND r.status = 'done'
           AND EXISTS (SELECT 1 FROM metrics m WHERE m.run_id = r.id)
-        ORDER BY r.run_at DESC, r.id DESC
-        """,
-        (brand_id, engine),
-    ).fetchall()
-    return rows
+    """
+    params: list[Any] = [brand_id, engine]
+    if question_set_hash and _has_question_set_column(conn):
+        sql += " AND r.question_set_hash = ?"
+        params.append(question_set_hash)
+    sql += " ORDER BY r.run_at DESC, r.id DESC"
+    return conn.execute(sql, params).fetchall()
 
 
 def _load_sentiments(
@@ -650,6 +672,7 @@ def load_report_data(
     domain: str,
     engine: str,
     period: str,
+    question_set_hash: Optional[str] = None,
 ) -> ReportData:
     brand_id = _resolve_brand_id(conn, brand_name, domain)
     if brand_id is None:
@@ -657,7 +680,7 @@ def load_report_data(
             f"brand not found: name={brand_name!r} domain={domain!r}"
         )
 
-    runs = _completed_runs(conn, brand_id, engine)
+    runs = _completed_runs(conn, brand_id, engine, question_set_hash)
     if not runs:
         raise ValueError(
             f"no completed runs with metrics for brand {brand_name!r} "
@@ -686,8 +709,11 @@ def load_report_data(
     n_repeats = 1
     spread: dict[str, tuple[float, float]] = {}
 
+    selected_run_ids = [int(r["id"]) for r in runs]
     if period == "all":
-        folded = _aggregate_period_metrics(conn, brand_id, engine)
+        folded = _aggregate_period_metrics(
+            conn, brand_id, engine, run_ids=selected_run_ids
+        )
         if folded:
             metrics = folded
         n_runs = len(runs)
@@ -706,7 +732,9 @@ def load_report_data(
             prev_metrics = {}
 
     if period == "all":
-        competitors = _load_competitors_period(conn, brand_id, engine, "all")[:15]
+        competitors = _load_competitors_period(
+            conn, brand_id, engine, "all", run_ids=selected_run_ids
+        )[:15]
         denom_metrics = metrics.get("all")
     else:
         competitors = get_domain_stats(conn, focus_id, "all")[:15]
@@ -3029,11 +3057,14 @@ def generate_report(
     period: str,
     out_path: str,
     lang: str = DEFAULT_LANG,
+    question_set_hash: Optional[str] = None,
 ) -> ReportData:
     conn = get_conn(db_path)
     try:
         init_db(conn)
-        data = load_report_data(conn, brand, domain, engine, period)
+        data = load_report_data(
+            conn, brand, domain, engine, period, question_set_hash
+        )
     finally:
         conn.close()
     build_pdf(data, out_path, lang=lang)
@@ -3182,6 +3213,7 @@ def generate_combined_report(
     period: str,
     out_path: str,
     lang: str = DEFAULT_LANG,
+    question_set_hash: Optional[str] = None,
 ) -> tuple[list[ReportData], list[tuple[str, str]]]:
     conn = get_conn(db_path)
     try:
@@ -3191,7 +3223,11 @@ def generate_combined_report(
         skipped: list[tuple[str, str]] = []
         for eng in engines:
             try:
-                datas.append(load_report_data(conn, brand, domain, eng, period))
+                datas.append(
+                    load_report_data(
+                        conn, brand, domain, eng, period, question_set_hash
+                    )
+                )
             except ValueError as exc:
                 skipped.append((eng, str(exc)))
     finally:
@@ -3238,6 +3274,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     parser.add_argument("--db", default="data/aeo.db", help="SQLite DB path (default: data/aeo.db).")
+    parser.add_argument(
+        "--question-set-hash",
+        help="Restrict the report to completed runs with this question-set hash.",
+    )
     args = parser.parse_args(argv)
 
     if bool(args.engine) == bool(args.engines):
@@ -3257,6 +3297,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 period=args.period,
                 out_path=args.out,
                 lang=args.lang,
+                question_set_hash=args.question_set_hash,
             )
         except ValueError as exc:
             print(f"report.generate: {exc}", file=sys.stderr)
@@ -3280,6 +3321,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             period=args.period,
             out_path=args.out,
             lang=args.lang,
+            question_set_hash=args.question_set_hash,
         )
     except ValueError as exc:
         print(f"report.generate: {exc}", file=sys.stderr)

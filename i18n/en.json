@@ -65,6 +65,7 @@
   "dashboard": {
     "control_brand": "Brand",
     "control_engine": "Engine",
+    "control_dataset": "Question set",
     "control_period": "Period",
     "control_lens": "Lens",
     "language_label": "Language",

@@ -102,12 +102,25 @@ Do **not** substitute `google_ai_overview` or any other string.
 >   tab"; RU: "Страница откроется в новой вкладке") or a chip's `link` — those open the
 >   source site, trip its captcha, and lose your place. For source cards you only ever
 >   **read** their `href`; you never click them.
+> - **A `+N` chip opens on HOVER — do NOT click it.** Verified live 2026-08-26: clicking
+>   the chip's `button` ref fires the underlying link and **opens the source site in a new
+>   tab** (it happened three times in one run; each stray tab had to be closed unread).
+>   Use `computer` **`action="hover"`** on the `+N` badge's coordinate — the popover opens
+>   in place with zero navigation — then re-run `read_page(filter="interactive")`. The
+>   click-the-`button` rule above still holds for the *panel* controls ("N sites",
+>   "Show all", "Expand AI summary"); it is the `+N` chip specifically that must be hovered.
 > - **Expand before collecting.** Buttons like **"N sites"** (e.g. "8 sites"; RU: "N
->   сайтов" / "8 сайтов"), **"Show all"** (RU: "Показать все похожие ссылки"), the
->   **`"(+N)"` chip** (its `button` form), and the prose **"Expand AI summary"** (RU:
->   "Развернуть краткий пересказ от ИИ") reveal the full set. Click each via `computer`
->   `left_click` using the element `ref` from `read_page`/`find`, **then re-run
->   `read_page(filter="interactive")`** to gather all revealed links.
+>   сайтов" / "8 сайтов"), **"Show all"** (RU: "Показать все похожие ссылки") and the prose
+>   **"Expand AI summary"** (RU: "Развернуть краткий пересказ от ИИ") reveal the full set.
+>   Click each via `computer` `left_click` using the element `ref` from `read_page`/`find`,
+>   **then re-run `read_page(filter="interactive")`** to gather all revealed links. For a
+>   **`+N` chip**, hover instead of clicking (see the rule above).
+> - **Read BOTH source surfaces — the layout varies per query.** Verified live 2026-08-26:
+>   one query rendered the classic right-side sources panel ("Show all" → 6 cards), another
+>   rendered a bottom horizontal carousel **plus** a corroboration facepile at the block
+>   header ("View N corroboration links"). They are the same retrieved set, but the collapsed
+>   carousel showed one card fewer than the facepile panel — so open whichever surface the
+>   page actually has, and if both are present, read both before concluding.
 > - **The "N sites" (RU: "N сайтов") panel opens IN PLACE (a popover) — scroll it to the
 >   bottom.** `read_page` often exposes only the first few source cards at a time. After
 >   opening the panel, **scroll the popover down and re-read until no new cards appear**,

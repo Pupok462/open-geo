@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 KNOWN_MCP_SERVERS = {"claude-in-chrome"}
 
-BROWSER_DRIVING_AGENTS = {"capture-worker", "harvest-worker"}
+BROWSER_DRIVING_AGENTS = {"capture-worker"}
 
 _MCP_TOOL_RE = re.compile(r"mcp__([A-Za-z0-9_-]+?)__(?:[A-Za-z0-9_]+|\*)")
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][\w-]*\s*:")

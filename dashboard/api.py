@@ -99,6 +99,14 @@ def _has_group_column(conn: sqlite3.Connection) -> bool:
     return "group_id" in cols
 
 
+def _has_question_set_column(conn: sqlite3.Connection) -> bool:
+    try:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
+    except sqlite3.OperationalError:
+        return False
+    return "question_set_hash" in cols
+
+
 _SPREAD_METRICS = (
     "overview_coverage",
     "visibility_in_sources",
@@ -183,20 +191,78 @@ def engines(brand_id: int = Query(...)) -> list[str]:
 
 
 @app.get("/api/runs")
-def runs(brand_id: int = Query(...), engine: Optional[str] = None) -> list[dict]:
+def runs(
+    brand_id: int = Query(...),
+    engine: Optional[str] = None,
+    question_set_hash: Optional[str] = None,
+) -> list[dict]:
     conn = _connect()
     try:
+        has_qs = _has_question_set_column(conn)
+        extra = ", question_set, question_set_hash" if has_qs else ""
         sql = (
-            "SELECT id AS run_id, run_at, status, engine, n_queries, n_ok, n_failed "
-            "FROM runs WHERE brand_id = ?"
+            "SELECT id AS run_id, run_at, status, engine, n_queries, n_ok, n_failed"
+            f"{extra} FROM runs WHERE brand_id = ?"
         )
         params: list[Any] = [brand_id]
         if engine:
             sql += " AND engine = ?"
             params.append(engine)
+        if question_set_hash and has_qs:
+            sql += " AND question_set_hash = ?"
+            params.append(question_set_hash)
         sql += " ORDER BY run_at DESC, id DESC"
         rows = conn.execute(sql, params).fetchall()
-        return [dict(r) for r in rows]
+        out = []
+        for r in rows:
+            d = dict(r)
+            d.setdefault("question_set", None)
+            d.setdefault("question_set_hash", None)
+            out.append(d)
+        return out
+    finally:
+        conn.close()
+
+
+@app.get("/api/question_sets")
+def question_sets(brand_id: int = Query(...), engine: str = Query(...)) -> list[dict]:
+    conn = _connect()
+    try:
+        if not _has_question_set_column(conn):
+            return []
+        rows = conn.execute(
+            """
+            SELECT question_set_hash, question_set,
+                   COUNT(*) AS n_runs,
+                   MAX(id) AS latest_run_id,
+                   MAX(run_at) AS latest_run_at,
+                   MAX(n_queries) AS n_queries,
+                   MAX(n_ok) AS n_ok
+            FROM runs
+            WHERE brand_id = ? AND engine = ? AND status = 'done'
+              AND question_set_hash IS NOT NULL AND question_set_hash != ''
+            GROUP BY question_set_hash, question_set
+            ORDER BY latest_run_at DESC, latest_run_id DESC
+            """,
+            (brand_id, engine),
+        ).fetchall()
+        out: list[dict] = []
+        for r in rows:
+            digest = r["question_set_hash"]
+            n_queries = int(r["n_queries"] or 0)
+            label = r["question_set"] or f"набор {digest[:8]} · {n_queries} запросов"
+            out.append(
+                {
+                    "question_set_hash": digest,
+                    "question_set": label,
+                    "n_queries": n_queries,
+                    "n_runs": int(r["n_runs"] or 0),
+                    "latest_run_id": int(r["latest_run_id"]),
+                    "latest_run_at": r["latest_run_at"],
+                    "n_ok": int(r["n_ok"] or 0),
+                }
+            )
+        return out
     finally:
         conn.close()
 
@@ -209,17 +275,40 @@ def _latest_run_id(
     only_done: bool = False,
     before_run_at: Optional[str] = None,
     before_id: Optional[int] = None,
+    question_set_hash: Optional[str] = None,
 ) -> Optional[int]:
     sql = "SELECT id, run_at FROM runs WHERE brand_id = ? AND engine = ?"
     params: list[Any] = [brand_id, engine]
     if only_done:
         sql += " AND status = 'done'"
+    if question_set_hash and _has_question_set_column(conn):
+        sql += " AND question_set_hash = ?"
+        params.append(question_set_hash)
     if before_run_at is not None:
         sql += " AND (run_at < ? OR (run_at = ? AND id < ?))"
         params.extend([before_run_at, before_run_at, before_id])
     sql += " ORDER BY run_at DESC, id DESC LIMIT 1"
     row = conn.execute(sql, params).fetchone()
     return int(row["id"]) if row else None
+
+
+def _run_ids_for_set(
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    question_set_hash: Optional[str],
+    *,
+    only_done: bool = True,
+) -> list[int]:
+    sql = "SELECT id FROM runs WHERE brand_id = ? AND engine = ?"
+    params: list[Any] = [brand_id, engine]
+    if only_done:
+        sql += " AND status = 'done'"
+    if question_set_hash and _has_question_set_column(conn):
+        sql += " AND question_set_hash = ?"
+        params.append(question_set_hash)
+    sql += " ORDER BY run_at ASC, id ASC"
+    return [int(r["id"]) for r in conn.execute(sql, params)]
 
 
 def _metrics_by_lens(conn: sqlite3.Connection, run_id: int) -> dict[str, dict]:
@@ -233,6 +322,7 @@ def metrics(
     engine: str = Query(...),
     period: str = Query("today"),
     lens: Optional[str] = None,
+    question_set_hash: Optional[str] = None,
 ) -> dict:
     if period not in ("today", "all"):
         raise HTTPException(status_code=400, detail="period must be 'today' or 'all'")
@@ -241,18 +331,34 @@ def metrics(
     conn = _connect()
     try:
         if period == "all":
-            out_rows = _aggregate_period(conn, brand_id, engine, lens)
-            latest_done_id = _latest_run_id(conn, brand_id, engine, only_done=True)
+            set_ids = (
+                _run_ids_for_set(conn, brand_id, engine, question_set_hash)
+                if question_set_hash
+                else None
+            )
+            out_rows = _aggregate_period(
+                conn, brand_id, engine, lens, run_ids=set_ids
+            )
+            latest_done_id = _latest_run_id(
+                conn,
+                brand_id,
+                engine,
+                only_done=True,
+                question_set_hash=question_set_hash,
+            )
             summaries = (
                 get_lens_sentiments(conn, latest_done_id) if latest_done_id else {}
             )
             for payload in out_rows:
                 payload["sentiment_summary"] = summaries.get(payload["lens"])
             out_rows.sort(key=lambda r: (order.get(r["lens"], 99), r["lens"]))
-            n_runs = conn.execute(
-                "SELECT COUNT(*) AS c FROM runs WHERE brand_id=? AND engine=? AND status='done'",
-                (brand_id, engine),
-            ).fetchone()["c"]
+            if set_ids is not None:
+                n_runs = len(set_ids)
+            else:
+                n_runs = conn.execute(
+                    "SELECT COUNT(*) AS c FROM runs WHERE brand_id=? AND engine=? AND status='done'",
+                    (brand_id, engine),
+                ).fetchone()["c"]
             return {
                 "brand_id": brand_id,
                 "engine": engine,
@@ -261,10 +367,17 @@ def metrics(
                 "prev_run": None,
                 "group": None,
                 "n_runs": n_runs,
+                "question_set_hash": question_set_hash,
                 "metrics": out_rows,
             }
 
-        run_id = _latest_run_id(conn, brand_id, engine, only_done=True)
+        run_id = _latest_run_id(
+            conn,
+            brand_id,
+            engine,
+            only_done=True,
+            question_set_hash=question_set_hash,
+        )
         if run_id is None:
             return {
                 "brand_id": brand_id, "engine": engine, "period": period,
@@ -315,6 +428,7 @@ def metrics(
         prev_id = _latest_run_id(
             conn, brand_id, engine,
             only_done=True, before_run_at=run["run_at"], before_id=run_id,
+            question_set_hash=question_set_hash,
         )
         cur_by_lens = _metrics_by_lens(conn, run_id)
         prev_by_lens = _metrics_by_lens(conn, prev_id) if prev_id else {}
@@ -349,6 +463,14 @@ def metrics(
         out_rows.sort(key=lambda r: (order.get(r["lens"], 99), r["lens"]))
         run_payload = dict(run)
         run_payload.pop("group_id", None)
+        if _has_question_set_column(conn):
+            ident = conn.execute(
+                "SELECT question_set, question_set_hash FROM runs WHERE id = ?",
+                (run_id,),
+            ).fetchone()
+            if ident:
+                run_payload["question_set"] = ident["question_set"]
+                run_payload["question_set_hash"] = ident["question_set_hash"]
         return {
             "brand_id": brand_id,
             "engine": engine,
@@ -356,6 +478,7 @@ def metrics(
             "run": run_payload,
             "prev_run": prev_run,
             "group": None,
+            "question_set_hash": question_set_hash,
             "metrics": out_rows,
         }
     finally:
@@ -369,6 +492,8 @@ def _aggregate_period(
     lens: Optional[str],
     run_ids: Optional[list[int]] = None,
 ) -> list[dict]:
+    if run_ids == []:
+        return []
     has_mentions = _has_mention_columns(conn)
     mention_select = (
         """,
@@ -519,6 +644,7 @@ def timeseries(
     engine: str = Query(...),
     lens: str = Query("all"),
     bucket: str = Query("run"),
+    question_set_hash: Optional[str] = None,
 ) -> dict:
     if bucket not in ("run", "week"):
         raise HTTPException(status_code=400, detail="bucket must be 'run' or 'week'")
@@ -533,8 +659,7 @@ def timeseries(
         present = [name for name in optional if name in available]
         missing = [name for name in optional if name not in available]
         optional_select = "".join(f", m.{name}" for name in present)
-        rows = conn.execute(
-            f"""
+        sql = f"""
             SELECT r.id AS run_id, r.run_at, r.status,
                    m.lens, m.n_queries, m.n_overviews, m.overview_coverage,
                    m.n_in_sources, m.visibility_in_sources, m.n_cited,
@@ -544,10 +669,13 @@ def timeseries(
             JOIN metrics m ON m.run_id = r.id
             WHERE r.brand_id = ? AND r.engine = ? AND m.lens = ?
               AND r.status = 'done'
-            ORDER BY r.run_at ASC, r.id ASC
-            """,
-            (brand_id, engine, lens),
-        ).fetchall()
+            """
+        ts_params: list[Any] = [brand_id, engine, lens]
+        if question_set_hash and _has_question_set_column(conn):
+            sql += " AND r.question_set_hash = ?"
+            ts_params.append(question_set_hash)
+        sql += " ORDER BY r.run_at ASC, r.id ASC"
+        rows = conn.execute(sql, ts_params).fetchall()
         points = []
         for r in rows:
             p = dict(r)
@@ -579,9 +707,19 @@ def _fetch_optional(
 
 
 def _competitor_rows_today(
-    conn: sqlite3.Connection, brand_id: int, engine: str, lens: str
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    lens: str,
+    question_set_hash: Optional[str] = None,
 ) -> tuple[Optional[int], int, list[dict]]:
-    run_id = _latest_run_id(conn, brand_id, engine, only_done=True)
+    run_id = _latest_run_id(
+        conn,
+        brand_id,
+        engine,
+        only_done=True,
+        question_set_hash=question_set_hash,
+    )
     if run_id is None:
         return None, 0, []
     nov = conn.execute(
@@ -613,20 +751,30 @@ def _competitor_rows_today(
 
 
 def _competitor_rows_all(
-    conn: sqlite3.Connection, brand_id: int, engine: str, lens: str
+    conn: sqlite3.Connection,
+    brand_id: int,
+    engine: str,
+    lens: str,
+    question_set_hash: Optional[str] = None,
 ) -> tuple[int, list[dict]]:
+    extra = ""
+    params: list[Any] = [brand_id, engine, lens]
+    if question_set_hash and _has_question_set_column(conn):
+        extra = " AND r.question_set_hash = ?"
+        params.append(question_set_hash)
     nov = conn.execute(
-        """
+        f"""
         SELECT SUM(m.n_overviews) AS nov
         FROM metrics m JOIN runs r ON r.id = m.run_id
         WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND m.lens = ?
+        {extra}
         """,
-        (brand_id, engine, lens),
+        params,
     ).fetchone()
     n_overviews = int(nov["nov"]) if nov and nov["nov"] is not None else 0
     rows = _fetch_optional(
         conn,
-        """
+        f"""
         SELECT d.domain,
                MAX(d.is_brand) AS is_brand,
                SUM(d.appearances_sources) AS app_s,
@@ -635,9 +783,10 @@ def _competitor_rows_all(
                SUM(d.sum_min_citation_rank) AS sum_c
         FROM domain_stats d JOIN runs r ON r.id = d.run_id
         WHERE r.brand_id = ? AND r.engine = ? AND r.status = 'done' AND d.lens = ?
+        {extra}
         GROUP BY d.domain
         """,
-        (brand_id, engine, lens),
+        tuple(params),
     )
     out: list[dict] = []
     for r in rows:
@@ -666,6 +815,7 @@ def competitors(
     lens: str = Query("all"),
     sort: str = Query("sources"),
     limit: int = Query(15),
+    question_set_hash: Optional[str] = None,
 ) -> dict:
     if period not in ("today", "all"):
         raise HTTPException(status_code=400, detail="period must be 'today' or 'all'")
@@ -676,9 +826,13 @@ def competitors(
     try:
         run_payload = None
         if period == "all":
-            n_overviews, rows = _competitor_rows_all(conn, brand_id, engine, lens)
+            n_overviews, rows = _competitor_rows_all(
+                conn, brand_id, engine, lens, question_set_hash
+            )
         else:
-            run_id, n_overviews, rows = _competitor_rows_today(conn, brand_id, engine, lens)
+            run_id, n_overviews, rows = _competitor_rows_today(
+                conn, brand_id, engine, lens, question_set_hash
+            )
             if run_id is not None:
                 rr = conn.execute(
                     "SELECT id AS run_id, run_at, status FROM runs WHERE id = ?",
@@ -869,13 +1023,23 @@ def _unlink_quietly(path: str) -> None:
 
 
 def _report_cli(
-    brand: str, domain: str, engine: str, period: str, out: str, db: str, lang: str
+    brand: str,
+    domain: str,
+    engine: str,
+    period: str,
+    out: str,
+    db: str,
+    lang: str,
+    question_set_hash: Optional[str] = None,
 ) -> str:
     engine_arg = "--engines all" if engine == "all" else f"--engine {engine}"
+    question_set_arg = (
+        f" --question-set-hash {question_set_hash}" if question_set_hash else ""
+    )
     return (
         f"{sys.executable} -m report.generate "
         f"--brand {brand!r} --domain {domain} {engine_arg} "
-        f"--period {period} --lang {lang} --out {out} --db {db}"
+        f"--period {period} --lang {lang} --out {out} --db {db}{question_set_arg}"
     )
 
 
@@ -885,6 +1049,7 @@ def report(
     engine: str = Query(...),
     period: str = Query("all"),
     lang: str = Query("en"),
+    question_set_hash: Optional[str] = None,
 ) -> Any:
     if period not in ("today", "all"):
         raise HTTPException(status_code=400, detail="period must be 'today' or 'all'")
@@ -901,7 +1066,16 @@ def report(
 
     db_path = _db_path()
     out_path = str(Path(tempfile.gettempdir()) / f"open_geo_report_{uuid.uuid4().hex}.pdf")
-    cli = _report_cli(brand["name"], brand["domain"], engine, period, out_path, db_path, lang)
+    cli = _report_cli(
+        brand["name"],
+        brand["domain"],
+        engine,
+        period,
+        out_path,
+        db_path,
+        lang,
+        question_set_hash,
+    )
 
     report_pkg = _REPO_ROOT / "report" / "generate.py"
     if not report_pkg.exists():
@@ -917,6 +1091,9 @@ def report(
     engine_args = (
         ["--engines", "all"] if engine == "all" else ["--engine", engine]
     )
+    question_set_args = (
+        ["--question-set-hash", question_set_hash] if question_set_hash else []
+    )
     try:
         proc = subprocess.run(
             [
@@ -924,6 +1101,7 @@ def report(
                 "--brand", brand["name"],
                 "--domain", brand["domain"],
                 *engine_args,
+                *question_set_args,
                 "--period", period,
                 "--lang", lang,
                 "--out", out_path,

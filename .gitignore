@@ -132,3 +132,4 @@ examples/test_queries.csv
 
 # Personal orchestration skill — not part of the product.
 /.claude/skills/fable-ruki-agenty/
+.gstack/

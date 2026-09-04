@@ -16,6 +16,73 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   decided per link with `matches_target`, the same semantics as `target_ranks`. Registrable-domain
   targets (`ectem.ru`) are unaffected.
 
+## [0.5.1] — 2026-08-26
+
+The orchestrator skill gets lighter without losing a single rule: the parts that only matter
+for some runs now load on demand, and the small database questions it used to ask with inline
+Python are a real CLI.
+
+### Added
+- **`python -m pipeline.run` — run-control CLI (INTERFACES §3.7).** Four modes the skill used to
+  inline as `python -c` heredocs: `--resume-check` (is there an unfinished run holding a subset
+  of THIS question set?), `--pending` (which `(query, lens)` rows are still uncaptured, in file
+  order), `--finalize` (write counts + a terminal status) and `--sentiments` (read the per-query
+  sentiments back for the per-lens roll-up). Each prints exactly one JSON value on STDOUT, human
+  noise on STDERR; both CSV-reading modes validate the `query,lens` header and every lens value
+  instead of silently skipping a row.
+- **`references/` beside the open-geo SKILL.md.** `harvest.md` (the full STEP A.5 harvest
+  procedure), `deliverables.md` (dashboard servers, `report.generate`, repeat-run groups) and
+  `metrics.md` (the seven-metric glossary) — each loaded only when that path is actually taken.
+
+### Changed
+- **The open-geo skill is ~30% smaller to load** (689 → 475 lines): a run with a ready CSV and
+  the default `--output data` no longer pays for harvesting instructions, dashboard server
+  commands or the metric glossary. Every rule survives — the split moves *when* a section is
+  read, not *whether* it exists.
+- STEP 1/2/4/5b now call `pipeline.run` instead of inlining Python against `pipeline.db`.
+- Dropped two restatements inside the skill (the "Parallelism" section repeated the `--n-worker`
+  flag and STEP 3's own opening; the component dependency map repeated each step's own command)
+  and updated the sub-agent spawn wording to the current `Agent` tool, spawning workers in one
+  message so they run concurrently.
+
+
+## [0.5.0] — 2026-08-25
+
+Demand research stops being a browser chore: keyword volume now comes from the search platforms'
+own APIs, and a new `semantic-core` skill builds a measured core and hands it straight to a run.
+
+### Added
+- **`demand/` — keyword demand over official APIs (Feature 1b, INTERFACES §8).** Four providers
+  behind one contract: **Yandex Wordstat** (free API key, impressions/month for RU/CIS),
+  **Google Ads Keyword Planner** (free developer token, avg monthly searches worldwide),
+  **Bing Webmaster** (free API key, weekly impressions worldwide) and **search autocomplete**
+  (Google/Yandex/Bing/DuckDuckGo — no credentials, presence without volume). Routing is
+  locale-aware; results are cached in `data/demand_cache.db` with per-provider daily quota counters.
+- **CLIs.** `python -m demand.doctor` (what is configured, what each provider covers here, what is
+  missing and how to get it), `demand.lookup` (volume for a batch of phrases), `demand.expand`
+  (seed → its real neighbourhood, volume-sorted), `demand.core` (commit a measured core).
+- **`SemanticCore` hand-off.** `demand.core` validates clusters, refuses to mint questions from an
+  unmeasured cluster, stamps each question with its anchor phrase's measured `scope`, commits the
+  CSV through `harvest.build`, and writes a `core.json` carrying `questions_csv`, brand, domain and
+  coverage — the unambiguous carrier between a core build and an open-geo run.
+- **`/semantic-core` skill + `core-worker` agent.** Builds the core (capability check → seeds →
+  parallel measured recon → synthesis → skeptic → commit → review gate) and then launches
+  `/open-geo` with the committed CSV.
+- **`.env.example`** for the provider credentials; all of them are optional.
+
+### Changed
+- **The harvest demand gate is now API-based and applies to every candidate**, not only Russian
+  ones (`harvest/METHODOLOGY.md §3`): a line ships only with a provider's `scope` string in its
+  `signal` (region, period, pull date, pasted verbatim) or an explicit reason no ruler applies.
+- **`harvest-worker` no longer uses a browser.** It reads demand through the `demand/` CLIs and
+  wording through WebSearch/WebFetch, which makes the harvest reproducible and head-less.
+- `harvest-skeptic` cuts unmeasured lines and lines that argue a presence-only signal as measured
+  demand. open-geo STEP A.5 accepts a `core.json` hand-off on its fast path.
+
+### Notes
+- **Nothing invents a number.** A locale with no configured ruler yields an explicit
+  "presence only / unavailable" with the reason — never a plausible figure.
+
 ## [0.4.1] — 2026-08-18
 
 open-geo can now act as a data-producing skill inside another agent workflow instead of requiring
@@ -308,6 +375,8 @@ First public release.
 - A four-language dashboard and PDF (English, Русский, 中文, العربية, RTL-aware).
 
 [Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.4.1...HEAD
+[0.5.1]: https://github.com/Pupok462/open-geo/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/Pupok462/open-geo/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Pupok462/open-geo/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Pupok462/open-geo/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/Pupok462/open-geo/compare/v0.3.3...v0.3.4
