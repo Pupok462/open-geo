@@ -74,9 +74,9 @@ export function MetricCard({
   );
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-strong)]">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs uppercase tracking-wide text-[var(--muted)]">
+    <div className="min-w-0 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--border-strong)]">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <span className="min-w-0 break-words text-xs uppercase tracking-wide text-[var(--muted)]">
           {t(def.labelKey)}
         </span>
         <InfoTip text={t(def.infoKey)} />
