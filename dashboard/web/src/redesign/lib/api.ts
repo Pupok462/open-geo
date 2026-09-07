@@ -153,35 +153,6 @@ export type CompetitorsResponse = {
   domains: CompetitorRow[];
 };
 
-export type AuditCheck = {
-  id: string;
-  category: "A" | "B" | "C" | "D" | string;
-  title: string;
-  severity: "blocker" | "recommended" | "nice_to_have" | string;
-  status: "pass" | "warn" | "fail" | "skip" | string;
-  detail: string;
-  remediation: string | null;
-};
-
-export type AuditResult = {
-  target: string;
-  domain: string;
-  engine: string | null;
-  checked_at: string;
-  verdict: "ready" | "ready_with_warnings" | "blocked" | string;
-  score: number;
-  passed: boolean;
-  blockers: string[];
-  checks: AuditCheck[];
-};
-
-export type AuditResponse = {
-  brand_id: number;
-  engine: string | null;
-  domain: string;
-  audit: AuditResult | null;
-};
-
 export type EngineMatrixRow = {
   engine: string;
   run: { run_id: number; run_at: string; status: string } | null;
@@ -274,8 +245,6 @@ export const api = {
     getJSON<CompetitorsResponse>(
       `/api/competitors${qs({ brand_id: brandId, engine, period, lens, limit, sort, question_set_hash: questionSetHash })}`,
     ),
-  audit: (brandId: number, engine?: string) =>
-    getJSON<AuditResponse>(`/api/audit${qs({ brand_id: brandId, engine })}`),
   engineMatrix: (brandId: number, period: "today" | "all", lens?: string) =>
     getJSON<EngineMatrixResponse>(
       `/api/engine_matrix${qs({ brand_id: brandId, period, lens })}`,

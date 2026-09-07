@@ -160,7 +160,7 @@ Run this **after STEP A**, **before STEP 1**. Goal: end up with a real
    measured volume.
 
 2. **GENERATE PATH — the user chose "Generate a set" (or no CSV is resolved).** Harvest one:
-   **read `./references/harvest.md` now and follow it** — it carries the full procedure
+   **read `references/harvest.md` now and follow it** — it carries the full procedure
    (segment planning, the `harvest-worker` fan-out, the demand gate, the skeptic pass,
    `harvest.build`, the rationale file, and the human review gate). Harvesting is **agentic**
    and **opt-in**; the process authority is `harvest/METHODOLOGY.md`, the contract is
@@ -209,7 +209,7 @@ left `status='running'` by a crash (INTERFACES §2.1). Look before creating anyt
 
 **Repeats (`--repeat R`, R > 1)** — R independent captures of the same CSV under one
 `group_id`, so readers see mean + spread instead of one noisy run (INTERFACES §2.1).
-Read `./references/deliverables.md` for the flow; `R=1` (the default) needs nothing extra.
+Read `references/deliverables.md` for the flow; `R=1` (the default) needs nothing extra.
 
 ---
 
@@ -252,7 +252,7 @@ tab/context. `--n-worker` IS the run's real concurrency; raise it to go wider.
 A capture worker's only job is to **capture and RETURN data**; it never ingests, creates
 runs, starts servers, or writes the DB. Its full step-by-step contract — output fields, the
 no-DB and no-source-visit rules, per-worker temp-file self-validation, what to return —
-lives in `../../../.codex/agents/capture-worker.toml`; **do not restate it.** Give each worker a
+lives in `../../agents/capture-worker.md`; **do not restate it.** Give each worker a
 self-contained brief containing:
 
 - The **full text** of `engines/<engine>.md` (the capture playbook — authoritative for how
@@ -392,7 +392,7 @@ FastAPI/Vite process is started and no browser window needs to remain open after
 
 ### `dashboard` · `pdf` · `both` — or `--repeat R > 1`
 
-**Read `./references/deliverables.md` and follow it.** It carries the verified commands and
+**Read `references/deliverables.md` and follow it.** It carries the verified commands and
 their caveats: the dashboard's two background servers (absolute paths, a free port, the
 `curl` health probe before you hand over a URL), `report.generate` including the combined
 `--engines all` document, and the per-repeat artifact naming. These presentation contracts
@@ -411,7 +411,7 @@ English): **answer coverage** (`overview_coverage`), **visibility in sources**
 **average source / citation position** (lower = better), **relative citation**
 (`relative_citation` — the source→citation conversion, higher = better) and **brand mention
 rate** (`brand_mention_rate` — an adjacent axis, **not** a funnel stage). For the precise
-reading of any of them, see `./references/metrics.md` (authority: INTERFACES §4).
+reading of any of them, see `references/metrics.md` (authority: INTERFACES §4).
 
 Format as percentages where natural, and **note guard cases** (`null` → "no data" / "—", not
 `0`). End by pointing to the **absolute JSON artifact path**, then the dashboard URL and/or

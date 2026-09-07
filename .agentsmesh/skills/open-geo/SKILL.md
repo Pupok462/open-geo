@@ -23,6 +23,21 @@ ambiguous — the shapes there win over this prose.
 > resolve. An explicit absolute `--artifact-out` may point into the caller's workspace;
 > all other runtime state stays inside open-geo.
 
+### Host primitives (ask, spawn, plugin root)
+
+Host-only names below are **one binding**, not the only path:
+
+- **Ask.** Prefer the host's structured question API (`AskUserQuestion` on Claude Code). If the
+  host has none, ask in the conversation with enumerated options and wait for the reply. Never
+  guess a required value.
+- **Spawn.** Fan out project agent types with the host's native spawn: Claude Code `Agent` tool
+  (all in one message so they run concurrently); Grok `spawn_subagent` with `subagent_type` set
+  to the worker name; Codex, Cursor, and Gemini — that host's equivalent parallel agent spawn.
+  Load the worker contract from this host's native definition (path cited at the spawn step);
+  do not restate it.
+- **Plugin/package root.** Claude Code exposes `${CLAUDE_PLUGIN_ROOT}`. Other hosts: use that
+  host's equivalent if it exposes one; otherwise fall through in STEP R.
+
 ---
 
 ## INVOCATION
@@ -30,7 +45,7 @@ ambiguous — the shapes there win over this prose.
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
           [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
-          [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]
+          [--period today|all] [--lang en|ru|zh|ar] [--repeat R]
 ```
 
 ### Positional arguments
@@ -51,7 +66,6 @@ ambiguous — the shapes there win over this prose.
 | `--artifact-out <path.json>` | no | `reports/run-<run-id>.json` | Absolute or caller-relative destination for the portable run artifact. Use this when another agent workflow needs the data in its own workspace. |
 | `--period today\|all` | no | `all` | Reporting window passed to the dashboard/report: `today` = just this run's date, `all` = full history for this brand+engine (adds the PDF trend chart / the dashboard's whole-period view). Previous-run deltas (INTERFACES §4.1) render whenever an earlier completed run exists — in the PDF for either period, and in the dashboard's latest-run view. |
 | `--lang en\|ru\|zh\|ar` | no | `en` | UI language for the deliverables: it is passed to the report (`report.generate --lang`) and is the dashboard's **default** language (the switcher can still change it in the browser). Extensible to any code registered in `i18n/locales.json`. It also sets the language of the **final summary** you print in step 7. |
-| `--force` | no | off | Override the **GEO-audit gate** (STEP 0): proceed with the run even when the audit verdict is `blocked` (a category-A blocker — the domain is unreadable by the engine's search bot / unreachable / JS-only). Without it, a `blocked` verdict hard-stops before any run and prints the remediation. Advisory (`ready_with_warnings`) verdicts never need `--force`. |
 | `--repeat R` | no | `1` | **Repeat-run group** (INTERFACES §2.1, Feature 5): capture the SAME question set R times as R ordinary runs sharing one `group_id`. Costs R× capture — a deliberate operator choice to separate signal from LLM noise. The dashboard then reads the group as one measurement: weighted mean of the seven metrics + a min–max spread chip per card (deltas are suppressed inside a group). `R=1` = today's behavior, no group. See "Repeats" note under STEP 1. |
 
 If a required argument is missing, go to **STEP A** (the parameter wizard) to collect it
@@ -69,8 +83,9 @@ dashboard manually. Resolve one **runtime root** and do the reversible setup you
 1. Prefer the current working directory when it contains `pipeline/INTERFACES.md`.
 2. Otherwise prefer a valid `OPEN_GEO_ROOT` supplied by the caller.
 3. Otherwise use the installed plugin/package root when the host exposes it, it contains
-   `pipeline/INTERFACES.md`, and it is writable (for Claude Code this is
-   `${CLAUDE_PLUGIN_ROOT}`). A read-only package root falls through to the managed runtime.
+   `pipeline/INTERFACES.md`, and it is writable (Claude Code: `${CLAUDE_PLUGIN_ROOT}`; other
+   hosts: that host's equivalent plugin/package root if it exposes one). A read-only package
+   root falls through to the managed runtime.
 4. Otherwise use `${OPEN_GEO_HOME:-$HOME/.local/share/open-geo}/runtime`. If it does not
    exist, create its parent and clone `https://github.com/Pupok462/open-geo` there. This is
    an implementation detail of the skill, not a manual prerequisite for the user.
@@ -90,24 +105,24 @@ authenticate once, but they never need to launch open-geo services themselves.
 
 ## STEP A — RESOLVE PARAMETERS (intro + wizard, with fast-path bypass)
 
-Run this after the STEP R guard, before STEP 0. Goal: end up with every required parameter resolved.
+Run this after the STEP R guard, before STEP A.5. Goal: end up with every required parameter resolved.
 
 **Required:** `questions.csv`, `engine`, `domain`, `--brand`, `--n-worker`.
 **Optional (defaults):** `--output` (`data`), `--artifact-out`
 (`reports/run-<run-id>.json`), `--period` (`all`), `--lang` (`en`),
-`--force` (off — overrides a `blocked` audit-gate verdict, STEP 0), `--repeat` (`1` — R
+`--repeat` (`1` — R
 independent captures of the same CSV under one group tag, STEP 1).
 
 1. **Parse the invocation** — gather values from positional args, flags, AND anything the user
    expressed in free text (e.g. "measure example.com on google, 5 workers, pdf").
 2. **FAST PATH — all required resolved:** do **not** print the intro or ask anything. Echo one
    confirmation line — `Running: csv=… engine=… domain=… brand=… n-worker=… output=… period=… lang=…` —
-   then proceed to STEP 0/1. (This is the path loops/headless use: pass full args, skip the wizard.)
+   then proceed to STEP A.5/1. (This is the path loops/headless use: pass full args, skip the wizard.)
 3. **GUIDED PATH — something required is missing:**
    a. Print a short intro (2–4 lines): what open-geo does (drives queries through an AI engine,
       measures the target domain's visibility/citation, emits a dashboard and/or PDF) and what it
       produces.
-   b. Ask **only for the missing** parameters, using `AskUserQuestion` for the enumerable ones:
+   b. Ask **only for the missing** parameters, using **Ask** (Host primitives) for the enumerable ones:
       - `engine` — offer only engines that actually have a playbook:
         `.venv/bin/python -c "import glob,os; print('\n'.join(sorted(os.path.basename(p)[:-3] for p in glob.glob('engines/*.md') if os.path.basename(p)!='README.md')))"`
         (today, sorted: `chatgpt_search`, `claude_search`, `deepseek`, `gemini`, `google`, `perplexity`, `yandex_neuro`). If the user names an engine without a playbook, say it is
@@ -121,64 +136,15 @@ independent captures of the same CSV under one group tag, STEP 1).
         harvest it (it writes the CSV and sets the path). If they pick a file / give a path, that is
         the input CSV and STEP A.5 is skipped.
       - `domain` and `--brand` — free text.
-   c. Echo the resolved parameters for a quick confirm, then proceed to STEP 0/1.
+   c. Echo the resolved parameters for a quick confirm, then proceed to STEP A.5/1.
 4. If a required value is still unknown after the wizard (or it is abandoned), apply the guard from
    INVOCATION: a short error in `--lang`, no empty run.
 
 ---
 
-## STEP 0 — GEO-AUDIT GATE (runs FIRST: after the domain is known, before harvesting or a run)
-
-Run this **right after STEP A** (so `<domain>` and `<engine>` are resolved) and **before STEP A.5
-and STEP 1** — there is no point harvesting questions or spending capture tokens on a domain an AI
-engine cannot even read. This is the **Domain GEO-Audit Gate** (ROADMAP Feature 2); the contract is
-`pipeline/INTERFACES.md §7`, the check semantics `audit/CHECKS.md`. It is **deterministic Python**
-(non-LLM, no browser).
-
-1. **Run the audit** — it fetches `robots.txt` / homepage / `sitemap.xml` / `llms.txt` /
-   `/.well-known`, grades each check by severity, and writes the result to the `audits` table so the
-   PDF/dashboard can show it later:
-   ```bash
-   .venv/bin/python -m audit.gate --domain <domain> --engine <engine>
-   ```
-   Parse stdout — a single `AuditResult` JSON (INTERFACES §7.1): `verdict`
-   (`ready` | `ready_with_warnings` | `blocked`), `score` (0–100), `passed`, `blockers` (check ids),
-   and `checks[]` (each `id`, `severity`, `status`, `detail`, `remediation`). A human summary is on
-   STDERR. Add `--no-cache` to force a fresh audit (by default a recent audit for the same domain is
-   reused within its TTL).
-
-2. **Decide, per `verdict`:**
-   - **`blocked`** (a category-A blocker failed — the site is unreachable, non-200, JS-only, or
-     `robots.txt` blocks the engine's **search** bot) **and no `--force` given:** **hard-stop before
-     any run.** Print (in `--lang`) a short remediation report — for **each blocker** its `detail` +
-     the concrete `remediation` fix, then the advisory `warn`/`fail` checks below it — and say plainly:
-     *the domain is not visibility-ready, so a capture run would waste tokens; fix the blockers, or
-     re-run with `--force` to measure anyway.* Do **not** create a run and do **not** harvest. Stop.
-   - **`blocked` with `--force`:** warn loudly (list the blockers + their fixes), then continue — the
-     operator chose to measure an unready domain.
-   - **`ready_with_warnings`:** briefly surface the advisory problems (the `warn`/`fail` checks with
-     their `detail`) and the `score`, then continue to STEP A.5.
-   - **`ready`:** one line — `GEO-audit: ready (score N/100)` — continue.
-   - **The gate itself failed** (exit code 1, no JSON on stdout — the domain string is unusable, or
-     nothing could be fetched at all): this is **"unknown", not "blocked"**, and an unknown premise
-     never blocks (same rule as the `skip` statuses in `audit/CHECKS.md`). Print the gate's STDERR
-     line, say plainly that domain readiness could not be verified, and continue to STEP A.5 — but
-     if the failure looks like a typo in `<domain>` (unresolvable host, stray characters), confirm
-     the target with the user first rather than measuring the wrong domain.
-
-3. The audit is now stored (keyed by the registrable domain), so STEP 6's PDF/dashboard read it back
-   (`get_latest_audit`) and render the full check table — you need not repeat the audit there.
-
-> **Boundary.** The gate is deterministic and only emits structured JSON; **you** (the orchestrator)
-> turn that JSON into the human-language remediation the operator reads — the same division as the
-> `lens_sentiment` prose vs the `aggregate` math. Only category-A failures block; everything else is
-> advisory. Authority: `pipeline/INTERFACES.md §7` + `audit/CHECKS.md`.
-
----
-
 ## STEP A.5 — SOURCE THE QUESTIONS (bring-your-own vs harvest a grounded set)
 
-Run this **after STEP A and STEP 0**, **before STEP 1**. Goal: end up with a real
+Run this **after STEP A**, **before STEP 1**. Goal: end up with a real
 `<questions.csv>` on disk.
 
 1. **FAST PATH / bring-your-own — a real CSV is already resolved.** If STEP A resolved
@@ -279,9 +245,9 @@ Read `references/deliverables.md` for the flow; `R=1` (the default) needs nothin
 
 ## STEP 3 — FAN-OUT CAPTURE (one `capture-worker` subagent per chunk)
 
-Spawn **N = `--n-worker`** subagents of type **`capture-worker`** (Agent tool) — one per
-chunk, **all in one message so they run concurrently**, each driving its chunk in its own
-browser tab/context. `--n-worker` IS the run's real concurrency; raise it to go wider.
+Spawn **N = `--n-worker`** subagents of type **`capture-worker`** using **Spawn** (Host
+primitives) — one per chunk, concurrently, each driving its chunk in its own browser
+tab/context. `--n-worker` IS the run's real concurrency; raise it to go wider.
 
 A capture worker's only job is to **capture and RETURN data**; it never ingests, creates
 runs, starts servers, or writes the DB. Its full step-by-step contract — output fields, the
@@ -416,8 +382,8 @@ table, and the PDF report shows them as the lead line of its sentiment section.
 
 Parse stdout as JSON and retain `artifact_path`. The artifact schema is
 `open-geo.run-artifact.v1` and contains run metadata, brand/target, metrics by lens,
-qualitative lens summaries, decoded per-query captures, per-lens domain statistics, and
-the latest matching audit. This file is the handoff contract for other agents: downstream
+qualitative lens summaries, decoded per-query captures, and per-lens domain statistics.
+This file is the handoff contract for other agents: downstream
 steps consume it instead of scraping the human summary, querying SQLite directly, or keeping
 the dashboard running.
 

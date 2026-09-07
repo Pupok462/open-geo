@@ -103,7 +103,7 @@ Carry the verdict into every worker brief: it decides which gate the workers are
 ## STEP 4 — FAN OUT (one `core-worker` per segment, in parallel)
 
 Spawn one `core-worker` sub-agent per segment using **Spawn**, concurrently. Its contract lives in
-`.agentsmesh/agents/core-worker.md` — do not restate it. Each brief carries: the product context, its one
+`../../agents/core-worker.md` — do not restate it. Each brief carries: the product context, its one
 segment + dominant lens, the geo/language and the **doctor verdict**, its worker index, the seeds
 relevant to it, and its target (2–4 clusters, 6–15 measured phrases, 4–10 questions).
 
@@ -125,7 +125,7 @@ Merge every worker's clusters and:
 
 ## STEP 6 — SKEPTIC PASS
 
-Spawn 1–2 `harvest-skeptic` sub-agents using **Spawn** (contract in `.agentsmesh/agents/harvest-skeptic.md`) with the
+Spawn 1–2 `harvest-skeptic` sub-agents using **Spawn** (contract in `../../agents/harvest-skeptic.md`) with the
 thesis and the final `{query, lens}` list. Apply the cuts, backfill each from the next-strongest
 candidate in the same cluster, and re-run until every shipped line survives. The skeptic cuts
 unmeasured lines and lines that overstate a presence-only signal — both are failures of this step,

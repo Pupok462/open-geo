@@ -1,8 +1,11 @@
 # engines/ — capture playbooks (the multi-engine extension point)
 
 Each `engines/<engine>.md` is a **capture playbook**: the per-engine instructions a
-Claude-in-Chrome agent follows to turn **one `(query, lens)`** into **exactly one
-`QueryCapture` JSON object** (the contract in [`../pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §1).
+capture worker follows in a **visible, logged-in browser** to turn **one `(query, lens)`**
+into **exactly one `QueryCapture` JSON object** (the contract in
+[`../pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §1). Claude Code binds the
+playbook to Claude-in-Chrome; other hosts bind the same semantic actions to that host's
+equivalent visible-browser tools.
 The `<engine>` argument of the `/open-geo` command selects which playbook the capture
 workers load, and is written verbatim into every `QueryCapture.engine` and onto the run.
 
@@ -61,7 +64,7 @@ backlog spec is **ROADMAP Feature 3**.
    (Google uses `hl`/`gl`; others use account/UI settings); whether a model/mode picker affects
    the answer (and which default you pin); how sources vs inline citations render; any
    redirect-unwrapping needed for URLs.
-5. **Keep the universal guardrails:** visible Claude-in-Chrome (not headless/API), capture what
+5. **Keep the universal guardrails:** visible logged-in browser (not headless/API), capture what
    rendered **once** (no rerolling for a "better" answer — absence is valid data), **stop on
    CAPTCHA / anti-bot challenges** and hand off to the human, use a dedicated account at low
    volume (ToS is per-engine — review before any volume).

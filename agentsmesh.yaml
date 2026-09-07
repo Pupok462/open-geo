@@ -1,4 +1,6 @@
 # yaml-language-server: $schema=https://unpkg.com/agentsmesh@0.32.0/schemas/agentsmesh.json
+# agentsmesh 0.32 has no grok-cli target. Native `.grok/skills` + `.grok/agents`
+# are emitted by scripts/emit_grok_adapters.py (see scripts/sync_harness_adapters.sh).
 version: 1
 targets:
   - claude-code

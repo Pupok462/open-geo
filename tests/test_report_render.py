@@ -1179,34 +1179,6 @@ def test_competitors_citations_inset_sorted_by_citations():
     assert rows[0].highlight is True
 
 
-def test_audit_checks_grouped_by_category_in_order():
-    audit = {
-        "verdict": "ready",
-        "score": 80,
-        "checks": [
-            {"id": "B1", "category": "B", "title": "b", "severity": "recommended", "status": "warn", "detail": "d"},
-            {"id": "A1", "category": "A", "title": "a", "severity": "blocker", "status": "pass", "detail": "d"},
-            {"id": "A2", "category": "A", "title": "a2", "severity": "blocker", "status": "fail", "detail": "d"},
-        ],
-    }
-    groups = G._audit_checks_by_category(audit)
-    assert [g[0] for g in groups] == ["A", "B"]
-    assert [c["id"] for c in groups[0][1]] == ["A2", "A1"]
-
-
-def test_audit_table_has_fix_column_with_remediation():
-    t = _en()
-    audit = {
-        "checks": [
-            {"id": "A3", "category": "A", "title": "robots", "severity": "blocker",
-             "status": "fail", "detail": "blocked", "remediation": "Allow the search bot"}
-        ]
-    }
-    columns, rows = G._audit_table(t, audit)
-    assert columns[-1].label == t.t("audit.col_fix")
-    assert rows[0].cells[-1].text == "Allow the search bot"
-
-
 def test_fit_table_size_shrinks_for_a_wide_table():
     wide = [G.Column(f"Column header {i}") for i in range(9)]
     rows = [G.TableRow(cells=[G.Cell("value " + "x" * 8) for _ in range(9)])]
@@ -1298,31 +1270,6 @@ def test_render_competitors_without_citations_skips_inset():
     ]
     y0 = doc.y
     G.render_competitors(doc, _en(), _report_data(competitors=comps))
-    assert doc.y < y0
-
-
-def test_render_audit_skips_category_without_rows(monkeypatch):
-    doc = _doc()
-    doc.fill_background()
-    audit = {
-        "verdict": "ready",
-        "score": 90,
-        "checked_at": "2026-07-01T12:00:00",
-        "blockers": ["A3"],
-        "checks": [
-            {"id": "A1", "category": "A", "title": "a", "severity": "blocker",
-             "status": "pass", "detail": "d", "remediation": None}
-        ],
-    }
-    real = G._audit_table
-
-    def fake(t, a, checks=None):
-        columns, rows = real(t, a, checks)
-        return columns, ([] if checks else rows)
-
-    monkeypatch.setattr(G, "_audit_table", fake)
-    y0 = doc.y
-    G.render_audit(doc, _en(), _report_data(audit=audit))
     assert doc.y < y0
 
 
@@ -1659,75 +1606,3 @@ def test_wrap_text_still_hard_breaks_a_token_without_punctuation():
     out = _wrap_text(c, token, FONT, 10, 50)
     assert len(out) > 1
     assert "".join(out) == token
-
-
-def _audit_with_snippet() -> dict:
-    return {
-        "verdict": "ready_with_notes",
-        "score": 67,
-        "checks": [
-            {
-                "id": "B1",
-                "category": "B",
-                "title": "Structured data (JSON-LD)",
-                "severity": "recommended",
-                "status": "fail",
-                "detail": "No JSON-LD structured data found.",
-                "remediation": _jsonld_snippet().replace(" ", ""),
-            }
-        ],
-    }
-
-
-def test_audit_table_renders_smaller_than_the_default_table():
-    assert G.T_AUDIT_TABLE < G.T_TABLE
-
-
-def test_audit_fix_column_gets_the_widest_share():
-    columns, rows = G._audit_table(_en(), _audit_with_snippet())
-    widths = G._column_widths(columns, rows, G.T_AUDIT_TABLE)
-    assert widths[-1] == max(widths)
-    assert widths[-1] > widths[3]
-    assert sum(widths) == pytest.approx(G.CONTENT_W, abs=0.5)
-
-
-def test_audit_fix_cell_wraps_without_splitting_a_token():
-    doc = _doc()
-    columns, rows = G._audit_table(_en(), _audit_with_snippet())
-    widths = G._column_widths(columns, rows, G.T_AUDIT_TABLE)
-    lines = G._row_lines(doc, columns, widths, rows[0], G.T_AUDIT_TABLE, False)[-1]
-    assert len(lines) > 1
-    assert "".join(lines) == _jsonld_snippet().replace(" ", "")
-    for line in lines[:-1]:
-        assert line[-1] in G.TOKEN_BREAK_AFTER
-
-
-def _record_draws(doc):
-    seen: list[tuple[float, float, str, str, float]] = []
-    base = doc.c.drawString
-    right = doc.c.drawRightString
-
-    def rec(x, y, text, *a, **k):
-        seen.append((float(x), float(y), str(text), doc.c._fontname, doc.c._fontsize))
-        return base(x, y, text, *a, **k)
-
-    def rec_right(x, y, text, *a, **k):
-        w = pdfmetrics.stringWidth(str(text), doc.c._fontname, doc.c._fontsize)
-        seen.append((float(x) - w, float(y), str(text), doc.c._fontname, doc.c._fontsize))
-        return right(x, y, text, *a, **k)
-
-    doc.c.drawString = rec
-    doc.c.drawRightString = rec_right
-    return seen
-
-
-def test_render_audit_keeps_every_drawn_string_inside_the_frame():
-    doc = _doc()
-    doc.fill_background()
-    seen = _record_draws(doc)
-    G.render_audit(doc, _en(), _report_data(audit=_audit_with_snippet()))
-    assert seen
-    for x, y, text, font, size in seen:
-        assert x >= MARGIN - 0.5
-        assert x + pdfmetrics.stringWidth(text, font, size) <= G.PAGE_W - MARGIN + 0.5
-        assert y >= MARGIN - 14.0

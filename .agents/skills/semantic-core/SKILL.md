@@ -21,6 +21,11 @@ Two halves, deliberately separated:
 
 > Run Python from the open-geo runtime root with its venv (`.venv/bin/python`). Code and intermediate
 > JSON are English; the summary you print follows `--lang`.
+>
+> **Ask / Spawn.** Prefer the host's structured question API (`AskUserQuestion` on Claude Code);
+> otherwise ask in the conversation with enumerated options and wait. Fan out workers with the
+> host's native spawn (Claude Code `Agent` tool, all in one message; Grok `spawn_subagent` with
+> `subagent_type`; Codex/Cursor/Gemini — that host's equivalent). Never guess a required value.
 
 ---
 
@@ -56,7 +61,7 @@ Missing required values go to **STEP 1** (wizard), never to a guess.
 ## STEP 1 — RESOLVE PARAMETERS
 
 1. Take everything from the invocation. If `<domain>` or `--brand` is missing, ask for them
-   (`AskUserQuestion`), one compact question per unknown.
+   (**Ask**), one compact question per unknown.
 2. Fetch the homepage (`WebFetch`) to infer **market/category** and obvious competitors. Echo the
    inference in one line and let the user correct it — a wrong category poisons every seed.
 3. Ask only for what is still unknown: geo(s), query language(s), count, split, and — unless
@@ -97,7 +102,7 @@ Carry the verdict into every worker brief: it decides which gate the workers are
 
 ## STEP 4 — FAN OUT (one `core-worker` per segment, in parallel)
 
-Spawn one `core-worker` sub-agent per segment (Agent tool), all in one message so they run concurrently. Its contract lives in
+Spawn one `core-worker` sub-agent per segment using **Spawn**, concurrently. Its contract lives in
 `../../../.codex/agents/core-worker.toml` — do not restate it. Each brief carries: the product context, its one
 segment + dominant lens, the geo/language and the **doctor verdict**, its worker index, the seeds
 relevant to it, and its target (2–4 clusters, 6–15 measured phrases, 4–10 questions).
@@ -120,7 +125,7 @@ Merge every worker's clusters and:
 
 ## STEP 6 — SKEPTIC PASS
 
-Spawn 1–2 `harvest-skeptic` sub-agents (contract in `../../../.codex/agents/harvest-skeptic.toml`) with the
+Spawn 1–2 `harvest-skeptic` sub-agents using **Spawn** (contract in `../../../.codex/agents/harvest-skeptic.toml`) with the
 thesis and the final `{query, lens}` list. Apply the cuts, backfill each from the next-strongest
 candidate in the same cluster, and re-run until every shipped line survives. The skeptic cuts
 unmeasured lines and lines that overstate a presence-only signal — both are failures of this step,
@@ -150,7 +155,7 @@ CSV omits.
 ## STEP 8 — REVIEW GATE (human-in-the-loop)
 
 Show: total questions, `by_lens`, `coverage` (how many phrases rest on volume vs presence), the
-strongest and weakest clusters by measured volume, and the full query list. Ask (`AskUserQuestion`):
+strongest and weakest clusters by measured volume, and the full query list. Ask (**Ask**):
 **Apply** / **Edit** (adjust rows, re-run STEP 7 until `errors: []`) / **Discard**. Never go straight
 to capture on a freshly generated set without the operator seeing it.
 

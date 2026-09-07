@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **The domain GEO-readiness audit is gone.** open-geo collects visibility data from AI
+  engines; it does not inspect whether a site is technically crawlable or citation-ready.
+  Removed: the `audit/` package, SKILL STEP 0, `--force`, the `audits` table and helpers,
+  `/api/audit`, the dashboard audit panel, the PDF audit section, and `docs/llms.txt`.
+  Historical run artifacts in `reports/` are unchanged.
+
 ### Fixed
 - **`is_brand` in the top-domains leaderboard now follows URL-prefix targets.** The flag was set by
   comparing registrable domains, so a target like `github.com/user/repo` branded *every* github.com
@@ -15,6 +22,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   as "you" while the funnel metrics correctly reported no match. `domain_stats.is_brand` is now
   decided per link with `matches_target`, the same semantics as `target_ranks`. Registrable-domain
   targets (`ectem.ru`) are unaffected.
+
+## [0.6.0] — 2026-09-07
+
+The same `/open-geo` and `/semantic-core` skills, plus the four workers, now load as
+native project skills/agents on Grok, Codex, Cursor, and Gemini CLI — not only Claude Code.
+
+### Added
+- **Grok Build adapters.** Project skills at `.grok/skills/` and spawnable agent types at
+  `.grok/agents/` (`capture-worker`, `harvest-worker`, `harvest-skeptic`, `core-worker`).
+  agentsmesh 0.32 has no `grok-cli` target; `scripts/emit_grok_adapters.py` (via
+  `scripts/sync_harness_adapters.sh`) emits them from `.agentsmesh`.
+- **Host-portable ask/spawn/browser contract.** Missing args use the host's question API
+  when it exists (`AskUserQuestion` on Claude Code) and otherwise the conversation.
+  Fan-out uses the host's native spawn (Claude `Agent` tool, Grok `spawn_subagent`, …
+  that host's equivalent). Capture still requires a visible logged-in browser and the
+  `QueryCapture` contract; Claude-in-Chrome remains the Claude Code binding, not the
+  only binding.
+
+### Changed
+- Engine playbooks and `capture-worker` describe semantic browser actions first. A host
+  without a visible-browser capability stops on the prerequisite instead of inventing
+  API or headless data.
+- README names a supported agent host with a logged-in visible browser, not Claude Code
+  as the only host.
 
 ## [0.5.1] — 2026-08-26
 

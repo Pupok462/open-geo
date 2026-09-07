@@ -25,8 +25,9 @@ Install (from a Claude Code session):
 > pick it up via `/plugin update open-geo`.
 >
 > **Namespacing.** Plugin skills are namespaced: the plugin-installed command is
-> `/open-geo:open-geo`. The plain `/open-geo` form exists only when working from a repo
-> clone (project-level `.claude/skills/`).
+> `/open-geo:open-geo`. The plain `/open-geo` form exists when working from a repo
+> clone (project-level `.claude/skills/`, and the same skills under `.grok/`,
+> `.cursor/`, `.gemini/`, `.agents/` for Grok / Cursor / Gemini CLI / Codex).
 
 > **No manual runtime launch.** On first invocation, the skill resolves the plugin/repository
 > runtime and runs `scripts/setup.sh --minimal` itself when Python dependencies are missing.

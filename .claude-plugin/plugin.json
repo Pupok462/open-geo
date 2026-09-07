@@ -1,7 +1,7 @@
 {
   "name": "open-geo",
   "description": "Composable GEO visibility agent skill: capture rendered AI answers, measure a target's visibility/citation, and return a portable JSON run artifact with optional PDF/dashboard outputs.",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "author": {
     "name": "open-geo contributors"
   },

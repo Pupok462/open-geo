@@ -9,6 +9,11 @@ Capture stays what it always was: a real logged-in browser reading the rendered 
 here is only **how the links are lifted off a page that is already open and settled** — the agent
 still drives, the script only reads.
 
+`javascript_tool` in this file is the **Claude-in-Chrome** binding of "run JS in the already-open
+page". Other hosts use their equivalent in-page JS if they have one; if they do not, skip the
+fast path and follow the visual/read procedure in the playbook. Never treat a missing JS tool as
+license to switch to an API or a headless scrape.
+
 ## The finding that drives this
 
 `read_page(filter="interactive")` is **viewport-limited and virtualized**. The DOM usually is not.

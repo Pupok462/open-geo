@@ -2,7 +2,7 @@
 
 FastAPI backend (read-only over `data/aeo.db`) + Vite/React/TypeScript/Tailwind/Recharts
 frontend. Shows AI-visibility metrics per brand/engine with retrospective charts,
-read-time deltas, lens breakdown, a **GEO-readiness audit panel**, a **top-domains
+read-time deltas, lens breakdown, a **top-domains
 (competitor) leaderboard**, a per-query results table, and a PDF export. The
 brand/engine selectors are **data-driven** — the engine list is whatever has runs in the DB
 (`/api/engines`), so every captured engine (seven live-validated today; ROADMAP Feature 3
@@ -74,7 +74,6 @@ line up without `VITE_API_BASE`.
 | GET  | `/api/metrics?brand_id=&engine=&period=today\|all&lens=` | metrics + read-time deltas + per-lens `sentiment_summary` |
 | GET  | `/api/timeseries?brand_id=&engine=&lens=&bucket=run\|week` | per-run points over time; `bucket=week` rolls completed runs up per ISO week (weighted) |
 | GET  | `/api/competitors?brand_id=&engine=&period=today\|all&lens=&sort=sources\|citations&limit=15` | top-domains leaderboard from `domain_stats` |
-| GET  | `/api/audit?brand_id=&engine=` | latest GEO-readiness audit for the brand's registrable domain (`audits`) |
 | GET  | `/api/engine_matrix?brand_id=&period=today\|all&lens=` | side-by-side per-engine matrix: one metrics row per engine of the brand |
 | GET  | `/api/results?run_id=&lens=` | per-query rows (JSON cols decoded, incl. sentiment) |
 | GET  | `/api/i18n` | the `i18n/locales.json` registry — `[{code, name}]`, drives the language switcher |
@@ -162,24 +161,6 @@ domain regardless of the `<domain>` argument — when the target is a URL prefix
 (`github.com/user/repo`), the "you" row highlights the **full target domain** (`github.com`), which
 is broader than the prefix; the funnel metrics (sources/citations) remain prefix-exact.
 
-`/api/audit` returns the **latest GEO-readiness audit** for the brand (the `audits` table,
-INTERFACES §7). The brand's `domain` (which may be a URL prefix) is reduced to its registrable
-domain via `normalize_domain`, then `get_latest_audit` returns the most recent stored
-`AuditResult` for that domain. When `engine` is given the match is **strict** — only that
-engine's audit, never another engine's, because A3 (crawl access) is graded per engine and one
-engine's verdict says nothing about another's; with no audit for that engine the panel shows
-"no audit" rather than a misleading one. The response is a
-wrapper `{brand_id, engine, domain, audit}` where `audit` is the full `AuditResult` JSON
-(`verdict`, `score`, `passed`, `blockers`, and the per-check list with `severity`/`status`/
-`detail`/`remediation`) or `null` when the brand has no audit yet. Like the audit itself, the
-check titles/details/remediation are **English data** — only the panel chrome (verdict, severity,
-status labels) is localized. As with sentiment and competitors, the read-only API never calls
-`init_db`, so a DB predating the `audits` table returns `audit: null` (catching `no such table`)
-instead of erroring. The web UI surfaces this as a **"GEO-readiness audit"** panel near the top (a
-readiness banner above the KPI cards): a verdict badge + `score`/100, any blockers, and a per-check
-table sorted fails/warns first with an inline "How to fix" for actionable rows; the PDF report
-carries the same as its audit section.
-
 The frontend shows the **Trend across runs** chart only in the `all` (whole-period) view; the
 `today` (latest-run) view is a pure snapshot — KPI cards with read-time deltas, no trend chart.
 
@@ -197,7 +178,7 @@ temp file and returns `application/pdf`. `lang` defaults to `en` and is passed t
 `--lang`. The PDF is **not a subset of this dashboard**: alongside the same KPI/lens/funnel/
 top-domain/sentiment sections it carries a full per-query results table grouped by outcome (the
 static equivalent of the outcome-filter chips), a "Gaps to close" section holding the `absent`
-subset alone, an audit section with a "How to fix" column per check, and a closing glossary that
+subset alone, and a closing glossary that
 replaces this UI's per-metric tooltips. `period=all` is a **whole-period rollup on both surfaces**
 — the report folds the period with the same weighted math as `/api/metrics`, so a downloaded PDF
 and the panel it was downloaded from cannot disagree; inside a repeat group both show the min–max

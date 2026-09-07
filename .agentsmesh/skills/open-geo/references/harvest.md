@@ -3,7 +3,7 @@
 > Loaded by the open-geo skill only when the operator chose to generate a question set.
 > Process authority: `harvest/METHODOLOGY.md`. Contract: `pipeline/INTERFACES.md §6`.
 
-Run this **after STEP A and STEP 0**, **before STEP 1**. Goal: end up with a real `<questions.csv>` on disk.
+Run this **after STEP A**, **before STEP 1**. Goal: end up with a real `<questions.csv>` on disk.
 It is the operator entry point for **question harvesting** (Feature 1) — the process authority is
 `harvest/METHODOLOGY.md`, the contract is `pipeline/INTERFACES.md §6`. Harvesting is **agentic**
 (recon sub-agents under the methodology), not an algorithm, and it is **opt-in**.
@@ -22,7 +22,8 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
 2. **GENERATE PATH — the user chose "Generate a set" (or no CSV is resolved).** Harvest one:
 
    a. **Collect harvest inputs** (reuse what STEP A already has — brand, domain, `--lang`). Ask only
-      for what is missing, via `AskUserQuestion`:
+      for what is missing, via **Ask** (open-geo SKILL Host primitives — structured question API
+      when the host has one, otherwise the conversation):
       - **market / category** (free text) and **known competitors** (free text seed; recon extends).
       - **how many** questions — presets `20 / 36 / 60` (+ custom). Default split is a deliberate
         **`general`-tilt** derived from the count (for ~36: `16 / 10 / 10`); offer to override the
@@ -37,7 +38,7 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
       one may not. Keep the plan to the segments the product actually has.
 
    c. **Phase A — fan-out grounded recon.** Spawn **one `harvest-worker` sub-agent per segment**
-      (Task tool), **in parallel**. Its full contract lives in `.agentsmesh/agents/harvest-worker.md` —
+      using **Spawn** (open-geo SKILL Host primitives), **in parallel**. Its full contract lives in `.agentsmesh/agents/harvest-worker.md` —
       do not restate it. Give each a self-contained brief:
       - the **full text of `harvest/METHODOLOGY.md`** (authoritative process + iron reality rule);
       - the **product context** (brand, domain, market, competitors);
@@ -60,8 +61,8 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
       **balance** to the target split with the `general`-tilt, maximizing intent diversity within
       each lens; split any non-primary-language slice into its own list.
 
-   e. **Phase C — adversarial skeptic.** Spawn **1–2 `harvest-skeptic` sub-agents** (Task tool;
-      contract in `.agentsmesh/agents/harvest-skeptic.md`) with the thesis + the final `{query, lens}`
+   e. **Phase C — adversarial skeptic.** Spawn **1–2 `harvest-skeptic` sub-agents** using **Spawn**
+      (open-geo SKILL Host primitives; contract in `.agentsmesh/agents/harvest-skeptic.md`) with the thesis + the final `{query, lens}`
       list. They return **KEEP/CUT verdicts**. Apply the cuts, backfill each with the next-strongest
       distinct Phase-A candidate, until every shipped line survives.
 
@@ -79,14 +80,14 @@ It is the operator entry point for **question harvesting** (Feature 1) — the p
    g. **Write `<name>_rationale.md`** — per segment: who we catch, on which observable signals (from
       the workers' `signal`/`source_url`), why this lens; plus the competitors that surfaced. This is
       the provenance the CSV omits (see `gonka_questions_rationale.md` for the shape). Keep it in the
-      language of the audit's stakeholders.
+      language of the run's stakeholders.
 
    h. **REVIEW GATE (human-in-the-loop).** Show a short summary — total, `by_lens`, and the full query
-      list — and ask (`AskUserQuestion`): **Apply** (use this CSV for the run), **Edit** (you open
+      list — and ask (**Ask**): **Apply** (use this CSV for the run), **Edit** (you open
       `<name>_questions.csv`, the user tweaks rows / you adjust per their notes, then re-run
       `harvest.build` to re-validate — `errors: []` before proceeding), or **Discard** (fall back to
       bring-your-own: re-offer file selection / a path). On **Apply/Edit**, set `<questions.csv>` to
-      the written path and proceed to STEP 0. This gate is deliberate — never skip straight to capture
+      the written path and proceed to STEP 1. This gate is deliberate — never skip straight to capture
       on a generated set without the operator seeing it (moat #3, trust).
 
 > **Boundary.** Harvesting only produces the CSV; nothing downstream changes. The capture contract

@@ -35,7 +35,7 @@ how the brand is spoken about when it does.
 | | |
 |---|---|
 | **What it is** | A GEO / AI-visibility data-collection agent for a brand or URL, packaged as a composable **skill** |
-| **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in browser (Claude-in-Chrome) |
+| **How it measures** | An agent reads the **rendered** AI answer in a real, logged-in visible browser (Claude-in-Chrome on Claude Code; the host's equivalent elsewhere) |
 | **Engines covered** | Google AI Overview, ChatGPT, Claude, Gemini, Yandex Alice (Нейро), DeepSeek, Perplexity — all seven live-validated |
 | **What it reports** | A funnel — answer coverage → visibility in sources → visibility in citations — plus positions, source→citation conversion, brand-mention rate, qualitative sentiment, and a top-domains leaderboard |
 | **Deliverables** | Always: a versioned JSON run artifact for other agents. Optional: a local dashboard and a themed PDF from the same SQLite history |
@@ -45,10 +45,12 @@ how the brand is spoken about when it does.
 
 ### Why open-geo
 
-- **It reads the answer like a human, not an API.** Capture runs through Claude-in-Chrome in a
-  real, logged-in browser — it sees the _rendered_ AI answer (the sources panel and the inline
-  citation chips), normalizes domains, and emits one validated record per query. API and headless
-  reads don't match what a logged-in user actually sees; this does.
+- **It reads the answer like a human, not an API.** Capture runs through a real, logged-in
+  visible browser — it sees the _rendered_ AI answer (the sources panel and the inline
+  citation chips), normalizes domains, and emits one validated record per query. Claude Code
+  drives that browser with Claude-in-Chrome; Grok, Codex, Cursor, and Gemini CLI bind the
+  same actions to that host's equivalent. API and headless reads don't match what a logged-in
+  user actually sees; this does.
 - **Adapts instead of breaking.** Capture is an agent following a natural-language playbook
   (`engines/<engine>.md`), not hard-coded selectors: when an engine changes its UI the agent
   adapts, and a structural change is a few words in a markdown file — which is also why adding an
@@ -64,7 +66,7 @@ how the brand is spoken about when it does.
   and reproducible.
 - **Drops into another agent workflow.** Every completed run exports
   `open-geo.run-artifact.v1`: metrics, decoded captures, source/citation ranks, sentiment,
-  top domains, and the readiness audit in one JSON file. Any downstream agent workflow that can
+  and top domains in one JSON file. Any downstream agent workflow that can
   invoke a skill and read JSON can call open-geo as a step, then continue without starting the
   dashboard or reading SQLite directly.
 
@@ -76,8 +78,9 @@ how the brand is spoken about when it does.
   split by query lens (general / branded / comparative), and catch week-over-week drift.
 - **Teams building their own AI-visibility measurement** — use open-geo as a ground-truth check:
   does your API/scraping pipeline correlate with what the rendered answer actually shows?
-- **Founders & devs already in an agent host** — it's just a skill: point open-geo at a CSV and a
-  domain, get a portable data artifact. No SaaS, no upload, no account.
+- **Founders & devs already in an agent host** — it's just a skill (Claude Code, Grok, Codex,
+  Cursor, Gemini CLI): point open-geo at a CSV and a domain, get a portable data artifact. No
+  SaaS, no upload, no account.
 
 ## How open-geo compares
 
@@ -115,17 +118,6 @@ is the right shape — if you need a defensible read of what an engine really re
   source/citation position). The honest "who shares your answer space" — brand rivals and
   publishers alike, your brand highlighted — as a sortable dashboard panel and a PDF section. No
   extra capture: it's computed from the data you already collected, so it works on past runs too.
-- **A pre-run GEO-readiness audit** — before spending capture tokens, a fast, deterministic
-  (non-LLM) check of whether an AI engine can even read the target domain and whether it's set up
-  to be cited. It grades by severity: **hard blockers** — HTTPS/reachability, a homepage that
-  returns 200, `robots.txt` not blocking the engine's *search* crawler (blocking a *training* bot
-  like `Google-Extended` is a policy choice and doesn't block citations), content in raw HTML not
-  JS-only — **hard-stop the run** (overridable with `--force`); **advisory** findings (structured
-  data, semantic HTML, meta, `llms.txt`, entity/trust, freshness) ship with a concrete fix but
-  never block it. It runs first, is stored, and surfaces in the PDF and the dashboard. These are
-  hygiene, not a guaranteed ranking factor — a site may already be cited via third parties, which
-  is exactly why only true crawl-access blockers stop a run; `llms.txt` (not `llm.txt`) is an
-  emerging ~10–15%-adoption convention, cheap to add but unproven.
 - **SQLite multi-brand time-series** — every run is stored in `data/aeo.db` (SQLite, WAL),
   so you accumulate history per brand + engine and get run-over-run deltas.
 - **Repeat runs with an honest spread** — `--repeat R` captures the same question set R times as
@@ -140,8 +132,8 @@ is the right shape — if you need a defensible read of what an engine really re
   no headless Chrome and no system libraries required. It is not a summary of the dashboard: it
   carries the same numbers plus every query of the run **grouped by outcome** (cited / in sources,
   not cited / mentioned, no link / absent / no answer), a separate **"Gaps to close"** list of the
-  queries the engine answered without the brand in it at all, the GEO-readiness audit **with a
-  "How to fix" column**, and a closing glossary giving the formula behind each metric. On
+  queries the engine answered without the brand in it at all, and a closing glossary giving the
+  formula behind each metric. On
   `--period all` the report rolls the whole period up with the same math as the dashboard, so the
   two deliverables never disagree about a number.
 - **Engines side by side, one document** — an **"All engines — compare"** option in the dashboard
@@ -156,7 +148,13 @@ Install the skill, then ask the agent for the outcome. On the first request it r
 bootstraps its runtime, performs the capture, and returns the absolute path to the JSON artifact.
 No manual clone, `setup.sh`, Python command, API server, or dashboard launch is required.
 
-1. **Install it as a Claude Code plugin:**
+1. **From a repo clone** (Grok, Codex, Cursor, Gemini CLI, Claude Code): open this
+   repository in the host. `/open-geo` and `/semantic-core` are project skills; the
+   workers `capture-worker`, `harvest-worker`, `harvest-skeptic`, and `core-worker`
+   are spawnable agent types in that host's native layout (`.grok/`, `.agents` +
+   `.codex/`, `.cursor/`, `.gemini/`, `.claude/`).
+
+   **Or install it as a Claude Code plugin:**
 
    ```text
    /plugin marketplace add Pupok462/open-geo
@@ -186,15 +184,18 @@ No manual clone, `setup.sh`, Python command, API server, or dashboard launch is 
 > (from a repo clone it stays plain `/open-geo`). The first run prepares its Python runtime
 > automatically. To pick up a new release later, run `/plugin update open-geo`.
 
-**Track it on a schedule.** Wrap the command in Claude Code's **`/loop`** to re-capture on an
-interval and watch the drift — e.g. a weekly read:
+**Track it on a schedule.** Wrap the command in the host's repeating runner (Claude Code
+**`/loop`**, Grok scheduled tasks, or the equivalent) to re-capture on an interval and
+watch the drift — e.g. a weekly read:
 
 ```bash
 /loop 1w /open-geo examples/questions.csv google github.com/Pupok462/open-geo --brand "open-geo" --n-worker 3 --output both
 ```
 
-> The one thing Claude can't do for you: connect the **Claude-in-Chrome** extension and log the
-> browser in to the market you want to track. That logged-in session is what capture drives.
+> The one thing the host can't do for you: give it a **visible browser already logged in**
+> to the market you want to track. Claude Code uses the Claude-in-Chrome extension; other
+> hosts use their equivalent visible-browser control. That logged-in session is what
+> capture drives.
 
 ## Commands
 
@@ -204,7 +205,7 @@ capture → metrics → artifact and hands the versioned JSON to you or the call
 ```
 /open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
           [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
-          [--period today|all] [--lang en|ru|zh|ar] [--force] [--repeat R]
+          [--period today|all] [--lang en|ru|zh|ar] [--repeat R]
 ```
 
 | argument | meaning |
@@ -218,7 +219,6 @@ capture → metrics → artifact and hands the versioned JSON to you or the call
 | `--artifact-out` | destination for the portable JSON artifact; defaults to `reports/run-<run-id>.json`. |
 | `--period` | `all` (default — full brand+engine history, with the trend chart) \| `today` (this run only). |
 | `--lang` | UI language of the deliverables — `en` (default) \| `ru` \| `zh` \| `ar`. |
-| `--force` | continue even when the pre-run GEO-audit gate returns `blocked` (it warns loudly instead of stopping). |
 | `--repeat R` | run the same question set **R** independent times under one group tag; the dashboard then shows the mean with a min–max spread instead of run-over-run deltas. Default `1`. |
 
 ### Don't have the questions yet — `/semantic-core`
@@ -265,8 +265,8 @@ chat prose or keep the dashboard alive.
 
 The whole tracker is orchestrated by the **`/open-geo`** command:
 
-1. **Capture playbook** — a per-engine playbook (`engines/<engine>.md`) is driven by
-   **Claude-in-Chrome** in a **visible, logged-in** Chrome. It reads the rendered AI answer as an
+1. **Capture playbook** — a per-engine playbook (`engines/<engine>.md`) is driven in a
+   **visible, logged-in** browser. It reads the rendered AI answer as an
    LLM does, expands the sources panel and the inline citation chips, normalizes domains, and emits
    **one `QueryCapture` object per query**.
 2. **`QueryCapture`** — the validated capture contract (Pydantic v2; authoritative spec in
@@ -345,7 +345,7 @@ The PDF's **key-metrics page** (from the seeded **Example** demo — engine `goo
 [download the full sample PDF](assets/sample-report-example.pdf)). The full document runs
 `01` key metrics → `02` breakdown by lens → `03` visibility funnel → `04` trend across runs →
 `05` top domains → `06` sentiment by lens → `07` results by query → `08` gaps to close →
-`09` GEO-readiness audit → `10` how to read this report:
+`09` how to read this report:
 
 <p align="center">
   <img src="assets/report-metrics.png" alt="open-geo PDF report — key metrics page for Example (example.com): seven KPI cards with run-over-run deltas and a per-lens breakdown table" width="78%">
@@ -405,7 +405,8 @@ answer **retrieved** you, whether it **cited** you, and where in the answer you 
 ### Is there a GEO / AI-visibility tracker for Claude Code?
 Yes — open-geo is one. It installs as an agent skill, performs the full capture on request, and
 returns a versioned JSON run artifact that another workflow can consume directly. In Claude Code,
-install it with `/plugin marketplace add Pupok462/open-geo`; the first run prepares its runtime.
+install it with `/plugin marketplace add Pupok462/open-geo`. From a repo clone it also runs as
+project skills on Grok, Codex, Cursor, and Gemini CLI. The first run prepares its runtime.
 
 ### Which AI engines can open-geo track?
 Seven today: **Google AI Overview, ChatGPT (web search), Claude (web search), Google Gemini, Yandex
@@ -428,8 +429,9 @@ they measure a surface nobody sees.
 ### Is open-geo an audit or 24/7 monitoring?
 An **audit** you run on demand. A run is supervised, spends inference, and measures the questions
 you chose — so it is built for a point-in-time read you can defend, not for continuous coverage of
-a large prompt set. If you want it repeated, wrap the command in Claude Code's `/loop` (e.g. weekly)
-or use `--repeat R` to capture the same set several times and read the min–max spread.
+a large prompt set. If you want it repeated, wrap the command in the host's repeating runner
+(Claude Code `/loop`, or the equivalent) or use `--repeat R` to capture the same set several
+times and read the min–max spread.
 
 ### How is open-geo different from a hosted AI-visibility monitoring service?
 Different shape, on purpose: open-geo trades **volume for fidelity**. It reads the rendered answer
@@ -471,8 +473,10 @@ no configured ruler, the line is marked *presence only* — nothing is ever inve
 For a full demand-first build (clusters, volumes, then the run) use **`/semantic-core`**.
 
 ### Do I need any paid API keys?
-No paid keys and no data vendor. You need **Claude Code**, the **Claude-in-Chrome** extension
-connected, and a **browser already logged in** to the engine / market you want to track.
+No paid keys and no data vendor. You need a **supported agent host** (Claude Code, Grok, Codex,
+Cursor, or Gemini CLI) with **visible-browser control** and a **browser already logged in** to
+the engine / market you want to track. Claude Code's binding is the Claude-in-Chrome extension;
+other hosts use their equivalent.
 
 The keyword-demand side (`/semantic-core`, `demand/`) uses **free** APIs, all optional: a Yandex
 Wordstat API key for RU/CIS volume, a Google Ads developer token and/or a Bing Webmaster API key for
@@ -484,7 +488,8 @@ and the exact steps for what is not.
 No. open-geo is a local tool: every run is stored in a local **SQLite (WAL) database** at
 `data/aeo.db`, and every run exports a local **JSON artifact**; PDF and dashboard are optional.
 There is no SaaS and no account, so the methodology is yours to inspect and reproduce. (Capture
-itself runs through Claude Code / Claude-in-Chrome, so it is not an offline or air-gapped tool.)
+itself needs a logged-in visible browser the host can drive, so it is not an offline or
+air-gapped tool.)
 
 ### Why seven metrics and no single score?
 Because six of them form a **funnel** (answer → sources → citations) — the seventh, the brand
@@ -502,8 +507,8 @@ sequence — raise `--n-worker` to shorten a large run (within reason, to stay u
 "unusual traffic" radar).
 
 ### Is open-geo free and open source?
-Yes — MIT-licensed, and there is no data API or paid key in the loop. Running it does spend your own
-Claude Code inference, and it needs a browser already logged in to the engine you want to measure.
+Yes — MIT-licensed, and there is no data API or paid key in the loop. Running it does spend your
+own host inference, and it needs a browser already logged in to the engine you want to measure.
 
 ## License
 

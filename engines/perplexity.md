@@ -1,7 +1,14 @@
 # Capture Playbook — Perplexity (grounded answers)
 
-> **What this is.** A prompt for a Claude Code agent driving a **real, logged-in
-> Chrome** via the Claude-in-Chrome browser tools (`mcp__claude-in-chrome__*`).
+> **What this is.** A prompt for a capture worker driving a **real, logged-in,
+> visible browser**. Claude Code binds this to Claude-in-Chrome
+> (`mcp__claude-in-chrome__*`); other hosts bind the same semantic actions
+> (open a tab, screenshot/read the rendered answer, collect in-place links,
+> optional in-page JS, close tabs you opened) to that host's equivalent.
+> If this host cannot drive a visible logged-in browser, stop and report the
+> prerequisite — never substitute API or headless data. Tool names such as
+> `read_page`, `computer`, `javascript_tool`, and `get_page_text` are the
+> Claude-in-Chrome binding of those actions.
 > You capture **ONE `(query, lens)`** into **exactly one `QueryCapture` JSON
 > object**. The orchestrator runs you once per query and collects the objects
 > into a batch array — **you do not emit the array, only your single object.**
@@ -527,8 +534,8 @@ Three distinct states (all of which presuppose an answer actually rendered):
   Never fabricate sources, citations, or sentiment to "fill in" a capture, and never
   promote a model-typed source name into real `sources`/`citations` — only real
   source cards and citation chips count.
-- **ToS / volume.** Capture is a **measurement** at low volume via visible
-  Claude-in-Chrome (not headless, not the API — the API answer is a different
+- **ToS / volume.** Capture is a **measurement** at low volume via a visible
+  logged-in browser (not headless, not the API — the API answer is a different
   surface from the consumer UI we measure). Review Perplexity's ToS before any
   volume, use a dedicated account, and keep the rate low.
 - **Stay in this engine / this query.** One object per `(query, lens)`. Don't branch

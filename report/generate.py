@@ -27,11 +27,10 @@ from pipeline.db import (
     find_brand_id,
     get_conn,
     get_domain_stats,
-    get_latest_audit,
     get_lens_sentiments,
     init_db,
 )
-from pipeline.schema import normalize_domain, normalize_target
+from pipeline.schema import normalize_target
 from report.i18n import DEFAULT_LANG, Translator, available_codes
 from report.textshape import is_rtl, shape
 
@@ -77,7 +76,6 @@ T_COVER = 34
 T_TITLE = 14
 T_BODY = 11
 T_TABLE = 9
-T_AUDIT_TABLE = 7.5
 T_CAPTION = 7.5
 
 LEAD_BODY = 13.0
@@ -237,7 +235,6 @@ class ReportData:
     history: list[tuple[str, dict[str, LensMetrics]]] = field(default_factory=list)
     sentiment_summaries: dict[str, str] = field(default_factory=dict)
     competitors: list[dict] = field(default_factory=list)
-    audit: Optional[dict] = None
     results: list[ResultRow] = field(default_factory=list)
     n_runs: int = 1
     group_id: Optional[str] = None
@@ -748,18 +745,6 @@ def load_report_data(
     ).fetchone()
     display_domain = brow["domain"] if brow is not None else normalize_target(domain)
 
-    audit_row = get_latest_audit(conn, normalize_domain(domain), engine)
-    audit: Optional[dict] = None
-    if audit_row is not None:
-        parsed = json.loads(audit_row["result_json"])
-        if isinstance(parsed, dict):
-            parsed.setdefault("checked_at", audit_row["checked_at"])
-            parsed.setdefault("verdict", audit_row["verdict"])
-            parsed.setdefault("score", audit_row["score"])
-            parsed.setdefault("target", audit_row["target"])
-            parsed.setdefault("domain", audit_row["domain"])
-            audit = parsed
-
     history: list[tuple[str, dict[str, LensMetrics]]] = []
     history_weekly: list[WeekPoint] = []
     if period == "all":
@@ -782,7 +767,6 @@ def load_report_data(
         history=history,
         sentiment_summaries=sentiment_summaries,
         competitors=competitors,
-        audit=audit,
         results=results,
         n_runs=n_runs,
         group_id=group_id,
@@ -2614,7 +2598,7 @@ def render_glossary(doc: Doc, t: Translator, data: ReportData) -> None:
     first_hint = t.t(f"metrics.{_GLOSSARY_METRICS[0]}.hint")
     _section_header(
         doc,
-        "10",
+        "09",
         t.t("report.section_glossary"),
         next_block_h=_reserve(
             _paragraph_h(doc, t.t("report.glossary_intro")) + GAP_XS,
@@ -2775,16 +2759,6 @@ def render_competitors(doc: Doc, t: Translator, data: ReportData) -> None:
     )
 
 
-_AUDIT_STATUS_RANK = {"fail": 0, "warn": 1, "skip": 2, "pass": 3}
-
-_AUDIT_STATUS_COLOR = {
-    "pass": GOOD,
-    "warn": WARN,
-    "fail": BAD,
-    "skip": INK_FAINT,
-}
-
-
 def _truncate_to_width(s: str, font: str, size: float, max_w: float) -> str:
     if pdfmetrics.stringWidth(s, font, size) <= max_w + 0.05:
         return s
@@ -2792,160 +2766,6 @@ def _truncate_to_width(s: str, font: str, size: float, max_w: float) -> str:
     while s and pdfmetrics.stringWidth(s + ellipsis, font, size) > max_w:
         s = s[:-1]
     return s + ellipsis
-
-
-def _audit_checks_by_category(audit: dict) -> list[tuple[str, list[dict]]]:
-    grouped: dict[str, list[dict]] = {}
-    for c in audit.get("checks", []):
-        grouped.setdefault(str(c.get("category", "") or "—"), []).append(c)
-    return [
-        (
-            category,
-            sorted(
-                items,
-                key=lambda c: (
-                    _AUDIT_STATUS_RANK.get(c.get("status"), 99),
-                    str(c.get("id", "")),
-                ),
-            ),
-        )
-        for category, items in sorted(grouped.items())
-    ]
-
-
-def _audit_table(
-    t: Translator, audit: dict, checks: Optional[list[dict]] = None
-) -> tuple[list[Column], list[TableRow]]:
-    if checks is None:
-        checks = audit.get("checks", [])
-    checks = sorted(
-        checks,
-        key=lambda c: (_AUDIT_STATUS_RANK.get(c.get("status"), 99), str(c.get("id", ""))),
-    )
-    columns = [
-        Column(t.t("audit.col_check"), wrap=True, grow=0.8),
-        Column(t.t("audit.col_severity"), wrap=True, grow=0.2),
-        Column(t.t("audit.col_status"), grow=0.2),
-        Column(t.t("audit.col_detail"), wrap=True, grow=1.2),
-        Column(t.t("audit.col_fix"), wrap=True, grow=3.0),
-    ]
-    rows: list[TableRow] = []
-    for c in checks:
-        status = str(c.get("status", ""))
-        severity = str(c.get("severity", ""))
-        status_color = _AUDIT_STATUS_COLOR.get(status, INK_DIM)
-        sev_key = f"audit.severity_{severity}"
-        status_key = f"audit.status_{status}"
-        rows.append(
-            TableRow(
-                cells=[
-                    Cell(str(c.get("title", ""))),
-                    Cell(t.t(sev_key) if t.has(sev_key) else severity, color=INK_DIM),
-                    Cell(
-                        t.t(status_key) if t.has(status_key) else status,
-                        color=status_color,
-                        bold=True,
-                    ),
-                    Cell(str(c.get("detail", "")), color=INK_DIM),
-                    Cell(str(c.get("remediation") or ""), color=INK_FAINT),
-                ],
-                marker=status_color,
-            )
-        )
-    return columns, rows
-
-
-def _audit_category_title(t: Translator, category: str) -> str:
-    key = f"audit.category_{category}"
-    label = t.t(key) if t.has(key) else ""
-    return f"{category} · {label}" if label else category
-
-
-def render_audit(doc: Doc, t: Translator, data: ReportData) -> None:
-    audit = data.audit
-    if audit is None:
-        _section_header(doc, "09", t.t("report.section_audit"), next_block_h=3 * LEAD_BODY)
-        draw_paragraph(doc, t.t("report.audit_intro"))
-        doc.move(GAP_XS)
-        doc.text(t.t("report.audit_empty"), 10, INK_DIM, FONT)
-        doc.move(LEAD_BODY)
-        return
-
-    groups = _audit_checks_by_category(audit)
-    columns, _ = _audit_table(t, audit, [])
-    first_rows: list[TableRow] = []
-    if groups:
-        _, first_rows = _audit_table(t, audit, groups[0][1][:1])
-    _section_header(
-        doc,
-        "09",
-        t.t("report.section_audit"),
-        next_block_h=_reserve(
-            _paragraph_h(doc, t.t("report.audit_intro")) + GAP_XS,
-            3 * LEAD_BODY,
-            _GROUP_HEAD_H,
-            table_min_height(doc, columns, first_rows, T_AUDIT_TABLE)
-            if first_rows
-            else 0.0,
-        ),
-    )
-    draw_paragraph(doc, t.t("report.audit_intro"))
-    doc.move(GAP_XS)
-
-    verdict = str(audit.get("verdict", ""))
-    verdict_key = f"audit.verdict_{verdict}"
-    verdict_label = t.t(verdict_key) if t.has(verdict_key) else verdict
-    doc.text(
-        t.t("report.audit_verdict_line", verdict=verdict_label, score=audit.get("score", "")),
-        10,
-        INK,
-        FONT_BOLD,
-    )
-    doc.move(13)
-
-    checked_at = audit.get("checked_at")
-    if checked_at:
-        doc.text(
-            t.t("dashboard.audit_checked_at", datetime=_fmt_dt(str(checked_at))),
-            9,
-            INK_DIM,
-            FONT,
-        )
-        doc.move(12)
-
-    blockers = [str(b) for b in (audit.get("blockers") or [])]
-    if blockers:
-        draw_paragraph(
-            doc,
-            f"{t.t('audit.blockers')}: {', '.join(blockers)}",
-            9,
-            BAD,
-            FONT_BOLD,
-            11.5,
-        )
-    doc.move(GAP_XS)
-
-    for category, checks in groups:
-        _, rows = _audit_table(t, audit, checks)
-        if not rows:
-            continue
-        doc.keep_with(
-            _GROUP_HEAD_H, _reserve(table_min_height(doc, columns, rows, T_AUDIT_TABLE))
-        )
-        category_title = _audit_category_title(t, category)
-        category_color = BAD if category == "A" else ACCENT
-        _draw_group_heading(doc, category_title, len(rows), category_color)
-        draw_table(
-            doc,
-            t,
-            columns,
-            rows,
-            size=T_AUDIT_TABLE,
-            group_title=category_title,
-            group_color=category_color,
-        )
-
-    draw_caption(doc, t.t("report.audit_caption"))
 
 
 def render_footer(doc: Doc, t: Translator, data: ReportData, page_label_only: bool = False) -> None:
@@ -3009,7 +2829,6 @@ def render_body(doc: Doc, t: Translator, data: ReportData) -> None:
     render_sentiment(doc, t, data)
     render_results(doc, t, data)
     render_gaps(doc, t, data)
-    render_audit(doc, t, data)
 
 
 def build_pdf(

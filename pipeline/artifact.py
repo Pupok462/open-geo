@@ -10,8 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from pipeline.db import get_conn, get_latest_audit, init_db
-from pipeline.schema import normalize_domain
+from pipeline.db import get_conn, init_db
 
 SCHEMA_VERSION = "open-geo.run-artifact.v1"
 _LENS_ORDER = ("all", "general", "branded", "comparative")
@@ -113,18 +112,6 @@ def _domain_stats(
     return {lens: by_lens[lens] for lens in _ordered_lenses(set(by_lens))}
 
 
-def _latest_audit(
-    conn: sqlite3.Connection, target: str, engine: str
-) -> Optional[dict[str, Any]]:
-    audit = get_latest_audit(conn, normalize_domain(target), engine)
-    if audit is None:
-        return None
-    payload = _loads(audit.pop("result_json", None), {})
-    audit["blocked"] = bool(audit["blocked"])
-    audit["result"] = payload
-    return audit
-
-
 def build_run_artifact(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
     row = conn.execute(
         """
@@ -164,7 +151,6 @@ def build_run_artifact(conn: sqlite3.Connection, run_id: int) -> dict[str, Any]:
         "lens_sentiment": _lens_sentiment(conn, run_id),
         "results": _results(conn, run_id),
         "domain_stats": _domain_stats(conn, run_id),
-        "audit": _latest_audit(conn, target, engine),
     }
 
 

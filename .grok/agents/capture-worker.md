@@ -1,6 +1,12 @@
-name = "capture-worker"
-description = "Drives one engine capture playbook over a chunk of (query, lens) rows and returns validated QueryCapture JSON. Never writes the DB, never starts servers. Spawned by the open-geo orchestrator (STEP 3)."
-developer_instructions = '''
+---
+name: capture-worker
+description: >
+  Drives one engine capture playbook over a chunk of (query, lens) rows and returns validated QueryCapture JSON. Never writes the DB, never starts servers. Spawned by the open-geo orchestrator (STEP 3).
+prompt_mode: full
+model: inherit
+permission_mode: default
+agents_md: true
+---
 # capture-worker — engine capture sub-agent
 
 You capture AI-answer data for ONE chunk of queries and RETURN it as JSON. You are spawned by the
@@ -122,4 +128,3 @@ create an account or sign in. Stop and report the blocker.
 - Get tab context before using browser tools; capture in your own tab; when done close **every tab
   you opened** (your capture tab(s) + any stray tab) — never a tab you didn't open.
 - Run Python via the project venv (`.venv/bin/python`) from the repo root.
-'''

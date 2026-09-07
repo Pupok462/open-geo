@@ -14,7 +14,6 @@ from pipeline.db import (
     create_run,
     get_conn,
     get_or_create_brand,
-    insert_audit,
     update_run_counts,
     upsert_lens_sentiment,
 )
@@ -67,24 +66,6 @@ def _seed_run(db_path: str) -> int:
         aggregate_run(conn, run_id)
         upsert_lens_sentiment(conn, run_id, "general", "Positive mention.")
         upsert_lens_sentiment(conn, run_id, "all", "Positive mention.")
-        audit_payload = {
-            "target": "https://example.com/products",
-            "verdict": "ready",
-            "score": 92,
-            "blocked": False,
-            "checks": [],
-        }
-        insert_audit(
-            conn,
-            target="https://example.com/products",
-            domain="example.com",
-            engine="google",
-            checked_at="2026-08-18T09:00:00Z",
-            verdict="ready",
-            score=92,
-            blocked=False,
-            result_json=json.dumps(audit_payload),
-        )
         return run_id
     finally:
         conn.close()
@@ -115,8 +96,7 @@ def test_build_run_artifact_is_complete_and_decoded(empty_db_path):
     assert artifact["results"][0]["sources"][0]["url"].endswith("/products/a")
     assert artifact["results"][0]["overview_present"] is True
     assert artifact["domain_stats"]["all"][0]["is_brand"] is True
-    assert artifact["audit"]["blocked"] is False
-    assert artifact["audit"]["result"]["score"] == 92
+    assert "audit" not in artifact
 
 
 def test_write_run_artifact_is_atomic_and_utf8(empty_db_path, tmp_path):
@@ -134,19 +114,17 @@ def test_write_run_artifact_is_atomic_and_utf8(empty_db_path, tmp_path):
     assert not list(destination.parent.glob("*.tmp"))
 
 
-def test_build_run_artifact_tolerates_invalid_json_and_missing_audit(empty_db_path):
+def test_build_run_artifact_tolerates_invalid_json(empty_db_path):
     run_id = _seed_run(empty_db_path)
     conn = get_conn(empty_db_path)
     try:
         conn.execute("UPDATE results SET sources_json = '{' WHERE run_id = ?", (run_id,))
-        conn.execute("DELETE FROM audits")
         conn.commit()
         payload = build_run_artifact(conn, run_id)
     finally:
         conn.close()
 
     assert payload["results"][0]["sources"] == []
-    assert payload["audit"] is None
 
 
 def test_build_run_artifact_rejects_unknown_run(empty_db_path):

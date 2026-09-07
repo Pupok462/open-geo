@@ -291,30 +291,6 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 > this change it MUST treat a missing `domain_stats` as "no leaderboard" (catch `no such table` →
 > empty list), never error. Rows populate on the next `aggregate` of each run.
 
-**`audits`** (one row per audit of a domain — the **GEO-Audit Gate** result, Feature 2 / §7; both the history and the TTL cache)
-
-| column | type | notes |
-|---|---|---|
-| `id` | INTEGER PK | |
-| `target` | TEXT | the audited target as given — `normalize_target` (registrable domain or URL prefix) |
-| `domain` | TEXT | registrable domain (`normalize_domain` of the target host) — the report/dashboard join key |
-| `engine` | TEXT \| NULL | the engine context the audit ran for (A3 is **engine-aware**, §7); `NULL` = generic |
-| `checked_at` | TEXT | ISO-8601 |
-| `verdict` | TEXT | `ready` \| `ready_with_warnings` \| `blocked` |
-| `score` | INTEGER | 0–100 GEO-readiness readout (§7) |
-| `blocked` | INTEGER | 0/1 — `1` iff `verdict='blocked'` |
-| `result_json` | TEXT | the full `AuditResult` JSON (§7), incl. every `CheckResult` |
-
-> **Who writes it:** `python -m audit.gate` (§7) — the deterministic gate, **not** any run /
-> `aggregate`. Keyed by `domain` (not `run_id`): the audit is about a domain's readiness and runs
-> **before** any run exists (SKILL STEP 0). It is **append-only** time-series (like `runs`); the
-> most recent row within the TTL doubles as the **cache** (`get_latest_audit` + `audit.cache.is_fresh`).
->
-> **New table / migration:** `init_db` creates it (`CREATE TABLE IF NOT EXISTS`) — no `ALTER`
-> needed. The read-only dashboard API does **not** call `init_db`, so against a DB created before
-> this change it MUST treat a missing `audits` as "no audit" (catch `no such table` → `None`),
-> never error.
-
 ### DB helpers provided by `pipeline/db.py`
 
 - `get_conn(db_path="data/aeo.db") -> sqlite3.Connection`
@@ -327,8 +303,6 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - `get_domain_stats(conn, run_id, lens="all") -> list[dict]` (the leaderboard rows for one run+lens, ordered by `appearances_sources` desc; returns `[]` if the `domain_stats` table is absent)
 - `get_captured_keys(conn, run_id) -> set[tuple[str, str]]` (the `(query, lens)` pairs already in `results` for the run — the resume diff source)
 - `find_unfinished_run(conn, brand_id, engine) -> int | None` (most recent `status='running'` run for that brand+engine — the crashed run to resume, or `None`)
-- `insert_audit(conn, target, domain, engine, checked_at, verdict, score, blocked, result_json) -> int` (appends one `audits` row, §7; returns its id)
-- `get_latest_audit(conn, domain, engine=None) -> dict | None` (most recent audit for the registrable `domain`. **`engine` matches strictly**: given an engine, only that engine's row is returned — never another engine's, because A3 is engine-aware and one engine's crawl verdict does not transfer to another. `engine=None` returns the most recent row for the domain whatever its engine. Returns `None` if the `audits` table is absent — read-only-API safe)
 
 ### 2.1 Run lifecycle, incremental ingest & resume
 
@@ -482,7 +456,7 @@ mid-run never loses already-captured work:
   or require the dashboard frontend.
 - The top-level `schema_version` is **`open-geo.run-artifact.v1`**. The payload contains:
   `run`, `brand`, `metrics` keyed by lens, `lens_sentiment`, decoded per-query `results`,
-  `domain_stats` keyed by lens, and the latest matching engine-aware `audit` (or `null`).
+  and `domain_stats` keyed by lens.
 - The file write is atomic (`tempfile` in the destination directory + `os.replace`), UTF-8,
   and pretty-printed. Downstream agents consume this file instead of scraping the human
   summary or reading SQLite directly.
@@ -502,7 +476,7 @@ mid-run never loses already-captured work:
 |---|---|---|
 | `--engine <e>` / `--engines <a,b\|all>` | — (exactly one required) | single-engine report, or the **combined multi-engine** document (`all` = every engine with completed runs for this brand). Engines get a matrix row + a chapter each; they are **never blended** into one number. |
 | `--period today\|all` | — (required) | `today` = the latest completed run as a snapshot. `all` = **the whole period rolled up** (see below). |
-| `--lang <code>` | `en` | UI-chrome language (`i18n/<code>.json`); unknown codes fall back to English. Captured **data** (queries, sentiment, domains, audit text) keeps its own language. |
+| `--lang <code>` | `en` | UI-chrome language (`i18n/<code>.json`); unknown codes fall back to English. Captured **data** (queries, sentiment, domains) keeps its own language. |
 | `--out <path>` | — (required) | output PDF. |
 | `--db <path>` | `data/aeo.db` | SQLite DB (§2). |
 
@@ -515,19 +489,19 @@ mid-run never loses already-captured work:
 - **Repeat groups (§2.1).** When the focus run carries a `group_id`, the report reads the group as
   **one measurement** exactly like the dashboard: metrics rolled up across the group's completed
   runs, and each KPI card carries the **min–max spread** instead of a run-over-run delta.
-- **Section order is fixed** (numbered `01`…`10` in the document): cover → `01` key metrics →
+- **Section order is fixed** (numbered `01`…`09` in the document): cover → `01` key metrics →
   `02` breakdown by lens → `03` visibility funnel → `04` trend across runs (`--period all` only:
   by-run chart + ISO-week rollup when the period spans ≥2 weeks) → `05` top domains in answer
   space (§4.2) → `06` sentiment by lens (§3.4) → `07` **results by query** (every row of the run,
   grouped by outcome `cited → in sources, not cited → mentioned, no link → absent → no answer`,
   with per-group counts — the static equivalent of the dashboard's outcome filter) → `08`
-  **gaps to close** (the `absent` subset alone) → `09` GEO-readiness audit (§7.4) → `10`
+  **gaps to close** (the `absent` subset alone) → `09`
   **how to read this report** (the glossary: one `metrics.<id>.hint` formula per metric plus the
   funnel invariant `cited ⊆ in_sources ⊆ overviews ⊆ queries` — it replaces the dashboard's
-  tooltips). `--engines` prepends the engine matrix and repeats `01`…`09` per engine chapter.
+  tooltips). `--engines` prepends the engine matrix and repeats `01`…`08` per engine chapter.
 - **The PDF is not a subset of the dashboard.** Anything the dashboard shows for a scope has a
   static equivalent here; new report-only strings live under the `report.*` i18n namespace, the
-  shared vocabulary is reused from `dashboard.*` / `audit.*` / `metrics.*` so both surfaces say
+  shared vocabulary is reused from `dashboard.*` / `metrics.*` so both surfaces say
   the same thing in all four locales.
 - **Exit code:** `0` on success; `1` on a resolution failure (unknown brand/domain/engine, no
   completed run); `2` when neither or both of `--engine` / `--engines` are given. Progress and
@@ -828,102 +802,11 @@ STEP A.5.)
 
 ---
 
-## 7. The audit-gate contract — `AuditResult` JSON + `python -m audit.gate` (Feature 2)
+## 7. Removed — domain GEO-audit gate
 
-The **Domain GEO-Audit Gate** is a fast, **deterministic (non-LLM)** readiness audit of a
-domain that runs **before** a capture run (SKILL STEP 0), so the operator does not spend
-capture tokens on a domain an AI engine cannot read. It grades every check by **severity** and
-**hard-stops only on real blockers**; everything else is advisory. It is a **subsystem beside
-the main command** (like harvest, §6): the capture contract (§1) is untouched. The **check
-semantics, the AI-crawler matrix, the SSR heuristic, the score/verdict rules and the module
-signatures are authoritative in `audit/CHECKS.md`**; this section is the **data shapes + CLI +
-storage contract**.
-
-### 7.1 `AuditResult` / `CheckResult` JSON
-
-Canonical models: `audit/schema.py :: AuditResult` / `CheckResult` (pydantic v2). `score`,
-`verdict`, `passed` and `blockers` are **computed** (derived from `checks`, not stored inputs);
-they appear in `model_dump()` / STDOUT but are recomputed on read.
-
-**`CheckResult`**
-
-| field | type | meaning |
-|---|---|---|
-| `id` | string | check id, e.g. `A1`, `A3`, `A3b`, `B1` (see `CHECKS.md §3`). |
-| `category` | `"A" \| "B" \| "C" \| "D"` | crawl-access / machine-readability / entity-trust / freshness. |
-| `title` | string | short human title. |
-| `severity` | `"blocker" \| "recommended" \| "nice_to_have"` | 🔴 / 🟡 / ⚪. **Only `blocker` can hard-stop.** |
-| `status` | `"pass" \| "warn" \| "fail" \| "skip"` | `skip` = not applicable / not evaluable (excluded from `score`). |
-| `detail` | string | what was found. |
-| `remediation` | string \| null | concrete "how to fix" (a robots allow-block, a JSON-LD snippet, …); `null` on pass. |
-
-**`AuditResult`**
-
-| field | type | meaning |
-|---|---|---|
-| `target` | string | the audited target, `normalize_target` (registrable domain or URL prefix). |
-| `domain` | string | registrable domain (`normalize_domain` of the target host) — the storage / report join key. |
-| `engine` | string \| null | the engine the audit ran for; makes **A3 engine-aware** (`audit.bots.gating_ua`). `null` = generic (`Googlebot`). An engine with **no published search-bot UA** (`audit.bots.is_engine_mapped` false, e.g. `deepseek`) makes A3 `skip`, never `fail` — see §7.2. |
-| `checked_at` | string (ISO-8601) | when the audit ran. |
-| `checks` | array of `CheckResult` | every check evaluated. |
-| `blockers` | array of string | *(computed)* ids of `blocker` checks that `fail`. |
-| `verdict` | `"ready" \| "ready_with_warnings" \| "blocked"` | *(computed)* `blocked` iff `blockers` non-empty; else `ready_with_warnings` if any `warn`/`fail`; else `ready`. |
-| `passed` | bool | *(computed)* `verdict != "blocked"`. |
-| `score` | int | *(computed)* 0–100 weighted readiness readout (`CHECKS.md §1`). A **readout beside** the verdict, never the verdict itself. |
-
-### 7.2 `python -m audit.gate --domain <domain-or-url-prefix> [flags]`
-
-| flag | default | meaning |
-|---|---|---|
-| `--domain <d>` | — (required) | target: registrable domain (`example.com`) or URL prefix (`github.com/user/repo`). |
-| `--engine <e>` | *(none)* | engine context → **A3 blocker is that engine's search bot** (`google`→`Googlebot`, `chatgpt_search`→`OAI-SearchBot`, …; `CHECKS.md §2`). Omitted → generic (`Googlebot`). An engine **absent from `ENGINE_GATING_UA`** (no published search-bot UA — `deepseek` today) does **not** silently fall back to `Googlebot` for grading: A3 returns `skip` (excluded from `score`, never a blocker) and A3b reports every blocked search bot instead. |
-| `--no-cache` | off | force a fresh audit even if a recent one exists. |
-| `--max-age <s>` | `86400` | cache TTL: reuse the latest stored audit for this `domain` if newer than this. |
-| `--db <path>` | `data/aeo.db` | SQLite DB (the `audits` table doubles as history + cache). |
-| `--no-db` | off | do not read or write the DB (pure stdout, e.g. throwaway/CI). |
-| `--timeout <s>` | `10` | per-request HTTP timeout. |
-
-- **STDOUT:** a single `AuditResult` JSON object (with the computed fields). Human-readable
-  summary (blockers, advisory list, score, verdict) goes to **STDERR**.
-- **Exit code:** `0` on any **completed** audit — the `verdict` is **data**, read it from the
-  JSON (an unreachable domain is a normal `blocked` result via `A1`, not an error). `1` only on
-  an operational failure (bad args / unexpected exception).
-- **Persistence:** unless `--no-db`, appends one row to `audits` (§2) via `insert_audit`. Unless
-  `--no-cache`, a stored audit for the same registrable `domain` newer than `--max-age` is
-  **returned as-is** (no re-fetch).
-
-### 7.3 Gate policy & where it runs (SKILL STEP 0)
-
-- The orchestrator runs the gate **first**, right after `<domain>` is resolved (STEP A) and
-  **before** question harvesting (STEP A.5) and the run (STEP 1) — no point harvesting/capturing
-  against an unreadable domain.
-- **`verdict == "blocked"` ⟹ hard-stop** before any run is created, printing the remediation
-  (blockers + how to fix) in `--lang`, **unless** the operator passed **`--force`** (then it
-  warns loudly and continues). `ready` / `ready_with_warnings` ⟹ continue; the advisory problems
-  are surfaced (skill summary + the PDF section + the dashboard panel).
-- The blocker set is **category A only** (can an AI engine physically read you): `A1`
-  HTTPS/reachability, `A2` homepage 200, `A3` the engine's search bot not blocked in
-  `robots.txt`, `A5` content in raw HTML (not JS-only). All of B/C/D is advisory. Authority for
-  the exact criteria and remediation: `audit/CHECKS.md`.
-- A blocker whose **premise is unknown does not block**: when the engine has no published
-  search-bot UA, A3 grades nothing rather than grading the wrong bot. A false hard-stop on a
-  readable site costs more trust than a missed warning (same principle as A5 warning on
-  thin-but-server-rendered HTML).
-- The friendly human write-up is the **skill's** job (it is already an LLM), not the gate's — the
-  gate stays deterministic and only emits structured JSON (same division as `lens_sentiment`
-  prose vs `aggregate` math).
-
-### 7.4 Where it surfaces (read side)
-
-The latest audit for a brand's registrable domain (`get_latest_audit`, §2) is read at report /
-dashboard time and rendered as **an audit section in the PDF** (§3.6, section `09`) and **an
-audit panel in the dashboard** — both carry verdict + score + the per-check table with severity
-and remediation. In the PDF the checks are **grouped by category A/B/C/D** (blockers first,
-advisory after), each row carries a **"How to fix"** column with the check's `remediation`, and
-the section states the blocker list and the audit's `checked_at` date, so the report prints the
-treatment and not only the diagnosis. Like the
-funnel metrics, the audit is **data** — its check titles/remediation are English canon and the
-UI chrome around it is localized via the i18n layer (`--lang`).
+open-geo measures visibility in AI answers. It does not audit whether a site is technically
+ready to be crawled or cited. That work lives in other tools. There is no `audit/` package,
+no SKILL STEP 0, no `--force`, no `/api/audit`, and no audit section in the PDF or artifact.
 
 ---
 

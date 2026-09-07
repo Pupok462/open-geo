@@ -6,16 +6,6 @@ tools:
   - Read
   - Write
   - Bash
-  - mcp__claude-in-chrome__tabs_context_mcp
-  - mcp__claude-in-chrome__tabs_create_mcp
-  - mcp__claude-in-chrome__tabs_close_mcp
-  - mcp__claude-in-chrome__navigate
-  - mcp__claude-in-chrome__read_page
-  - mcp__claude-in-chrome__find
-  - mcp__claude-in-chrome__get_page_text
-  - mcp__claude-in-chrome__computer
-  - mcp__claude-in-chrome__browser_batch
-  - mcp__claude-in-chrome__javascript_tool
 ---
 
 # capture-worker — engine capture sub-agent
@@ -27,10 +17,30 @@ the capture playbook you are given.
 
 ## Connect to the browser FIRST (before the first query)
 
-Engine playbooks use **Claude-in-Chrome** (`mcp__claude-in-chrome__*`) because it drives the user's
-logged-in Chrome. Probe `tabs_context_mcp` once. If it reports "not connected", retry once because
-the connector can be transient. If it is still unavailable, stop and report the prerequisite rather
-than inventing captures or substituting API/headless data for what a real interface renders.
+Capture reads the **rendered** answer in a **visible, logged-in browser**. That is the whole
+method: not the engine's API, not a headless scrape. Bind to **this host's** visible-browser
+capability, then stop if it is missing.
+
+**Semantic actions** (map them onto the host's tools; playbooks name the same actions):
+
+1. Open a dedicated tab/context — do not reuse the orchestrator's original window.
+2. Navigate to the engine URL from the playbook.
+3. Screenshot or otherwise read the rendered answer (sources panel and inline citation chips).
+4. Collect each source/citation URL **in place** — never visit the source site. If a source tab
+   opens by accident, close it immediately and return.
+5. Optionally run in-page JavaScript to lift links off a settled page (`engines/FAST_PATH.md`).
+6. Close every tab/context **you** opened.
+
+**Claude Code binding:** Claude-in-Chrome (`mcp__claude-in-chrome__*` — `tabs_context_mcp`,
+`tabs_create_mcp`, `navigate`, `read_page`, `computer` screenshot, `javascript_tool`,
+`tabs_close_mcp`, …). Probe `tabs_context_mcp` once. If it reports "not connected", retry once
+because the connector can be transient. If it is still unavailable, stop and report the
+prerequisite.
+
+**Other hosts:** use that host's equivalent visible logged-in browser (computer-use, a Chrome MCP,
+a visible browser daemon). Headless browse is not a substitute. If this host has no visible-browser
+capability, or the browser is not logged in to the engine, **stop and report the prerequisite**
+rather than inventing captures or substituting API/headless data.
 
 Never work around a bot check. Do not solve, click through, or otherwise defeat a CAPTCHA, and never
 create an account or sign in. Stop and report the blocker.
@@ -63,9 +73,11 @@ create an account or sign in. Stop and report the blocker.
 2. **Collect links WITHOUT visiting source sites.** Per the playbook, read each link's URL in
    place from the results page; never open a source site. If one opens by accident, close it
    immediately and return. (The playbook has the exact engine-specific rule.)
-   - **Scripted fast path (optional, per engine).** `javascript_tool` reads the whole DOM at once,
-     while `read_page` is viewport-limited — on several engines that turns a multi-step
-     panel-and-scroll procedure into one call. What each engine actually yields, and the three hard
+   - **Scripted fast path (optional, per engine).** In-page JavaScript can read the whole DOM at
+     once, while a viewport-limited page read cannot — on several engines that turns a multi-step
+     panel-and-scroll procedure into one call. Claude Code: `javascript_tool` vs `read_page`. Other
+     hosts: the equivalent execute-JS-in-page if they have one; if they do not, skip the fast path
+     and use the visual/read procedure. What each engine actually yields, and the three hard
      limits (Google blocks query strings in the return value; Gemini ignores synthetic clicks; `+N`
      group members are never in the DOM), are in **`engines/FAST_PATH.md`**.
    - **It is a fast path, not a trusted one.** If you use it, you **independently read the answer**
@@ -100,11 +112,11 @@ create an account or sign in. Stop and report the blocker.
    it prints `valid`.
 4. **Close every tab you opened — leave the browser as you found it.** As your **final** browser
    action, once self-validation prints `valid`, close each tab **you** opened for this chunk — the
-   capture tab(s) you created with `tabs_create_mcp` **plus** any source tab that opened by accident
-   — with `tabs_close_mcp`. Track your own tab ids from the `tabs_context_mcp` / `tabs_create_mcp`
-   calls so you close exactly the tabs you opened. **Never close a tab you did not open** — parallel
-   workers each own their tab/context and the orchestrator owns the original window. Do this even on
-   a partial or CAPTCHA-blocked chunk: clean up whatever you opened before you return.
+   capture tab(s) you created **plus** any source tab that opened by accident. Track your own tab
+   ids from the open/create calls so you close exactly the tabs you opened. **Never close a tab you
+   did not open** — parallel workers each own their tab/context and the orchestrator owns the
+   original window. Do this even on a partial or CAPTCHA-blocked chunk: clean up whatever you opened
+   before you return. (Claude Code: `tabs_create_mcp` / `tabs_context_mcp` / `tabs_close_mcp`.)
 5. **Return** your validated `QueryCapture` objects as a **JSON array**, plus a one-line status:
    how many captured, `overview_present` per query, whether the target appeared, and any
    CAPTCHA/blocker.
@@ -115,5 +127,5 @@ create an account or sign in. Stop and report the blocker.
 - If the engine shows a bot-challenge / CAPTCHA, **stop** and surface it — never solve or hammer
   it. Other workers keep going.
 - Get tab context before using browser tools; capture in your own tab; when done close **every tab
-  you opened** (your capture tab(s) + any stray tab) with `tabs_close_mcp` — never a tab you didn't open.
+  you opened** (your capture tab(s) + any stray tab) — never a tab you didn't open.
 - Run Python via the project venv (`.venv/bin/python`) from the repo root.

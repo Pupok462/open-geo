@@ -1,6 +1,6 @@
 """The public GitHub card must answer the frozen high-frequency visibility question.
 
-The shipped artifacts are the READMEs, Pages FAQ and llms.txt — there is no runtime
+The shipped artifacts are the READMEs and Pages FAQ — there is no runtime
 function that renders the GitHub About field. These tests read those files from disk
 and assert the extractable Q→A block is still the frozen query, names open-geo, and
 keeps the rendered / logged-in / not-API moat.
@@ -127,18 +127,6 @@ def test_zh_and_ar_mirrors_open_with_the_language_pair():
     assert _first_faq_heading(ar, section="## الأسئلة الشائعة") == AR_QUERY
     for blob in (_first_faq_answer(zh), _first_faq_answer(ar, section="## الأسئلة الشائعة")):
         assert "open-geo" in blob.lower()
-
-
-def test_llms_txt_answers_the_frozen_query():
-    text = (REPO / "docs" / "llms.txt").read_text(encoding="utf-8")
-    # first connected quote block is what crawlers extract
-    quote = re.search(r"^> (.+(?:\n> .+)*)", text, re.MULTILINE).group(1)
-    quote = " ".join(line.lstrip("> ").strip() for line in quote.splitlines())
-    assert EN_QUERY in quote
-    assert "open-geo" in quote.lower()
-    assert "rendered" in quote.lower()
-    assert "logged-in" in quote.lower()
-    assert "API" in quote or "api" in quote.lower()
 
 
 def test_pages_faq_and_jsonld_lead_with_the_frozen_query():

@@ -13,11 +13,9 @@ from pipeline.db import (
     find_unfinished_run,
     get_captured_keys,
     get_conn,
-    get_latest_audit,
     get_lens_sentiments,
     get_or_create_brand,
     init_db,
-    insert_audit,
     normalize_brand_name,
     update_run_counts,
     upsert_lens_sentiment,
@@ -284,36 +282,6 @@ def test_find_brand_domains_is_case_insensitive(empty_conn):
 
 def test_normalize_brand_name_collapses_inner_whitespace():
     assert normalize_brand_name("  Example   Brand \n") == "Example Brand"
-
-
-def _insert_audit_row(conn, engine, verdict="ready", checked_at="2026-08-01T00:00:00+00:00"):
-    insert_audit(
-        conn, "example.com", "example.com", engine, checked_at,
-        verdict, 90, verdict == "blocked", '{"engine": %s}' % (
-            'null' if engine is None else f'"{engine}"'
-        ),
-    )
-
-
-def test_get_latest_audit_never_returns_another_engines_audit(empty_conn):
-    _insert_audit_row(empty_conn, "google")
-    assert get_latest_audit(empty_conn, "example.com", "google") is not None
-    assert get_latest_audit(empty_conn, "example.com", "chatgpt_search") is None
-
-
-def test_get_latest_audit_without_engine_returns_the_newest_row(empty_conn):
-    _insert_audit_row(empty_conn, "google", checked_at="2026-08-01T00:00:00+00:00")
-    _insert_audit_row(empty_conn, "chatgpt_search", checked_at="2026-08-02T00:00:00+00:00")
-    row = get_latest_audit(empty_conn, "example.com")
-    assert row is not None and row["engine"] == "chatgpt_search"
-
-
-def test_get_latest_audit_picks_the_newest_row_for_the_requested_engine(empty_conn):
-    _insert_audit_row(empty_conn, "google", verdict="blocked", checked_at="2026-08-01T00:00:00+00:00")
-    _insert_audit_row(empty_conn, "google", verdict="ready", checked_at="2026-08-03T00:00:00+00:00")
-    _insert_audit_row(empty_conn, "chatgpt_search", checked_at="2026-08-04T00:00:00+00:00")
-    row = get_latest_audit(empty_conn, "example.com", "google")
-    assert row is not None and row["verdict"] == "ready"
 
 
 def test_create_run_inserts_running_with_defaults(empty_conn):
