@@ -1,11 +1,13 @@
 # engines/ — capture playbooks (the multi-engine extension point)
 
 Each `engines/<engine>.md` is a **capture playbook**: the per-engine instructions a
-capture worker follows in a **visible, logged-in browser** to turn **one `(query, lens)`**
+capture worker follows in a **visible browser** to turn **one `(query, lens)`**
 into **exactly one `QueryCapture` JSON object** (the contract in
 [`../pipeline/INTERFACES.md`](../pipeline/INTERFACES.md) §1). Claude Code binds the
 playbook to Claude-in-Chrome; other hosts bind the same semantic actions to that host's
 equivalent visible-browser tools.
+
+Every capture starts in a clean context: incognito or an empty browser profile, with no cookies, no account chat history, and no previous queries of this run. Do not reuse a logged-in profile that has talked about the brand; if the answer still refers to an earlier turn, `prior_context` must be true.
 The `<engine>` argument of the `/open-geo` command selects which playbook the capture
 workers load, and is written verbatim into every `QueryCapture.engine` and onto the run.
 

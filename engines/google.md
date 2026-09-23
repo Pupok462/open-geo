@@ -53,6 +53,14 @@ Do **not** substitute `google_ai_overview` or any other string.
 
 ---
 
+## Clean context
+
+Start the capture in a clean context: incognito or an empty browser profile. No cookies, no account chat history, no previous queries of this run.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
+
 ## Procedure
 
 > ### Tooling — how to actually read the overview (read this first)
@@ -144,10 +152,10 @@ Do **not** substitute `google_ai_overview` or any other string.
   `google.com` and type the query into the search box, then submit). Set
   **`hl`/`gl` to the market being tracked** (`hl=en&gl=us` shown as the default;
   configurable per market — see the **Locale knobs** note above).
-- Keep the **session's** locale/login as-is. Do **not** open incognito, do
-  **not** log out, do **not** change the Google account — AI Overviews depend on
-  who is logged in and the locale. The browser is **visible**; the human can see
-  it.
+- Follow **Clean context**: incognito or an empty browser profile. Do **not**
+  reuse a logged-in profile that has talked about this brand, and do **not**
+  switch accounts mid-run. The market still comes from `hl`/`gl` on the query URL.
+  The browser is **visible**; the human can see it.
 - Give the page a moment to settle. AI Overviews often **stream in after** the
   blue links — wait until the overview block stops growing before reading. Then
   read it with the tools from the **Tooling** note above: **a screenshot** for the

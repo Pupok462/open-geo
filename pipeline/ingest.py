@@ -40,8 +40,9 @@ def insert_capture(
             answer_text_md, screenshot_path, overview_present,
             sources_json, citations_json,
             target_source_ranks_json, target_citation_ranks_json,
-            brand_in_answer_text, sentiment
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            brand_in_answer_text, sentiment,
+            prior_context, prior_context_evidence
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(run_id, query, lens) DO NOTHING
         RETURNING id
         """,
@@ -59,6 +60,8 @@ def insert_capture(
             json.dumps(list(cap.target_citation_ranks)),
             1 if cap.brand_in_answer_text else 0,
             cap.sentiment,
+            1 if cap.prior_context else 0,
+            cap.prior_context_evidence,
         ),
     )
     row = cur.fetchone()

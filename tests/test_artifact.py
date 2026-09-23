@@ -95,6 +95,8 @@ def test_build_run_artifact_is_complete_and_decoded(empty_db_path):
     assert artifact["lens_sentiment"]["general"] == "Positive mention."
     assert artifact["results"][0]["sources"][0]["url"].endswith("/products/a")
     assert artifact["results"][0]["overview_present"] is True
+    assert artifact["results"][0]["prior_context"] is False
+    assert artifact["results"][0]["prior_context_evidence"] is None
     assert artifact["domain_stats"]["all"][0]["is_brand"] is True
     assert "audit" not in artifact
 
@@ -112,6 +114,29 @@ def test_write_run_artifact_is_atomic_and_utf8(empty_db_path, tmp_path):
     payload = json.loads(destination.read_text(encoding="utf-8"))
     assert payload["run"]["id"] == run_id
     assert not list(destination.parent.glob("*.tmp"))
+
+
+def test_build_run_artifact_includes_prior_context_when_set(empty_db_path):
+    run_id = _seed_run(empty_db_path)
+    leak = (
+        "Учитывая, что вы интересовались карнизами, розетками "
+        "и сравнением гипса с полиуретаном"
+    )
+    conn = get_conn(empty_db_path)
+    try:
+        conn.execute(
+            "UPDATE results SET answer_text_md = ?, prior_context = 1, "
+            "prior_context_evidence = ? WHERE run_id = ?",
+            (leak, leak, run_id),
+        )
+        conn.commit()
+        artifact = build_run_artifact(conn, run_id)
+    finally:
+        conn.close()
+
+    row = artifact["results"][0]
+    assert row["prior_context"] is True
+    assert row["prior_context_evidence"] == leak
 
 
 def test_build_run_artifact_tolerates_invalid_json(empty_db_path):

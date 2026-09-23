@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Annotated, Literal, Optional
 
@@ -32,6 +33,8 @@ class QueryCapture(BaseModel):
     target_citation_ranks: list[Rank] = []
     brand_in_answer_text: bool
     sentiment: Optional[str] = None
+    prior_context: bool = False
+    prior_context_evidence: Optional[str] = None
 
     @model_validator(mode="after")
     def _citations_subset_of_sources(self) -> "QueryCapture":
@@ -60,6 +63,74 @@ class QueryCapture(BaseModel):
                     f"{sorted(over)} with only {len(links)} entries"
                 )
         return self
+
+    @model_validator(mode="after")
+    def _force_prior_context_from_answer(self) -> "QueryCapture":
+        detected, evidence = detect_prior_context(self.answer_text_md)
+        if detected:
+            self.prior_context = True
+            if not (self.prior_context_evidence and self.prior_context_evidence.strip()):
+                self.prior_context_evidence = evidence
+        if self.prior_context_evidence is not None:
+            self.prior_context_evidence = _trim_evidence(self.prior_context_evidence)
+        return self
+
+
+_EVIDENCE_MAX = 300
+
+_PRIOR_CONTEXT_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"учитывая,\s+что\s+вы",
+        r"как\s+вы\s+спрашивали",
+        r"как\s+вы\s+интересовались",
+        r"вы\s+интересовались",
+        r"ранее\s+вы",
+        r"в\s+прошлый\s+раз",
+        r"в\s+предыдущем",
+        r"как\s+я\s+уже",
+        r"мы\s+обсуждали",
+        r"мы\s+уже\s+говорили",
+        r"as\s+you\s+asked",
+        r"you\s+asked\s+earlier",
+        r"you\s+mentioned\s+earlier",
+        r"based\s+on\s+our\s+previous",
+        r"as\s+we\s+discussed",
+        r"earlier\s+you",
+    )
+)
+
+_SENTENCE_SPLIT = re.compile(r"[.!?]+|\n+")
+
+
+def _trim_evidence(text: str | None) -> str | None:
+    if text is None:
+        return None
+    trimmed = text.strip()
+    if not trimmed:
+        return None
+    if len(trimmed) > _EVIDENCE_MAX:
+        trimmed = trimmed[:_EVIDENCE_MAX].rstrip()
+    return trimmed or None
+
+
+def detect_prior_context(text: str | None) -> tuple[bool, str | None]:
+    """Whether answer prose refers to an earlier turn, plus the matching sentence.
+
+    Scans the answer, not the query. No match returns `(False, None)`. A match
+    returns the sentence (split on `.` `!` `?` or newline) that contains the
+    phrase, trimmed to 300 characters. A caller-set `prior_context=True` is
+    never cleared by `QueryCapture`.
+    """
+    if not text or not str(text).strip():
+        return False, None
+    for piece in _SENTENCE_SPLIT.split(str(text)):
+        sentence = piece.strip()
+        if not sentence:
+            continue
+        if any(pattern.search(sentence) for pattern in _PRIOR_CONTEXT_PATTERNS):
+            return True, _trim_evidence(sentence)
+    return False, None
 
 
 _MULTI_PART_TLDS: frozenset[str] = frozenset(
@@ -204,6 +275,7 @@ __all__ = [
     "Lens",
     "Link",
     "QueryCapture",
+    "detect_prior_context",
     "normalize_domain",
     "normalize_target",
     "matches_target",

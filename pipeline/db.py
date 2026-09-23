@@ -66,6 +66,11 @@ _RUNS_MIGRATION_COLUMNS = {
     "question_set_hash": "TEXT",
 }
 
+_RESULTS_MIGRATION_COLUMNS = {
+    "prior_context": "INTEGER NOT NULL DEFAULT 0",
+    "prior_context_evidence": "TEXT",
+}
+
 QUESTION_SET_HASH_LEN = 16
 
 
@@ -179,7 +184,9 @@ def init_db(conn: sqlite3.Connection) -> None:
             target_source_ranks_json  TEXT,
             target_citation_ranks_json TEXT,
             brand_in_answer_text      INTEGER,
-            sentiment                 TEXT
+            sentiment                 TEXT,
+            prior_context             INTEGER NOT NULL DEFAULT 0,
+            prior_context_evidence    TEXT
         );
 
         CREATE TABLE IF NOT EXISTS metrics (
@@ -239,6 +246,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     )
     _ensure_columns(conn, "metrics", _METRICS_MIGRATION_COLUMNS)
     _ensure_columns(conn, "runs", _RUNS_MIGRATION_COLUMNS)
+    _ensure_columns(conn, "results", _RESULTS_MIGRATION_COLUMNS)
     _ensure_results_unique_index(conn)
     backfill_question_set_identity(conn)
     conn.commit()

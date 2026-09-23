@@ -16,6 +16,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Historical run artifacts in `reports/` are unchanged.
 
 ### Fixed
+- **A capture that reused an earlier chat is marked.** `QueryCapture.prior_context`
+  (and `prior_context_evidence`, the sentence that shows it) is set when the answer
+  refers to a previous turn. `detect_prior_context` forces the flag from
+  `answer_text_md`; a caller-set true is kept. The flag is stored on `results` and
+  printed on the query row and, when the count is above zero, on the report's run
+  summary line. It is not a funnel metric. Engine playbooks require a clean incognito
+  or empty-profile context so account history cannot leak into the measurement.
 - **`is_brand` in the top-domains leaderboard now follows URL-prefix targets.** The flag was set by
   comparing registrable domains, so a target like `github.com/user/repo` branded *every* github.com
   link in the answer space — a run whose only github.com source was a stranger's repo showed that row

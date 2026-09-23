@@ -77,6 +77,16 @@ def _results(conn: sqlite3.Connection, run_id: int) -> list[dict[str, Any]]:
                 "brand_in_answer_text": bool(row["brand_in_answer_text"]),
                 "sentiment": row["sentiment"],
                 "screenshot_path": row["screenshot_path"],
+                "prior_context": (
+                    bool(row["prior_context"])
+                    if "prior_context" in row.keys()
+                    else False
+                ),
+                "prior_context_evidence": (
+                    row["prior_context_evidence"]
+                    if "prior_context_evidence" in row.keys()
+                    else None
+                ),
             }
         )
     return out

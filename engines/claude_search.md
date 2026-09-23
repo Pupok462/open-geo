@@ -68,6 +68,14 @@ string.
 
 ---
 
+## Clean context
+
+Start the capture in a clean context: an empty browser profile — this surface has no incognito or temporary-chat mode. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
+
 ## Procedure
 
 > ### Tooling — how to actually read a Claude answer (read this first)
@@ -126,9 +134,10 @@ string.
   **Research** (that is a different, long-form deep-research surface we do not measure). If Web
   search is off, click it once to enable, then re-open to confirm the check. (Web search ON /
   Research OFF persist across queries in a session, but re-verify per query.)
-- Keep the **session's** account/login/locale as-is. Do **not** log out, switch account, or
-  change the model — Claude's answer and its grounding depend on the account and model. The
-  browser is **visible**; the human can see it.
+- Follow **Clean context**. claude.ai has no incognito toggle, so use an empty browser
+  profile. Do **not** reuse a logged-in profile that has talked about this brand, and do
+  **not** switch accounts or the model mid-run. Region and language come from that clean
+  context. The browser is **visible**; the human can see it.
 - Click the composer, type the `query` **verbatim**, and submit (Enter). Then **wait for the
   answer to finish streaming** — Claude first runs web searches (the trace shows a spinner),
   then streams prose. Wait until the **"Retry / Copy / good-bad feedback"** action toolbar
@@ -328,14 +337,13 @@ Three distinct states (parallel to Google's a/b/c):
   step, the gray chips, the research-trace header) is a **landmark hint**. Identify blocks by
   **meaning and rendered text**, not fixed CSS/XPath. The chrome is English; the **answer**
   may be any language — read the answer in whatever language it is in.
-- **Captures are ACCOUNT-PERSONALIZED — claude.ai has no incognito / temporary-chat mode.**
+- **claude.ai has no incognito / temporary-chat mode, and memory personalizes the answer.**
   Unlike ChatGPT's "Temporary chat", claude.ai offers no per-chat incognito toggle, and Claude
   tailors answers to the account's **memory & preferences** (observed live: it referenced
-  *"this person's profile"* and chose the account's language). So a capture reflects **this
-  account**, not a neutral market. For reproducible **market** measurement, use a **dedicated
-  account** with memory/personalization minimized (Settings → disable memory/preferences where
-  possible) and keep it **fixed for the whole run**; otherwise treat every capture as
-  account-personalized.
+  *"this person's profile"* and chose the account's language). That is why **Clean context**
+  requires an empty browser profile: do not reuse a logged-in profile that has talked about
+  this brand. Keep that clean profile fixed for the whole run (do not switch accounts
+  mid-run). If the prose still refers to an earlier turn, set `prior_context`.
 - **Determinism caveat.** The same query can return a different answer, different searches, or
   even ground-vs-not on repeat — Claude is non-deterministic and personalized. **Capture what
   rendered right now.** Do not regenerate hoping for a "better" answer; one honest capture per

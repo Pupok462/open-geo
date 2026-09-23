@@ -101,6 +101,14 @@ this playbook that is **`deepseek`** (it matches this file's basename,
 
 ---
 
+## Clean context
+
+Start the capture in a clean context: an empty browser profile — this surface has no incognito or temporary-chat mode. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
+
 ## Procedure
 
 > ### Tooling — how to actually read a DeepSeek answer (read this first)
@@ -157,11 +165,12 @@ this playbook that is **`deepseek`** (it matches this file's basename,
 >   DeepSeek.**
 
 ### 1. Open a FRESH chat, pin the grounded config, submit the query
-- Use the connected logged-in Chrome. Get tab context (`tabs_context_mcp`) and work
-  in **your own tab**; `navigate` to `https://chat.deepseek.com/`. The session must
-  be **logged in** (a `/sign_in` redirect means stop — see Guardrails). Keep the
-  account/locale **as configured for the market being tracked** — do not change the
-  account or UI language.
+- Follow **Clean context**: an empty browser profile (DeepSeek has no temporary-chat
+  mode). Do **not** reuse a logged-in profile that has talked about this brand. Get
+  tab context (`tabs_context_mcp`) and work in **your own tab**; `navigate` to
+  `https://chat.deepseek.com/`. If this surface still requires a login, that login is
+  the empty profile — do **not** switch accounts mid-run. A `/sign_in` wall you cannot
+  clear means stop (see Guardrails). Region and language come from that clean context.
 - **Start a NEW chat for every query.** DeepSeek is a **chat** — a previous
   question's answer stays in context and would poison the next query, and it has
   **no "temporary chat" mode**. Per `(query, lens)` either `navigate` to

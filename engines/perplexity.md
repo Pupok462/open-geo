@@ -111,6 +111,14 @@ this playbook that is **`perplexity`** (it matches this file's basename,
 
 ---
 
+## Clean context
+
+Start the capture in a clean context: incognito or an empty browser profile. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
+
 ## Procedure
 
 > ### Tooling — how to actually read a Perplexity answer (read this first)
@@ -187,10 +195,10 @@ this playbook that is **`perplexity`** (it matches this file's basename,
 >   all of which stay on the page.
 
 ### 1. Open Perplexity, pin a clean grounded session, submit the query
-- Use the connected logged-in Chrome. Get tab context (`tabs_context_mcp`) and work
-  in **your own tab**; `navigate` to `https://www.perplexity.ai/`. Keep the
-  account/locale **as configured for the market being tracked** — do not change the
-  account or UI language.
+- Follow **Clean context** first. Do **not** reuse a logged-in profile that has talked
+  about this brand. Get tab context (`tabs_context_mcp`) and work in **your own tab**;
+  `navigate` to `https://www.perplexity.ai/`. Do **not** switch accounts mid-run —
+  region and language come from that clean context.
 - **Turn on Incognito once, before the first query** (Perplexity's analog of
   ChatGPT's Temporary chat): it is a **toggle in the TOP BAR** (hat-and-glasses
   icon), **not** in the account menu. Once on, the icon shows a highlighted box and

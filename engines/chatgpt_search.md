@@ -60,6 +60,14 @@ or any other string.
 
 ---
 
+## Clean context
+
+Start the capture in a clean context: incognito or an empty browser profile. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
+
 ## Procedure
 
 > ### Tooling — how to actually read the answer (read this first)
@@ -114,10 +122,11 @@ or any other string.
 >   Sources panel being removed and is no longer reachable.
 
 ### 1. Open ChatGPT, pin a clean grounded session, submit the query
-- Use the connected logged-in Chrome. Get tab context (`tabs_context_mcp`) and work in
-  **your own tab**; `navigate` to `https://chatgpt.com/`. The session must be **logged in**
-  (a logged-out wall means stop — see Guardrails). Keep the account/locale **as configured
-  for the market being tracked** — do not change the account or UI language.
+- Follow **Clean context** first. Do **not** reuse a logged-in profile that has talked
+  about this brand; Temporary chat below is inside that clean context, not a substitute
+  for it. Get tab context (`tabs_context_mcp`) and work in **your own tab**; `navigate`
+  to `https://chatgpt.com/`. Do **not** switch accounts mid-run — region and language
+  come from the clean context. A login wall on that profile means stop (see Guardrails).
 - **Turn on Temporary chat** (RU: "Временный чат") from the top bar (URL becomes
   `https://chatgpt.com/?temporary-chat=true`). This is the right capture mode: it keeps the
   run out of the user's history, **disables memory/personalization** (more neutral,

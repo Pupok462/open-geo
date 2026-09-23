@@ -1094,6 +1094,40 @@ def test_init_db_migrates_legacy_runs_adds_group_id(tmp_path):
         conn.close()
 
 
+def test_init_db_migrates_legacy_results_adds_prior_context(tmp_path):
+    conn = get_conn(str(tmp_path / "legacy_prior.db"))
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE results (
+                id               INTEGER PRIMARY KEY,
+                run_id           INTEGER,
+                query            TEXT,
+                lens             TEXT,
+                answer_text_md   TEXT
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO results (run_id, query, lens, answer_text_md) "
+            "VALUES (1, 'q', 'general', 'plain answer')"
+        )
+        conn.commit()
+        assert "prior_context" not in _columns(conn, "results")
+        assert "prior_context_evidence" not in _columns(conn, "results")
+        init_db(conn)
+        assert "prior_context" in _columns(conn, "results")
+        assert "prior_context_evidence" in _columns(conn, "results")
+        row = conn.execute(
+            "SELECT answer_text_md, prior_context, prior_context_evidence FROM results"
+        ).fetchone()
+        assert row["answer_text_md"] == "plain answer"
+        assert row["prior_context"] == 0
+        assert row["prior_context_evidence"] is None
+    finally:
+        conn.close()
+
+
 def test_create_run_stores_group_id(empty_conn):
     bid = get_or_create_brand(empty_conn, "Example", "example.com")
     standalone = create_run(empty_conn, bid, "google")

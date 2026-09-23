@@ -6,7 +6,15 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 import pipeline.schema as schema_mod
-from pipeline.schema import Link, QueryCapture, normalize_domain, normalize_target, matches_target, target_ranks
+from pipeline.schema import (
+    Link,
+    QueryCapture,
+    detect_prior_context,
+    normalize_domain,
+    normalize_target,
+    matches_target,
+    target_ranks,
+)
 
 
 def _min_capture() -> dict:
@@ -437,6 +445,7 @@ def test_dunder_all_contents():
         "Lens",
         "Link",
         "QueryCapture",
+        "detect_prior_context",
         "normalize_domain",
         "normalize_target",
         "matches_target",
@@ -767,6 +776,64 @@ def test_lens_literal_members_are_exactly_three():
     import typing
 
     assert set(typing.get_args(schema_mod.Lens)) == {"general", "branded", "comparative"}
+
+
+_LEAK = (
+    "Учитывая, что вы интересовались карнизами, розетками и сравнением гипса с полиуретаном"
+)
+
+
+def test_detect_prior_context_hits_alice_history_sentence():
+    hit, evidence = detect_prior_context(_LEAK)
+    assert hit is True
+    assert evidence
+    assert "карнизами" in evidence
+    assert evidence == _LEAK
+
+
+def test_detect_prior_context_normal_product_answer_is_clean():
+    prose = (
+        "Для гладких полов часто хватает 1500–2500 Па. "
+        "Лидар точнее гироскопа, а бренд Example упомянут среди вариантов."
+    )
+    assert detect_prior_context(prose) == (False, None)
+    assert detect_prior_context(None) == (False, None)
+    assert detect_prior_context("") == (False, None)
+
+
+def test_detect_prior_context_returns_only_the_matching_sentence():
+    prose = f"Сначала критерии. {_LEAK}. Дальше сравнение материалов."
+    hit, evidence = detect_prior_context(prose)
+    assert hit is True
+    assert evidence is not None
+    assert evidence.startswith("Учитывая")
+    assert "Дальше" not in evidence
+
+
+def test_query_capture_without_prior_context_fields_still_validates():
+    cap = QueryCapture.model_validate(_min_capture())
+    assert cap.prior_context is False
+    assert cap.prior_context_evidence is None
+
+
+def test_query_capture_leak_sentence_forces_prior_context():
+    cap = QueryCapture.model_validate({**_min_capture(), "answer_text_md": _LEAK})
+    assert cap.prior_context is True
+    assert cap.prior_context_evidence
+    assert "карнизами" in cap.prior_context_evidence
+
+
+def test_query_capture_explicit_prior_context_is_not_cleared():
+    cap = QueryCapture.model_validate(
+        {
+            **_min_capture(),
+            "answer_text_md": "Обычный ответ про карнизы без отсылки к прошлому чату.",
+            "prior_context": True,
+            "prior_context_evidence": "worker saw the history chip",
+        }
+    )
+    assert cap.prior_context is True
+    assert cap.prior_context_evidence == "worker saw the history chip"
 
 
 @pytest.mark.parametrize(

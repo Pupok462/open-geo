@@ -1,12 +1,14 @@
 # Capture Playbook — Yandex Alice (Нейро)
 
-> **What this is.** A prompt for a capture worker driving a **real, logged-in,
-> visible browser**. Claude Code binds this to Claude-in-Chrome
+> **What this is.** A prompt for a capture worker driving a **real, visible
+> browser in a clean context** (incognito or an empty profile, no account
+> chat history). Claude Code binds this to Claude-in-Chrome
 > (`mcp__claude-in-chrome__*`); other hosts bind the same semantic actions
 > (open a tab, screenshot/read the rendered answer, collect in-place links,
 > optional in-page JS, close tabs you opened) to that host's equivalent.
-> If this host cannot drive a visible logged-in browser, stop and report the
-> prerequisite — never substitute API or headless data. Tool names such as
+> If this host cannot drive a visible browser, stop and report the
+> prerequisite — never substitute API or headless data. A logged-in profile
+> that already has chats is not a clean context. Tool names such as
 > `read_page`, `computer`, `javascript_tool`, and `get_page_text` are the
 > Claude-in-Chrome binding of those actions.
 > You capture **ONE `(query, lens)`** into **exactly one `QueryCapture` JSON
@@ -51,15 +53,25 @@ or any other string.
 > ingest it, **not** create runs, **not** write to the DB, and **not** start any server (so
 > you are not given a `run_id` or DB path). The orchestrator owns all of that.
 
-> **Locale / market (account-driven, NOT URL params).** Unlike Google's `hl`/`gl`,
-> Alice has **no per-URL locale knob** — the market is set by the **logged-in Yandex
-> account's region + interface language**. To track a given market, log the browser
-> in to a Yandex account configured for that region/language; the answer renders in
-> that account's language (Russian / Russia by default). Read the page in **that**
-> locale's language. This market choice is **separate** from the dashboard/report UI
-> language (`--lang`); `sentiment` follows the market language you queried.
+> **Locale / market (clean context, NOT URL params).** Unlike Google's `hl`/`gl`,
+> Alice has **no per-URL locale knob**. Region and language come from whatever the
+> **clean context** already has (incognito or an empty profile). Do **not** log into
+> an account that has talked about this brand, and do **not** switch accounts
+> mid-run — a logged-in Yandex account personalizes Alice from history, which is
+> the failure this rule closes. Read the page in the language that clean context
+> renders (Russian / Russia when that context is a default RU profile). This market
+> choice is **separate** from the dashboard/report UI language (`--lang`);
+> `sentiment` follows the market language you queried.
 
 ---
+
+## Clean context
+
+Start the capture in a clean context: incognito or an empty browser profile. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
 
 ## Procedure
 
@@ -133,11 +145,13 @@ or any other string.
 - If you ever must fall back to typing: `cmd+a` + `Backspace`, type, **verify the box in a
   screenshot**, then submit with the send **ARROW** — `Return` opens the autocomplete
   suggestion list and leaves the query **unsent** (still true on 2026-08-24).
-- Keep the **session's** locale/login as-is. Do **not** open incognito, do **not** log
-  out, do **not** switch Yandex account, and do **not** change the model/persona
-  (ignore "Промптхаб" / "Персонажи") — the answer and its grounding depend on the
-  logged-in account and the **default** mode. The browser is **visible**; the human can
-  see it.
+- **Clean context is the default.** Do **not** keep a logged-in Yandex account that
+  already has chat history: that profile personalizes Alice from earlier chats, which
+  is the failure this rule closes. Start in incognito or an empty profile (see
+  **Clean context**). Region and language come from that clean context; do **not**
+  switch accounts mid-run, and do **not** change the model/persona (ignore
+  "Промптхаб" / "Персонажи") — stay on the **default** mode. The browser is
+  **visible**; the human can see it.
 - Give the answer time to finish. It **streams in** (the hint "Готовлю ответ…" then
   growing prose; a **stop** button shows while generating and returns to the mic/submit
   state when done). **Wait until the prose stops growing AND the "Источники" button has
@@ -398,18 +412,16 @@ JSON.stringify({ sources: sources.map((s, i) => ({ id: i + 1, url: s.url, title:
   The array itself already excludes promo, and promo chips carry `id === 0` — exclude by
   **that**, not by host: `direct.yandex.ru` and `yandex.ru/maps/org/...` occur as **genuine**
   organic sources (step 3).
-- ⚠️ **Account memory contaminates sequential queries — `--n-worker 1` does not fix it.**
-  One worker per account removes *cross-worker* contamination, but Alice also personalises
-  from **earlier queries in the same chunk**, even though each query gets a fresh chat. Run
-  29, query 11: «Это напрямую связано с вашими запросами про RFM», «это отвечает на ваш
-  вопрос про отзывы», «Учитывая ваши прошлые вопросы про автоматизацию в медицинском центре
-  и CRM». With the usual `general → branded` ordering, the **branded** answers — the ones
-  the whole measurement is about — are the contaminated ones. Countermeasures, in order of
-  preference: (1) **shuffle the lens order** so branded queries are not all downstream of
-  the general ones; (2) clear the account's Alice history / use a memory-free session
-  between queries; (3) if neither is possible, **say so in the worker's status line** so the
-  run is read as personalised rather than clean. An answer that references *other queries*
-  is evidence of contamination — capture it as it rendered, and flag it.
+- ⚠️ **A logged-in Yandex account personalizes Alice from history — that is the failure
+  this rule closes.** `--n-worker 1` does not fix it: Alice also personalises from
+  **earlier queries in the same chunk**, even with a fresh chat. Run 29, query 11:
+  «Это напрямую связано с вашими запросами про RFM», «это отвечает на ваш вопрос про
+  отзывы», «Учитывая ваши прошлые вопросы про автоматизацию в медицинском центре и CRM».
+  **Clean context is required** (incognito or an empty profile; see **Clean context**).
+  Do not reuse a logged-in profile that has talked about this brand, and do not switch
+  accounts mid-run. If the rendered answer still refers to an earlier turn, capture the
+  prose as it rendered and set `prior_context` true with that sentence in
+  `prior_context_evidence`. The schema detector also sets the flag from `answer_text_md`.
 - **Selectors drift — read semantically.** Everything above ("Источники", "+N" chips,
   "Промо" cards, "Новый чат") is a **landmark hint**. Identify blocks by **meaning and
   rendered text**, not fixed CSS/XPath. **Labels are locale-dependent** — match on intent
@@ -663,17 +675,16 @@ array**. The instructive case: query 14's promo card pointed at **`lp.zabota.tec
 domain** — and was correctly excluded, while the same `lp.zabota.tech` counted normally on queries 15
 and 17, where it appeared as a legitimate organic source. Paid placement is not visibility.
 
-### 7. ⚠️ `--n-worker 1` does not stop self-contamination
+### 7. ⚠️ A logged-in profile contaminates Alice
 
 One worker per account fixes *cross-worker* leakage (2026-08-17), **not** contamination between
 **consecutive queries of the same chunk**, despite each query getting a fresh chat. Run 29, query 11:
 «Это напрямую связано с вашими запросами про RFM», «это отвечает на ваш вопрос про отзывы», «Учитывая
-ваши прошлые вопросы про автоматизацию в медицинском центре и CRM».
+ваши прошлые вопросы про автоматизацию в медицинском центре и CRM». A logged-in Yandex account
+personalizes Alice from that history. That is the failure **Clean context** closes: incognito or an
+empty profile, no cookies, no account chat history, no previous queries of this run. Do not switch
+accounts mid-run.
 
-With the usual `general → branded` ordering this lands specifically on the **branded** answers — the
-ones the measurement is about. Recommended: **shuffle lens order** and/or clear Alice history between
-queries; when neither is possible, **flag the run as personalised** in the worker's status line.
-
-> **Open item (not implemented):** a per-run warning field in the report — something like
-> "answers may be personalised by account memory" — so a reader of the PDF/dashboard sees this without
-> reading capture logs. Deliberately not added to `QueryCapture` here; it needs a schema decision.
+If the rendered answer still refers to an earlier turn, set `prior_context` true and put the sentence
+in `prior_context_evidence`. `detect_prior_context` forces the same flag from `answer_text_md`, and
+the PDF marks the query. Shuffling lens order is not a substitute for a clean context.

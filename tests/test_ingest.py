@@ -705,6 +705,44 @@ def test_insert_capture_null_answer_and_screenshot_stored_as_sql_null(tmp_path):
         conn.close()
 
 
+def test_insert_capture_writes_prior_context_columns(tmp_path):
+    db_path, run_id = _fresh_db_with_run(tmp_path, name="prior.db")
+    leak = (
+        "Учитывая, что вы интересовались карнизами, розетками "
+        "и сравнением гипса с полиуретаном"
+    )
+    conn = get_conn(db_path)
+    try:
+        leaked = QueryCapture.model_validate(
+            _valid_capture_dict(answer_text_md=leak, sentiment=None)
+        )
+        leaked_id = insert_capture(conn, run_id, leaked)
+        clean = QueryCapture.model_validate(
+            _valid_capture_dict(
+                query="другой запрос",
+                answer_text_md="Example делает карнизы из полиуретана.",
+            )
+        )
+        clean_id = insert_capture(conn, run_id, clean)
+        conn.commit()
+
+        leaked_row = conn.execute(
+            "SELECT prior_context, prior_context_evidence FROM results WHERE id = ?",
+            (leaked_id,),
+        ).fetchone()
+        clean_row = conn.execute(
+            "SELECT prior_context, prior_context_evidence FROM results WHERE id = ?",
+            (clean_id,),
+        ).fetchone()
+        assert leaked_row["prior_context"] == 1
+        assert leaked_row["prior_context_evidence"]
+        assert "карнизами" in leaked_row["prior_context_evidence"]
+        assert clean_row["prior_context"] == 0
+        assert clean_row["prior_context_evidence"] is None
+    finally:
+        conn.close()
+
+
 def test_insert_capture_does_not_autocommit(tmp_path):
     db_path, run_id = _fresh_db_with_run(tmp_path)
     writer = get_conn(db_path)

@@ -46,6 +46,8 @@ validates every object against it.
 | `target_citation_ranks` | array of int | no (default `[]`) | Same, but for `citations`, via `pipeline.schema.target_ranks`. |
 | `brand_in_answer_text` | bool | yes | Was the brand **NAME** mentioned in the prose, independent of any link? |
 | `sentiment` | string \| null | no (default `null`) | Short **qualitative** text describing how the answer treats the target domain (e.g. `"recommended as top pick"`, `"mentioned neutrally among 5 options"`). **`null` if the domain/brand did not appear at all.** This is free text, NOT a number. |
+| `prior_context` | bool | no (default `false`) | The answer prose referred to an earlier turn or to this account's previous chats. A clean capture is `false`. |
+| `prior_context_evidence` | string \| null | no (default `null`) | The sentence that shows the leak, trimmed, at most ~300 characters. `null` when there is no leak. |
 
 `Link` object:
 
@@ -94,6 +96,13 @@ validates every object against it.
 - `screenshot_path` is **`null`** in v1: a screenshot may be taken to *read* the
   overview (required — `get_page_text` drops the AI block), but it is **not saved**
   as an artifact.
+- **A clean context is required.** Capture in incognito or an empty browser profile:
+  no cookies, no account chat history, no previous queries of this run. Do not reuse
+  a logged-in profile that has talked about this brand. If the prose still refers to
+  an earlier turn, `prior_context` must be `true` and `prior_context_evidence` must
+  hold that sentence. `QueryCapture` runs `detect_prior_context(answer_text_md)` and
+  forces the flag on when the prose matches; a caller-set `true` is never flipped
+  back to `false`. Old JSON without these fields still validates (`false` / `null`).
 
 ### 1.3 Example `QueryCapture` JSON object
 
@@ -118,7 +127,9 @@ validates every object against it.
   "target_source_ranks": [2, 4],
   "target_citation_ranks": [1],
   "brand_in_answer_text": true,
-  "sentiment": "recommended among suitable options, mentioned by name with a direct link to the product"
+  "sentiment": "recommended among suitable options, mentioned by name with a direct link to the product",
+  "prior_context": false,
+  "prior_context_evidence": null
 }
 ```
 
@@ -134,7 +145,8 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 - **Schema creation / forward-migration:** `pipeline.db.init_db(conn)` — idempotent.
   Creates tables (`CREATE TABLE IF NOT EXISTS`) **and adds any column missing from an
   existing table** (`ALTER TABLE … ADD COLUMN`; currently `metrics.relative_citation`,
-  `metrics.n_brand_mentions`, `metrics.brand_mention_rate`).
+  `metrics.n_brand_mentions`, `metrics.brand_mention_rate`, `results.prior_context`,
+  `results.prior_context_evidence`).
   Safe to call on every startup: it both initializes a fresh DB and forward-migrates an
   older one in place (existing rows read `NULL` for a newly added column until re-aggregated).
 - Arrays / nested objects are stored as **JSON strings** in `*_json` columns.
@@ -183,6 +195,8 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 | `target_citation_ranks_json` | TEXT | JSON array of int |
 | `brand_in_answer_text` | INTEGER | 0/1 |
 | `sentiment` | TEXT | qualitative text or NULL |
+| `prior_context` | INTEGER NOT NULL | 0/1, default `0`. `1` when the answer reused an earlier turn. Not a funnel metric. |
+| `prior_context_evidence` | TEXT \| NULL | the leak sentence, or NULL |
 
 > **Capture identity / idempotency.** `(run_id, query, lens)` is the identity of a
 > capture within a run, enforced by `UNIQUE INDEX idx_results_run_query_lens ON
@@ -193,6 +207,13 @@ A batch fed to ingest is simply: `[ {QueryCapture}, {QueryCapture}, ... ]`.
 > de-duplicates any pre-existing `(run_id, query, lens)` collisions (keeping the
 > lowest `id`) and then creates the unique index — no manual step, no data loss
 > beyond the redundant duplicates.
+>
+> **Schema change / migration (prior context):** `prior_context` /
+> `prior_context_evidence` record a contaminated answer (see §1.2). A DB created
+> before these columns **self-heals** on the next `init_db` (`ALTER TABLE … ADD
+> COLUMN`). Existing rows read `prior_context = 0` and `prior_context_evidence =
+> NULL`. This is a capture flag, not a funnel number — `pipeline.aggregate` does
+> not count it.
 
 **`metrics`** (one row per lens + one `lens="all"` aggregate row per run)
 

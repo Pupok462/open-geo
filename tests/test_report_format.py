@@ -25,7 +25,9 @@ from report.generate import (
     _fmt_date,
     _fmt_dt,
     _load_metrics_for_run,
+    _load_results,
     _load_sentiments,
+    _result_table_row,
     _metrics_row_to_obj,
     _num,
     _pct,
@@ -131,6 +133,55 @@ def _insert_result(conn: sqlite3.Connection, **kw) -> None:
         f"INSERT INTO results ({cols}) VALUES ({placeholders})",
         tuple(defaults[c] for c in _RESULT_COLS),
     )
+
+
+def test_load_results_missing_prior_context_columns_does_not_crash(tmp_path):
+    conn = sqlite3.connect(str(tmp_path / "legacy-report.db"))
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.execute(
+            """
+            CREATE TABLE results (
+                id INTEGER PRIMARY KEY,
+                run_id INTEGER,
+                query TEXT,
+                lens TEXT,
+                overview_present INTEGER,
+                target_source_ranks_json TEXT,
+                target_citation_ranks_json TEXT,
+                brand_in_answer_text INTEGER,
+                sentiment TEXT
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO results (run_id, query, lens, overview_present, "
+            "brand_in_answer_text) VALUES (1, 'q', 'general', 1, 0)"
+        )
+        conn.commit()
+        rows = _load_results(conn, 1)
+    finally:
+        conn.close()
+    assert len(rows) == 1
+    assert rows[0].prior_context is False
+    assert rows[0].prior_context_evidence is None
+
+
+def test_result_row_marks_prior_context(t_en):
+    from report.generate import ResultRow
+
+    row = _result_table_row(
+        t_en,
+        ResultRow(
+            query="карнизы",
+            lens="general",
+            overview_present=True,
+            prior_context=True,
+            prior_context_evidence="Учитывая, что вы интересовались карнизами",
+        ),
+    )
+    assert t_en.t("report.prior_context_marker") in row.cells[0].text
+    assert row.cells[0].color == BAD
 
 
 def test_lens_label_all_uses_all_queries(t_en):

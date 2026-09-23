@@ -221,6 +221,8 @@
     "matrix_col_pos_cit": "引用位",
     "section_results": "按查询的结果",
     "results_intro": "本次运行的全部查询，按品牌进入回答的方式分组。",
+    "prior_context_marker": "回答使用了更早的对话上下文",
+    "prior_context_count": "{n} 个查询的回答使用了更早的对话上下文",
     "section_gaps": "待补齐的空白",
     "gaps_intro": "引擎给出了有依据的回答，但品牌完全未出现——没有引用、没有来源、没有提及。这就是可执行的清单。",
     "gaps_empty": "本次运行没有空白：在每个有回答的查询中都出现了品牌。",

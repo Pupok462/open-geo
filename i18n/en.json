@@ -221,6 +221,8 @@
     "matrix_col_pos_cit": "Cit pos.",
     "section_results": "Results by query",
     "results_intro": "Every query in this run, grouped by how the brand ended up in the answer.",
+    "prior_context_marker": "Answer used earlier chat context",
+    "prior_context_count": "{n} queries — answer used earlier chat context",
     "section_gaps": "Gaps to close",
     "gaps_intro": "Queries where the engine gave a grounded answer and the brand was absent from it entirely — no citation, no source, no mention. This is the actionable list.",
     "gaps_empty": "No gaps in this run: the brand appears in every answered query.",

@@ -195,6 +195,8 @@ class ResultRow:
     citation_ranks: list[int] = field(default_factory=list)
     brand_in_answer_text: bool = False
     sentiment: Optional[str] = None
+    prior_context: bool = False
+    prior_context_evidence: Optional[str] = None
 
 
 def result_outcome(row: ResultRow) -> str:
@@ -501,11 +503,26 @@ def _int_list(raw: Optional[str]) -> list[int]:
     return out
 
 
+def _results_db_columns(conn: sqlite3.Connection) -> set[str]:
+    try:
+        return {r["name"] for r in conn.execute("PRAGMA table_info(results)").fetchall()}
+    except sqlite3.OperationalError:
+        return set()
+
+
 def _load_results(conn: sqlite3.Connection, run_id: int) -> list[ResultRow]:
+    cols = _results_db_columns(conn)
+    extra: list[str] = []
+    if "prior_context" in cols:
+        extra.append("prior_context")
+    if "prior_context_evidence" in cols:
+        extra.append("prior_context_evidence")
+    extra_sql = (", " + ", ".join(extra)) if extra else ""
     rows = conn.execute(
-        """
+        f"""
         SELECT query, lens, overview_present, target_source_ranks_json,
                target_citation_ranks_json, brand_in_answer_text, sentiment
+               {extra_sql}
         FROM results WHERE run_id = ? ORDER BY id ASC
         """,
         (run_id,),
@@ -513,6 +530,10 @@ def _load_results(conn: sqlite3.Connection, run_id: int) -> list[ResultRow]:
     out: list[ResultRow] = []
     for r in rows:
         sentiment = (r["sentiment"] or "").strip() or None
+        evidence = None
+        if "prior_context_evidence" in cols:
+            raw_evidence = r["prior_context_evidence"]
+            evidence = (str(raw_evidence).strip() or None) if raw_evidence else None
         out.append(
             ResultRow(
                 query=(r["query"] or "").strip(),
@@ -522,6 +543,8 @@ def _load_results(conn: sqlite3.Connection, run_id: int) -> list[ResultRow]:
                 citation_ranks=_int_list(r["target_citation_ranks_json"]),
                 brand_in_answer_text=bool(r["brand_in_answer_text"]),
                 sentiment=sentiment,
+                prior_context=bool(r["prior_context"]) if "prior_context" in cols else False,
+                prior_context_evidence=evidence,
             )
         )
     return out
@@ -2032,6 +2055,9 @@ def render_kpi_cards(doc: Doc, t: Translator, data: ReportData) -> None:
         )
     else:
         sub = t.t("report.kpi_no_prev", current=_fmt_dt(data.run_at))
+    n_prior = sum(1 for row in data.results if row.prior_context)
+    if n_prior > 0:
+        sub = f"{sub}   ·   {t.t('report.prior_context_count', n=n_prior)}"
     draw_paragraph(doc, sub, 9, INK_DIM, FONT)
     doc.move(GAP_S)
 
@@ -2443,9 +2469,15 @@ def _result_table_row(t: Translator, row: ResultRow) -> TableRow:
         sentiment_cell = Cell(sentiment)
     else:
         sentiment_cell = Cell(t.t("dashboard.results_brand_absent"), color=INK_FAINT)
+    query_text = row.query
+    query_color = None
+    if row.prior_context:
+        marker = t.t("report.prior_context_marker")
+        query_text = f"{row.query} — {marker}" if row.query else marker
+        query_color = BAD
     return TableRow(
         cells=[
-            Cell(row.query),
+            Cell(query_text, color=query_color),
             Cell(lens_label(t, row.lens), color=INK_DIM),
             Cell(
                 yes if row.overview_present else no,

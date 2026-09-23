@@ -67,15 +67,14 @@ Do **not** substitute `gemini_ai_mode`, `google_gemini`, or any other string.
 > ingest it, **not** create runs, **not** write to the DB, and **not** start any server (so
 > you are not given a `run_id` or DB path). The orchestrator owns all of that.
 
-> **Session / locale knobs (target market ≠ UI language).** Gemini requires a
-> **logged-in Google account** — there is **no anonymous mode**, and **no `hl`/`gl`
-> URL parameters** like Google Search. The answer locale follows the **Google
-> account's language/region** (set in Gemini/Google account settings), so the
-> *target market is selected by which account/region you are logged into*, not by
-> the URL. Use the connected session **as-is**; do **not** log out or switch
-> account. The live session may render in any language (it was verified in
-> **Russian** — RU label examples are given below); **lead with the rendered text
-> in the page's actual language** and treat the English strings as examples.
+> **Session / locale knobs (target market ≠ UI language).** Gemini has **no
+> anonymous mode** and **no `hl`/`gl` URL parameters** like Google Search. Region
+> and language come from whatever the **clean context** already has — an empty
+> browser profile, not a logged-in profile that has talked about this brand (see
+> **Clean context**). Do **not** switch accounts mid-run. The live session may
+> render in any language (it was verified in **Russian** — RU label examples are
+> given below); **lead with the rendered text in the page's actual language** and
+> treat the English strings as examples.
 >
 > **Model pin.** The mode picker (top of the composer / `RU: "Выбор режима, сейчас
 > используется Flash"`) selects the model. **Pin the session default — `Flash` —**
@@ -84,6 +83,14 @@ Do **not** substitute `gemini_ai_mode`, `google_gemini`, or any other string.
 > decision; absent one, leave it on the default and capture what that produces.
 
 ---
+
+## Clean context
+
+Start the capture in a clean context: an empty browser profile — this surface has no incognito or temporary-chat mode. No cookies, no account chat history, no previous queries of this run. This engine is a chat: each query is its own new empty thread inside that clean context, not a continuation of a previous conversation.
+
+Do not reuse a logged-in profile that has talked about this brand.
+
+If the rendered answer refers to earlier turns, set `prior_context` true and put the sentence in `prior_context_evidence`. The schema detector will also set this from `answer_text_md`.
 
 ## Procedure
 
@@ -153,9 +160,10 @@ Do **not** substitute `gemini_ai_mode`, `google_gemini`, or any other string.
   screenshot), **not** a pre-navigation element `ref` — a stale ref from before the
   navigation silently swallows the typed text. Screenshot → click the visible composer
   → type → click send.
-- Keep the **session's** account/locale as-is. Do **not** open incognito (Gemini needs
-  login), do **not** log out, do **not** change the account or model. The browser is
-  **visible**; the human can see it.
+- Follow **Clean context**. Gemini has no incognito mode, so use an empty browser
+  profile. Do **not** reuse a logged-in profile that has talked about this brand,
+  and do **not** switch accounts or the model mid-run. Region and language come
+  from that clean context. The browser is **visible**; the human can see it.
 
 ### 2. Let the answer settle, then RELOAD the conversation (required)
 - After submit, Gemini streams the prose. **Wait until the prose stops growing**
