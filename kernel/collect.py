@@ -89,8 +89,6 @@ def round(
                 round_no=kernel.round,
             )
             seen.add(key)
-            if q is None:
-                continue
             minted = q.id not in before
             if minted:
                 added += 1
