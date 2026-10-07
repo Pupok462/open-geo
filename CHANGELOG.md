@@ -8,12 +8,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Removed
-- **The domain GEO-readiness audit is gone.** open-geo collects visibility data from AI
-  engines; it does not inspect whether a site is technically crawlable or citation-ready.
-  Removed: the `audit/` package, SKILL STEP 0, `--force`, the `audits` table and helpers,
-  `/api/audit`, the dashboard audit panel, the PDF audit section, and `docs/llms.txt`.
-  Historical run artifacts in `reports/` are unchanged.
+## [0.7.0] — 2026-10-08
 
 ### Fixed
 - **A capture that reused an earlier chat is marked.** `QueryCapture.prior_context`
@@ -23,12 +18,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   printed on the query row and, when the count is above zero, on the report's run
   summary line. It is not a funnel metric. Engine playbooks require a clean incognito
   or empty-profile context so account history cannot leak into the measurement.
-- **`is_brand` in the top-domains leaderboard now follows URL-prefix targets.** The flag was set by
-  comparing registrable domains, so a target like `github.com/user/repo` branded *every* github.com
-  link in the answer space — a run whose only github.com source was a stranger's repo showed that row
-  as "you" while the funnel metrics correctly reported no match. `domain_stats.is_brand` is now
-  decided per link with `matches_target`, the same semantics as `target_ranks`. Registrable-domain
-  targets (`ectem.ru`) are unaffected.
+
+### Changed
+- `plugin.json` is the single source of the plugin version; the marketplace entry
+  inherits it. The version bump delivers the prior-context fix to cached marketplace installs.
 
 ## [0.6.0] — 2026-09-07
 
@@ -53,6 +46,21 @@ native project skills/agents on Grok, Codex, Cursor, and Gemini CLI — not only
   API or headless data.
 - README names a supported agent host with a logged-in visible browser, not Claude Code
   as the only host.
+
+### Removed
+- **The domain GEO-readiness audit is gone.** open-geo collects visibility data from AI
+  engines; it does not inspect whether a site is technically crawlable or citation-ready.
+  Removed: the `audit/` package, SKILL STEP 0, `--force`, the `audits` table and helpers,
+  `/api/audit`, the dashboard audit panel, the PDF audit section, and `docs/llms.txt`.
+  Historical run artifacts in `reports/` are unchanged.
+
+### Fixed
+- **`is_brand` in the top-domains leaderboard now follows URL-prefix targets.** The flag was set by
+  comparing registrable domains, so a target like `github.com/user/repo` branded *every* github.com
+  link in the answer space — a run whose only github.com source was a stranger's repo showed that row
+  as "you" while the funnel metrics correctly reported no match. `domain_stats.is_brand` is now
+  decided per link with `matches_target`, the same semantics as `target_ranks`. Registrable-domain
+  targets (`ectem.ru`) are unaffected.
 
 ## [0.5.1] — 2026-08-26
 
@@ -412,7 +420,9 @@ First public release.
 - Targets as a domain **or a URL prefix**, so a single repo or docs section can be measured.
 - A four-language dashboard and PDF (English, Русский, 中文, العربية, RTL-aware).
 
-[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Pupok462/open-geo/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/Pupok462/open-geo/compare/62dd688f85deb63bc9e278f93670db05164045bf...v0.7.0
+[0.6.0]: https://github.com/Pupok462/open-geo/tree/62dd688f85deb63bc9e278f93670db05164045bf
 [0.5.1]: https://github.com/Pupok462/open-geo/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Pupok462/open-geo/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/Pupok462/open-geo/compare/v0.4.0...v0.4.1

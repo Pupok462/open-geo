@@ -11,7 +11,6 @@
       "name": "open-geo",
       "source": "./",
       "description": "Composable GEO visibility agent skill: capture rendered AI answers and return a portable JSON run artifact with optional PDF/dashboard outputs.",
-      "version": "0.6.0",
       "license": "MIT",
       "homepage": "https://github.com/Pupok462/open-geo",
       "keywords": [
