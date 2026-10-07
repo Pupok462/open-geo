@@ -18,11 +18,12 @@ Install (from a Claude Code session):
 /plugin install open-geo@open-geo-marketplace
 ```
 
-> **Release ritual — bump `version` on every plugin-visible change.** Installed plugins
-> only receive updates when `version` changes in BOTH `plugin.json` and the `plugins[0]`
-> entry of `marketplace.json`; pushing commits without a bump leaves every installed copy
-> stale. Any edit to `SKILL.md`, the agents, or these manifests ⇒ bump both, then users
-> pick it up via `/plugin update open-geo`.
+> **Release ritual — bump `version` in `plugin.json` for every release.** It is the
+> single source of the plugin version; omit `version` from the marketplace entry.
+> Hosted marketplace installs receive a new copy only when the computed version changes,
+> so commits pushed without a bump leave users on their cached copy. After the release
+> reaches the marketplace, users can run `claude plugin update open-geo@open-geo-marketplace`.
+> Plugins loaded in place from a local-path marketplace use the current files at session start.
 >
 > **Namespacing.** Plugin skills are namespaced: the plugin-installed command is
 > `/open-geo:open-geo`. The plain `/open-geo` form exists when working from a repo
@@ -43,3 +44,4 @@ scraping the chat response or reading SQLite directly.
 Schema reference (verified against the official Claude Code docs):
 - Plugin manifest: https://code.claude.com/docs/en/plugins-reference#plugin-manifest-schema
 - Marketplace: https://code.claude.com/docs/en/plugin-marketplaces
+- Versioning and updates: https://code.claude.com/docs/en/plugins/host-marketplace#release-a-new-version
