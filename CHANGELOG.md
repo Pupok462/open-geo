@@ -8,6 +8,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-10-25
+
+### Changed
+- Rebuilt the Open GEO skill from an executed isolated pipeline replay. The entrypoint
+  now routes to runtime, run-control, gotchas, and validation references; its discovery
+  description covers visibility questions, resume, and workflow handoffs.
+- One worker is the default. Capture workers save validated data after each query to
+  invocation-specific paths; all run commands use the same absolute database path.
+
+### Fixed
+- Resolve caller-relative input paths before switching to the runtime directory.
+- Count unique query/lens pairs when finalizing; duplicate CSV rows no longer instruct
+  the agent to invent failures. Reject malformed input before run creation.
+- Require stored-key reconciliation before marking a run done; preserve temporary
+  interruptions and their expected counts for resume; label partial-export denominators explicitly.
+- Refresh adapter output hashes after the existing Cursor/Gemini browser-tool adaptation,
+  so a complete generation passes `agentsmesh check`.
+- Resolve contradictory Google instructions using the playbook's existing dated hover
+  rule for `+N` chips; distinguish per-query objects from worker chunk arrays.
+
+### Tests
+- Added executable documentation replay tests for resume, idempotent ingest, URL-prefix
+  targets, null denominators, malformed input, and partial export. Independent agent
+  replays use synthetic captures; this release does not claim a new live-engine audit.
+
 ## [0.7.0] — 2026-10-08
 
 ### Fixed

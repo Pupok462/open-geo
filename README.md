@@ -203,7 +203,7 @@ Everything runs through **one** skill. You don't touch Python: the host agent or
 capture → metrics → artifact and hands the versioned JSON to you or the calling workflow.
 
 ```
-/open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
+/open-geo <questions.csv> <engine> <domain> --brand "<name>" [--n-worker <N>] \
           [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
           [--period today|all] [--lang en|ru|zh|ar] [--repeat R]
 ```
@@ -214,7 +214,7 @@ capture → metrics → artifact and hands the versioned JSON to you or the call
 | `<engine>` | which AI engine to track (e.g. `google`). The same slot takes any engine that has a capture playbook under `engines/`. |
 | `<domain>` | the target domain **or URL prefix** (`github.com`, `github.com/user`, `github.com/user/repo`; any spelling — normalized automatically). |
 | `--brand "<name>"` | human brand name (used in report/dashboard titles and the summary). |
-| `--n-worker <N>` | number of capture workers run **in parallel** — the run's concurrency. |
+| `--n-worker <N>` | optional; default `1`. Maximum capture concurrency, capped by pending rows and host/browser isolation. |
 | `--output` | `data` (default; JSON only, no servers) \| `dashboard` \| `pdf` \| `both`. |
 | `--artifact-out` | destination for the portable JSON artifact; defaults to `reports/run-<run-id>.json`. |
 | `--period` | `all` (default — full brand+engine history, with the trend chart) \| `today` (this run only). |

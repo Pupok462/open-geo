@@ -57,7 +57,8 @@ create an account or sign in. Stop and report the blocker.
 ## What you receive (spawn brief)
 - The **full text of the capture playbook** `engines/<engine>.md` — **authoritative** for how to
   drive this specific engine. Follow it exactly.
-- Your **chunk** of `(query, lens)` rows and your **chunk index** (1..N).
+- Your **chunk** of `(query, lens)` rows, **chunk index**, and a unique absolute
+  **output path** inside the orchestrator's per-invocation temporary directory.
 - The **target** (a domain OR URL-prefix such as `github.com/Pupok462`), the **`--brand` name**, and the **`<engine>` id**. Pass it to the playbook and to `target_ranks` as-is — do not strip the path.
 - Authority pointers: `pipeline/INTERFACES.md §1` (the `QueryCapture` shape) and
   `pipeline/schema.py :: QueryCapture` / `normalize_domain`.
@@ -95,30 +96,32 @@ create an account or sign in. Stop and report the blocker.
      the drift.** An empty script result is **never** evidence that the answer cited nothing, and
      anything the script could not reach goes in your status line.
 3. **Stay out of the database.** Do **not** run `pipeline.ingest` / `--new-run` / `create_run` /
-   `update_run_counts`, and do **not** start a server. Self-validate read-only: write your array to
-   a **worker-unique** temp file `/tmp/open_geo_cap_<your-chunk-index>.json` (parallel workers share
-   `/tmp` — never a fixed name), then validate **and rewrite the ranks deterministically**:
+   `update_run_counts`, and do **not** start a server. After **each query**, save the current
+   array to the supplied output path and validate it before continuing. `CAPTURE_OUT` below is
+   that absolute path; `TARGET` is the exact target including any path. Chunk indices alone
+   are not globally unique. Validate **and rewrite the ranks deterministically**:
    ```bash
-   .venv/bin/python - <<'EOF' /tmp/open_geo_cap_<your-chunk-index>.json <target>
+   .venv/bin/python - "$CAPTURE_OUT" "$TARGET" <<'EOF'
    import json, sys
-   from pipeline.schema import QueryCapture, target_ranks
+   from pathlib import Path
+   from pipeline.schema import Link, QueryCapture, target_ranks
    path, target = sys.argv[1], sys.argv[2]
-   objects = json.load(open(path))
+   path = Path(path)
+   objects = json.loads(path.read_text(encoding="utf-8"))
+   validated = []
    for o in objects:
-       src  = [{"rank": l["rank"], "url": l["url"], "domain": l["domain"]} for l in o.get("sources", [])]
-       cite = [{"rank": l["rank"], "url": l["url"], "domain": l["domain"]} for l in o.get("citations", [])]
-       from pipeline.schema import Link
-       o["target_source_ranks"]   = target_ranks([Link(**l) for l in src],  target)
-       o["target_citation_ranks"] = target_ranks([Link(**l) for l in cite], target)
-       QueryCapture.model_validate(o)
-   with open(path, "w") as f:
-       json.dump(objects, f)
+       o["target_source_ranks"] = target_ranks([Link(**l) for l in o.get("sources", [])], target)
+       o["target_citation_ranks"] = target_ranks([Link(**l) for l in o.get("citations", [])], target)
+       validated.append(QueryCapture.model_validate(o).model_dump(mode="json"))
+   tmp = path.with_suffix(path.suffix + ".tmp")
+   tmp.write_text(json.dumps(validated, ensure_ascii=False), encoding="utf-8")
+   tmp.replace(path)
    print("valid")
    EOF
    ```
    This overwrites the rank arrays with the deterministic output of `target_ranks` — manual counts
-   are replaced. Fix any `ValidationError` (re-capture the field with the browser still open) until
-   it prints `valid`.
+   are replaced. Fix a `ValidationError` from captured evidence or recapture once; if it still
+   fails, return the valid completed rows and the unresolved key/error instead of looping.
 4. **Close every tab you opened — leave the browser as you found it.** As your **final** browser
    action, once self-validation prints `valid`, close each tab **you** opened for this chunk — the
    capture tab(s) you created **plus** any source tab that opened by accident. Track your own tab
@@ -126,9 +129,10 @@ create an account or sign in. Stop and report the blocker.
    did not open** — parallel workers each own their tab/context and the orchestrator owns the
    original window. Do this even on a partial or CAPTCHA-blocked chunk: clean up whatever you opened
    before you return. (Claude Code: `tabs_create_mcp` / `tabs_context_mcp` / `tabs_close_mcp`.)
-5. **Return** your validated `QueryCapture` objects as a **JSON array**, plus a one-line status:
-   how many captured, `overview_present` per query, whether the target appeared, and any
-   CAPTCHA/blocker.
+5. **Return** the absolute output path and validated `QueryCapture` **JSON array**, plus
+   captured/missing `(query,lens)` keys and a one-line status: overview/target presence and
+   any blocker. The saved array must contain only completed valid captures; a missing query
+   is not a fabricated no-overview capture. On failure, retain the completed rows on disk.
 
 ## Hard rules
 - Engine-specific steps come from the injected playbook, not this file (keeps you working for any

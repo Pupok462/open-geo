@@ -10,6 +10,7 @@ without Claude-in-Chrome MCP tool names.
 from __future__ import annotations
 
 import re
+import hashlib
 import shutil
 import sys
 from pathlib import Path
@@ -138,6 +139,16 @@ def adapt_non_claude_markdown_capture_workers() -> None:
         path = REPO_ROOT / rel
         if path.is_file():
             path.write_text(strip_claude_chrome_tools(path.read_text(encoding="utf-8")), encoding="utf-8")
+            # These are still generated outputs: record the final adapter bytes,
+            # not the pre-adaptation Claude tool list, in AgentsMesh's output lock.
+            lock = CANON / ".lock"
+            if lock.is_file():
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                pattern = rf"^(  {re.escape(rel)}: sha256:)[0-9a-f]+$"
+                text = lock.read_text(encoding="utf-8")
+                updated = re.sub(pattern, lambda m: m.group(1) + digest, text, flags=re.MULTILINE)
+                if updated != text:
+                    lock.write_text(updated, encoding="utf-8")
 
 
 def main() -> int:

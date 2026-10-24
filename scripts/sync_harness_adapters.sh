@@ -5,5 +5,5 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-npx --yes agentsmesh@0.32.0 generate
+agentsmesh generate
 python3 "$ROOT/scripts/emit_grok_adapters.py"

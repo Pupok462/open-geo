@@ -173,7 +173,7 @@ Perplexity 的回答中——不走引擎 API，也不做无头抓取。对每�
 并把版本化 JSON 交给你或调用它的上层工作流。
 
 ```
-/open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
+/open-geo <questions.csv> <engine> <domain> --brand "<name>" [--n-worker <N>] \
           [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
           [--period today|all] [--lang en|ru|zh|ar] [--repeat R]
 ```
@@ -184,7 +184,7 @@ Perplexity 的回答中——不走引擎 API，也不做无头抓取。对每�
 | `<engine>` | 要追踪哪个 AI 引擎（如 `google`）。同一个位置可接受任何在 `engines/` 下有捕获 playbook 的引擎。 |
 | `<domain>` | 目标域名**或 URL 前缀**（`github.com`、`github.com/user`、`github.com/user/repo`；任意写法——会被自动归一化）。 |
 | `--brand "<name>"` | 人类可读的品牌名（用于报告/仪表盘标题和摘要）。 |
-| `--n-worker <N>` | **并行**运行的捕获 worker 数量——即本次运行的并发度。 |
+| `--n-worker <N>` | 可选，默认 `1`。最大捕获并发数，受待处理查询数量及浏览器隔离能力限制。 |
 | `--output` | `data`（默认；仅 JSON，不启动服务）\| `dashboard` \| `pdf` \| `both`。 |
 | `--artifact-out` | 可移植 JSON 产物的目标路径；默认 `reports/run-<run-id>.json`。 |
 | `--period` | `all`（默认——完整的品牌+引擎历史，含趋势图）\| `today`（仅本次运行）。 |

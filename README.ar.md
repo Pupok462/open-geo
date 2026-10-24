@@ -185,7 +185,7 @@
 ملف البيانات، ويُسلّم JSON ذا إصدار محدّد لك أو لسير العمل الذي استدعاه.
 
 ```
-/open-geo <questions.csv> <engine> <domain> --brand "<name>" --n-worker <N> \
+/open-geo <questions.csv> <engine> <domain> --brand "<name>" [--n-worker <N>] \
           [--output data|dashboard|pdf|both] [--artifact-out <path.json>] \
           [--period today|all] [--lang en|ru|zh|ar] [--repeat R]
 ```
@@ -196,7 +196,7 @@
 | `<engine>` | أيّ محرّك ذكاء اصطناعي يُتتبَّع (مثل `google`). تقبل الخانة نفسها أيّ محرّك لديه دليل التقاط ضمن `engines/`. |
 | `<domain>` | النطاق المستهدف **أو بادئة URL** (`github.com`، `github.com/user`، `github.com/user/repo`؛ بأيّ هجاء — يُوحَّد تلقائيًّا). |
 | `--brand "<name>"` | اسم العلامة التجارية البشري (يُستخدَم في عناوين التقرير/لوحة المعلومات والملخّص). |
-| `--n-worker <N>` | عدد عمّال الالتقاط المُشغَّلين **بالتوازي** — تزامُن الجولة. |
+| `--n-worker <N>` | اختياري؛ الافتراضي `1`. الحد الأقصى للالتقاط المتوازي، ضمن عدد الأسئلة المتبقية وقدرة المتصفح على العزل. |
 | `--output` | `data` (افتراضي؛ JSON فقط بلا خوادم) \| `dashboard` \| `pdf` \| `both`. |
 | `--artifact-out` | مسار ملف JSON القابل للنقل؛ الافتراضي `reports/run-<run-id>.json`. |
 | `--period` | `all` (افتراضي — كامل تاريخ العلامة التجارية+المحرّك، مع مخطّط الاتجاه) \| `today` (هذه الجولة فقط). |

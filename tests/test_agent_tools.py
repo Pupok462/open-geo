@@ -307,3 +307,38 @@ def test_canonical_ask_and_spawn_are_not_claude_only():
     )
     assert "Other hosts" in capture
     assert "mcp__claude-in-chrome" in capture
+
+
+def test_adapter_records_final_output_hashes_without_changing_canonical_lock(tmp_path, monkeypatch):
+    import hashlib
+    import importlib.util
+
+    script = REPO_ROOT / "scripts/emit_grok_adapters.py"
+    spec = importlib.util.spec_from_file_location("adapter_lock_probe", script)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "CANON", tmp_path / ".agentsmesh")
+    mod.CANON.mkdir()
+    generated = []
+    for host in (".cursor", ".gemini"):
+        path = tmp_path / host / "agents/capture-worker.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("---\nname: capture-worker\ntools:\n  - Read\n"
+                        "  - mcp__claude-in-chrome__navigate\n---\nOther hosts: browser.\n")
+        generated.append(path)
+    canonical_hash = "b" * 64
+    lock = mod.CANON / ".lock"
+    lock.write_text("checksums:\n  agents/capture-worker.md: sha256:" + canonical_hash +
+                    "\noutputs:\n" + "".join(
+                        f"  {p.relative_to(tmp_path)}: sha256:{'a' * 64}\n" for p in generated))
+    mod.adapt_non_claude_markdown_capture_workers()
+    first = lock.read_bytes()
+    assert f"agents/capture-worker.md: sha256:{canonical_hash}" in lock.read_text()
+    for path in generated:
+        assert "mcp__claude-in-chrome__navigate" not in path.read_text()
+        assert "Other hosts: browser." in path.read_text()
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        assert f"{path.relative_to(tmp_path)}: sha256:{digest}" in lock.read_text()
+    mod.adapt_non_claude_markdown_capture_workers()
+    assert lock.read_bytes() == first

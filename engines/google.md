@@ -10,8 +10,8 @@
 > `read_page`, `computer`, `javascript_tool`, and `get_page_text` are the
 > Claude-in-Chrome binding of those actions.
 > You capture **ONE `(query, lens)`** into **exactly one `QueryCapture` JSON
-> object**. The orchestrator runs you once per query and collects the objects
-> into a batch array — **you do not emit the array, only your single object.**
+> object** per query. A `capture-worker` processing a chunk accumulates those
+> objects into its saved/returned JSON array, as defined by its worker contract.
 >
 > **Authoritative contract:** `pipeline/INTERFACES.md` §1 (fields, rules §1.2,
 > example §1.3) and `pipeline/schema.py` (`QueryCapture`, `Link`,
@@ -112,8 +112,8 @@ If the rendered answer refers to earlier turns, set `prior_context` true and put
 > - **Click only the `button` form, never the `link` form.** In the interactive tree each
 >   item exposes **two** forms: a **`link`** that *navigates to the source site* and a
 >   **`button`** that *expands in place*. Click **only `button`s** — the **"N sites"** (RU:
->   "N сайтов") button and a chip's **`button`** form (e.g. ref for `"Example (+3)…"`
->   **button**, not its `link`). **NEVER click the source `link`/card** ("…opens in a new
+>   "N сайтов") button and panel expanders. For a **`+N` chip, hover instead**
+>   (the dated rule below takes precedence). **NEVER click the source `link`/card** ("…opens in a new
 >   tab"; RU: "Страница откроется в новой вкладке") or a chip's `link` — those open the
 >   source site, trip its captcha, and lose your place. For source cards you only ever
 >   **read** their `href`; you never click them.
@@ -257,13 +257,12 @@ Three distinct states:
   **screenshot**; pull their link `href`s from **`read_page(filter="interactive")`**.
 - **A chip hides multiple sources.** A pill carrying **"(+N)"** (e.g.
   `"Example (+1)…"`) stands for **N+1** underlying links (the named one **plus N
-  more**). **Click the chip's `button` form via `computer` `left_click` on its
-  `ref`** (from `read_page`/`find`), **then re-run
+  more**). **Hover over the `+N` badge's coordinate** (Claude: `computer`
+  `action="hover"`, per the 2026-08-26 evidence above), **then re-run
   `read_page(filter="interactive")`** and record **each** revealed link as its
   own `Link`. Never collapse a "(+N)" into one entry.
-- **Click the chip's `button`, NOT its `link`.** Each chip exposes both a
-  **`button`** (expands its sources in place — click this) and a **`link`** (opens
-  the source site — never click this). To read the chip's own href, just **READ**
+- **Do not click either form of a `+N` chip.** Both its **`button`** and **`link`**
+  can open the source site; use hover to expand in place. To read the chip's own href, **READ**
   it from the tree; clicking the `link` opens the source site and trips its
   captcha. **Never navigate to a cited website** — every URL is already on the
   Google page. If a click accidentally leaves Google, **go back** and re-read via
@@ -350,10 +349,10 @@ Three distinct states:
 - Set **`screenshot_path = null`** in your object. Do **not** write any file under
   `data/screenshots/...`.
 
-### 10. RETURN exactly ONE `QueryCapture` JSON object to the orchestrator
-- Produce **a single JSON object** matching `pipeline/INTERFACES.md` §1 in shape (see the
-  worked example below) and **return it to the orchestrator** — it collects all objects and
-  ingests them. **Do NOT run `pipeline.ingest`, do NOT create runs, do NOT write to the
+### 10. Finish one `QueryCapture` per query
+- Produce **one JSON object per query** matching `pipeline/INTERFACES.md` §1 (see the
+  worked example below). The worker validates and saves its chunk as a **JSON array**,
+  then returns it to the orchestrator for ingest. **Do NOT run `pipeline.ingest`, do NOT create runs, do NOT write to the
   DB.** You may **read** `pipeline/schema.py` to self-validate first.
 - `captured_at` = **now in UTC, ISO-8601** (e.g. `"2026-06-19T20:15:30Z"`); `screenshot_path
   = null`.
